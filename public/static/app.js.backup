@@ -137,20 +137,20 @@ const TagBlock = ({ block, onUpdate, onDelete, onWeightChange, language }) => {
             onClick={() => onWeightChange(block.id, Math.min(2, block.weight + 0.05))}
             className="text-gray-600 hover:text-gray-800"
           >
-            React.createElement(ChevronUp, { size: 16 })
+            <ChevronUp size={16} />
           </button>
           <span className="text-sm font-mono w-10 text-center">{block.weight.toFixed(2)}</span>
           <button
             onClick={() => onWeightChange(block.id, Math.max(0.1, block.weight - 0.05))}
             className="text-gray-600 hover:text-gray-800"
           >
-            React.createElement(ChevronDown, { size: 16 })
+            <ChevronDown size={16} />
           </button>
           <button
             onClick={() => onDelete(block.id)}
             className="text-red-600 hover:text-red-800 ml-2"
           >
-            React.createElement(Trash2, { size: 16 })
+            <Trash2 size={16} />
           </button>
         </div>
       </div>
@@ -168,7 +168,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">設定</h2>
           <button onClick={onClose} className="text-gray-600 hover:text-gray-800">
-            React.createElement(X, { size: 24 })
+            <X size={24} />
           </button>
         </div>
         
@@ -586,7 +586,7 @@ const App = () => {
             onClick={() => setIsSettingsOpen(true)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            React.createElement(Settings, { size: 24 })
+            <Settings size={24} />
           </button>
         </div>
       </header>
@@ -601,7 +601,7 @@ const App = () => {
               activeTab === 'text' ? 'border-blue-500 text-blue-600' : 'border-transparent hover:text-gray-600'
             )}
           >
-            React.createElement(FileText, { size: 20, className: "inline mr-2" })
+            <FileText size={20} className="inline mr-2" />
             text
           </button>
           <button
@@ -611,7 +611,7 @@ const App = () => {
               activeTab === 'image' ? 'border-blue-500 text-blue-600' : 'border-transparent hover:text-gray-600'
             )}
           >
-            React.createElement(Image, { size: 20, className: "inline mr-2" })
+            <Image size={20} className="inline mr-2" />
             image
           </button>
         </div>
@@ -652,7 +652,7 @@ const App = () => {
                     onClick={handleAIColorize}
                     className="px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors flex items-center gap-2"
                   >
-                    React.createElement(Palette, { size: 16 })
+                    <Palette size={16} />
                     AI色分け
                   </button>
                   <button
@@ -694,7 +694,7 @@ const App = () => {
                       }}
                       className="px-4 py-2 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors flex items-center gap-2"
                     >
-                      React.createElement(Sparkles, { size: 16 })
+                      <Sparkles size={16} />
                       AI生成
                     </button>
                   </div>
@@ -725,7 +725,7 @@ const App = () => {
                           onClick={() => addNewTag('en')}
                           className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                         >
-                          React.createElement(Plus, { size: 16 })
+                          <Plus size={16} />
                         </button>
                       </div>
                     </div>
@@ -765,7 +765,7 @@ const App = () => {
                           onClick={() => addNewTag('ja')}
                           className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                         >
-                          React.createElement(Plus, { size: 16 })
+                          <Plus size={16} />
                         </button>
                       </div>
                     </div>
@@ -794,7 +794,7 @@ const App = () => {
                     onClick={() => copyToClipboard(generateFinalPrompt())}
                     className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-2"
                   >
-                    React.createElement(Copy, { size: 16 })
+                    <Copy size={16} />
                     コピー
                   </button>
                 </div>
@@ -834,12 +834,12 @@ const App = () => {
                 >
                   {isGenerating ? (
                     <>
-                      React.createElement(RefreshCw, { size: 16, className: "animate-spin" })
+                      <RefreshCw size={16} className="animate-spin" />
                       生成中...
                     </>
                   ) : (
                     <>
-                      React.createElement(Sparkles, { size: 16 })
+                      <Sparkles size={16} />
                       生成
                     </>
                   )}
@@ -861,7 +861,7 @@ const App = () => {
         
         {activeTab === 'image' && (
           <div className="bg-white rounded-lg p-8 text-center">
-            React.createElement(Image, { size: 64, className: "mx-auto text-gray-400 mb-4" })
+            <Image size={64} className="mx-auto text-gray-400 mb-4" />
             <p className="text-gray-600">画像解析機能は今後実装予定です</p>
           </div>
         )}
@@ -878,92 +878,6 @@ const App = () => {
   );
 };
 
-// グローバルAppオブジェクトを作成（HTMLから呼び出し可能）
-window.App = {
-  splitText: () => {
-    console.log('Split text called');
-  },
-  analyzeAndCategorize: () => {
-    console.log('Analyze called');
-  },
-  generateOptimized: () => {
-    console.log('Generate called');
-  },
-  pasteFromClipboard: () => {
-    console.log('Paste called');
-  },
-  clearInput: () => {
-    console.log('Clear called');
-  },
-  updateOutputFormat: () => {
-    console.log('Update format called');
-  },
-  sortTags: (type) => {
-    console.log('Sort tags:', type);
-  },
-  translateAll: (direction) => {
-    console.log('Translate all:', direction);
-  },
-  addNewTag: (lang) => {
-    console.log('Add new tag:', lang);
-  },
-  copyOutput: () => {
-    console.log('Copy output');
-  },
-  downloadOutput: () => {
-    console.log('Download output');
-  },
-  generateImage: () => {
-    console.log('Generate image');
-  },
-  handleImageUpload: (event) => {
-    console.log('Image upload');
-  },
-  processBatch: () => {
-    console.log('Process batch');
-  },
-  clearBatch: () => {
-    console.log('Clear batch');
-  },
-  showSettings: () => {
-    console.log('Show settings');
-  },
-  closeSettings: () => {
-    console.log('Close settings');
-  },
-  setTab: (tab) => {
-    console.log('Set tab:', tab);
-  },
-  setSettingsTab: (tab) => {
-    console.log('Set settings tab:', tab);
-  },
-  updateOpenRouterKey: (key) => {
-    console.log('Update key');
-  },
-  testOpenRouterKey: () => {
-    console.log('Test key');
-  },
-  refreshModelList: () => {
-    console.log('Refresh models');
-  },
-  updateOpenRouterModel: (model) => {
-    console.log('Update model:', model);
-  },
-  selectRecommendedModel: (type) => {
-    console.log('Select model:', type);
-  },
-  resetSettings: () => {
-    console.log('Reset settings');
-  },
-  saveSettings: () => {
-    console.log('Save settings');
-  }
-};
-
-// Reactアプリケーションのマウント（空のdivにのみマウント）
-const appDiv = document.getElementById('app');
-if (appDiv && appDiv.children.length === 0) {
-  // divが空の場合のみReactアプリをマウント
-  const root = ReactDOM.createRoot(appDiv);
-  root.render(React.createElement(App));
-}
+// アプリケーションのマウント
+const root = ReactDOM.createRoot(document.getElementById('app'));
+root.render(React.createElement(App));
