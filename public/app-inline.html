@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SS Prompt Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <style>
+        [data-category="person"] { background-color: #fef3c7; border-color: #fbbf24; }
+        [data-category="appearance"] { background-color: #dbeafe; border-color: #60a5fa; }
+        [data-category="clothing"] { background-color: #fce7f3; border-color: #f9a8d4; }
+        [data-category="pose"] { background-color: #e9d5ff; border-color: #c084fc; }
+        [data-category="background"] { background-color: #d1fae5; border-color: #34d399; }
+        [data-category="quality"] { background-color: #fed7aa; border-color: #fb923c; }
+        [data-category="style"] { background-color: #fef3c7; border-color: #fde047; }
+        [data-category="other"] { background-color: #e5e7eb; border-color: #9ca3af; }
+        
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr min(400px, 30%);
+            gap: 1rem;
+            height: calc(100vh - 120px);
+        }
+        
+        .block-card {
+            transition: all 0.2s ease;
+            cursor: move;
+        }
+        
+        .block-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        
+        .block-card.dragging {
+            opacity: 0.5;
+        }
+        
+        .tag-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            width: 100%;
+        }
+        
+        .tag-input:focus {
+            background: white;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script>
+        // React and ReactDOM are already loaded via UMD
+        const { useState, useEffect, useRef, useCallback } = React;
+        
+        // ユーティリティ関数
+        const cn = (...classes) => classes.filter(Boolean).join(' ');
+        
+        // カテゴリの色定義
+        const categoryColors = {
+          person: 'bg-yellow-100 border-yellow-400',
+          appearance: 'bg-blue-100 border-blue-400',
+          clothing: 'bg-pink-100 border-pink-400',
+          pose: 'bg-purple-100 border-purple-400',
+          background: 'bg-green-100 border-green-400',
+          quality: 'bg-orange-100 border-orange-400',
+          style: 'bg-yellow-100 border-yellow-500',
+          other: 'bg-gray-100 border-gray-400'
+        };
+        
+        // デバウンス用Hook
+        const useDebounce = (value, delay) => {
+          const [debouncedValue, setDebouncedValue] = useState(value);
+          
+          useEffect(() => {
+            const handler = setTimeout(() => {
+              setDebouncedValue(value);
+            }, delay);
+            
+            return () => clearTimeout(handler);
+          }, [value, delay]);
+          
+          return debouncedValue;
+        };
+        
+        // ローカルストレージ用Hook
+        const useLocalStorage = (key, initialValue) => {
+          const [storedValue, setStoredValue] = useState(() => {
+            try {
+              const item = window.localStorage.getItem(key);
+              return item ? JSON.parse(item) : initialValue;
+            } catch (error) {
+              console.error(error);
+              return initialValue;
+            }
+          });
+          
+          const setValue = (value) => {
+            try {
+              setStoredValue(value);
+              window.localStorage.setItem(key, JSON.stringify(value));
+            } catch (error) {
+              console.error(error);
+            }
+          };
+          
+          return [storedValue, setValue];
+        };
+        
+        // アイコンコンポーネント
+        const IconSettings = () => React.createElement('i', { className: 'fas fa-cog text-xl' });
+        const IconCopy = () => React.createElement('i', { className: 'fas fa-copy' });
+        const IconPlus = () => React.createElement('i', { className: 'fas fa-plus' });
+        const IconTrash = () => React.createElement('i', { className: 'fas fa-trash' });
+        const IconChevronUp = () => React.createElement('i', { className: 'fas fa-chevron-up text-xs' });
+        const IconChevronDown = () => React.createElement('i', { className: 'fas fa-chevron-down text-xs' });
+        const IconImage = () => React.createElement('i', { className: 'fas fa-image' });
+        const IconFileText = () => React.createElement('i', { className: 'fas fa-file-alt' });
+        const IconPalette = () => React.createElement('i', { className: 'fas fa-palette' });
+        const IconSparkles = () => React.createElement('i', { className: 'fas fa-sparkles' });
+        const IconRefresh = () => React.createElement('i', { className: 'fas fa-sync fa-spin' });
+        const IconTimes = () => React.createElement('i', { className: 'fas fa-times' });
+        
+        // タグブロックコンポーネント
+        const TagBlock = ({ block, onUpdate, onDelete, onWeightChange, language }) => {
+          const [isEditing, setIsEditing] = useState(false);
+          const [editValue, setEditValue] = useState(block[language]);
+          const [isDragging, setIsDragging] = useState(false);
+          
+          const handleEdit = () => {
+            setIsEditing(true);
+            setEditValue(block[language]);
+          };
+          
+          const handleSave = () => {
+            if (editValue.trim()) {
+              onUpdate(block.id, { [language]: editValue.trim() });
+            }
+            setIsEditing(false);
+          };
+          
+          const handleCancel = () => {
+            setEditValue(block[language]);
+            setIsEditing(false);
+          };
+          
+          const handleDragStart = (e) => {
+            setIsDragging(true);
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('blockId', block.id);
+          };
+          
+          const handleDragEnd = () => {
+            setIsDragging(false);
+          };
+          
+          return React.createElement('div', {
+            className: cn(
+              'block-card p-3 border-2 rounded-lg mb-2',
+              categoryColors[block.category] || categoryColors.other,
+              isDragging && 'dragging',
+              'cursor-move'
+            ),
+            draggable: true,
+            onDragStart: handleDragStart,
+            onDragEnd: handleDragEnd,
+            'data-category': block.category
+          }, 
+            React.createElement('div', { className: 'flex items-start justify-between gap-2' },
+              React.createElement('div', { className: 'flex-1' },
+                isEditing ? 
+                  React.createElement('div', { className: 'flex gap-1' },
+                    React.createElement('input', {
+                      type: 'text',
+                      value: editValue,
+                      onChange: (e) => setEditValue(e.target.value),
+                      onKeyDown: (e) => {
+                        if (e.key === 'Enter') handleSave();
+                        if (e.key === 'Escape') handleCancel();
+                      },
+                      className: 'tag-input flex-1 px-2 py-1 border rounded',
+                      autoFocus: true
+                    }),
+                    React.createElement('button', {
+                      onClick: handleSave,
+                      className: 'text-green-600 hover:text-green-800'
+                    }, React.createElement('i', { className: 'fas fa-check' })),
+                    React.createElement('button', {
+                      onClick: handleCancel,
+                      className: 'text-red-600 hover:text-red-800'
+                    }, React.createElement('i', { className: 'fas fa-times' }))
+                  ) :
+                  React.createElement('div', {
+                    onClick: handleEdit,
+                    className: 'cursor-text hover:bg-white/50 px-2 py-1 rounded'
+                  }, block[language])
+              ),
+              React.createElement('div', { className: 'flex items-center gap-1' },
+                React.createElement('button', {
+                  onClick: () => onWeightChange(block.id, Math.min(2, block.weight + 0.05)),
+                  className: 'text-gray-600 hover:text-gray-800'
+                }, React.createElement(IconChevronUp)),
+                React.createElement('span', { className: 'text-sm font-mono w-10 text-center' }, 
+                  block.weight.toFixed(2)
+                ),
+                React.createElement('button', {
+                  onClick: () => onWeightChange(block.id, Math.max(0.1, block.weight - 0.05)),
+                  className: 'text-gray-600 hover:text-gray-800'
+                }, React.createElement(IconChevronDown)),
+                React.createElement('button', {
+                  onClick: () => onDelete(block.id),
+                  className: 'text-red-600 hover:text-red-800 ml-2'
+                }, React.createElement(IconTrash))
+              )
+            )
+          );
+        };
+        
+        // 設定モーダルコンポーネント
+        const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
+          if (!isOpen) return null;
+          
+          return React.createElement('div', {
+            className: 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center'
+          },
+            React.createElement('div', {
+              className: 'bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto'
+            },
+              React.createElement('div', { className: 'flex justify-between items-center mb-4' },
+                React.createElement('h2', { className: 'text-2xl font-bold' }, '設定'),
+                React.createElement('button', {
+                  onClick: onClose,
+                  className: 'text-gray-600 hover:text-gray-800'
+                }, React.createElement(IconTimes))
+              ),
+              React.createElement('div', { className: 'space-y-4' },
+                React.createElement('div', {},
+                  React.createElement('h3', { className: 'font-semibold mb-2' }, 'API設定'),
+                  React.createElement('div', { className: 'space-y-2' },
+                    React.createElement('input', {
+                      type: 'text',
+                      placeholder: 'OpenRouter API Key',
+                      value: settings.openRouterKey || '',
+                      onChange: (e) => onSettingsChange({ ...settings, openRouterKey: e.target.value }),
+                      className: 'w-full px-3 py-2 border rounded'
+                    }),
+                    React.createElement('input', {
+                      type: 'text',
+                      placeholder: '画像生成API エンドポイント',
+                      value: settings.imageApiEndpoint || '',
+                      onChange: (e) => onSettingsChange({ ...settings, imageApiEndpoint: e.target.value }),
+                      className: 'w-full px-3 py-2 border rounded'
+                    })
+                  )
+                ),
+                React.createElement('div', {},
+                  React.createElement('h3', { className: 'font-semibold mb-2' }, '出力形式'),
+                  React.createElement('select', {
+                    value: settings.outputFormat || 'sdxl',
+                    onChange: (e) => onSettingsChange({ ...settings, outputFormat: e.target.value }),
+                    className: 'w-full px-3 py-2 border rounded'
+                  },
+                    React.createElement('option', { value: 'sdxl' }, 'SDXL タグ形式'),
+                    React.createElement('option', { value: 'flux' }, 'Flux フレーズ形式'),
+                    React.createElement('option', { value: 'imagefx' }, 'ImageFX 命令形式')
+                  )
+                )
+              )
+            )
+          );
+        };
+        
+        // メインアプリケーションコンポーネント
+        const App = () => {
+          const [activeTab, setActiveTab] = useState('text');
+          const [inputText, setInputText] = useState('');
+          const [blocks, setBlocks] = useState([]);
+          const [newTagInput, setNewTagInput] = useState({ en: '', ja: '' });
+          const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+          const [settings, setSettings] = useLocalStorage('ss-prompt-settings', {
+            outputFormat: 'sdxl',
+            model: 'gpt-4',
+            openRouterKey: '',
+            imageApiEndpoint: ''
+          });
+          const [generatedImage, setGeneratedImage] = useState(null);
+          const [isGenerating, setIsGenerating] = useState(false);
+          
+          // テキストを分解してブロック化
+          const handleSplit = async () => {
+            try {
+              const response = await axios.post('/api/split', { text: inputText });
+              setBlocks(response.data.blocks);
+            } catch (error) {
+              // フォールバック処理
+              const delimiters = /[,，.。、]/g;
+              const parts = inputText.split(delimiters).filter(part => part.trim());
+              
+              const newBlocks = parts.map((part, index) => ({
+                id: Date.now() + index,
+                en: part.trim(),
+                ja: part.trim(),
+                weight: 1.0,
+                category: 'other',
+                locked: false
+              }));
+              
+              setBlocks(newBlocks);
+            }
+          };
+          
+          // AI色分け
+          const handleAIColorize = async () => {
+            try {
+              const response = await axios.post('/api/categorize', { blocks });
+              setBlocks(response.data.blocks);
+            } catch (error) {
+              // フォールバック処理
+              const categories = ['person', 'appearance', 'clothing', 'pose', 'background', 'quality', 'style', 'other'];
+              
+              const colorizedBlocks = blocks.map(block => ({
+                ...block,
+                category: categories[Math.floor(Math.random() * categories.length)]
+              }));
+              
+              setBlocks(colorizedBlocks);
+            }
+          };
+          
+          // AI生成
+          const handleAIGenerate = async () => {
+            try {
+              const response = await axios.post('/api/optimize', {
+                prompt: inputText,
+                format: settings.outputFormat
+              });
+              
+              if (typeof response.data.optimized === 'string') {
+                setInputText(response.data.optimized);
+              } else if (response.data.optimized.positive) {
+                setInputText(response.data.optimized.positive);
+              }
+              handleSplit();
+            } catch (error) {
+              // フォールバック処理
+              const optimizedText = `masterpiece, best quality, ${inputText}, detailed, 8k`;
+              setInputText(optimizedText);
+              handleSplit();
+            }
+          };
+          
+          // ブロックの更新
+          const updateBlock = (id, updates) => {
+            setBlocks(blocks.map(block => 
+              block.id === id ? { ...block, ...updates } : block
+            ));
+          };
+          
+          // ブロックの削除
+          const deleteBlock = (id) => {
+            setBlocks(blocks.filter(block => block.id !== id));
+          };
+          
+          // 重みの変更
+          const changeWeight = (id, newWeight) => {
+            updateBlock(id, { weight: newWeight });
+          };
+          
+          // 新しいタグの追加
+          const addNewTag = (language) => {
+            const value = newTagInput[language];
+            if (!value.trim()) return;
+            
+            const newBlock = {
+              id: Date.now(),
+              en: language === 'en' ? value : value + '_translated',
+              ja: language === 'ja' ? value : value + '_翻訳済み',
+              weight: 1.0,
+              category: 'other',
+              locked: false
+            };
+            
+            setBlocks([...blocks, newBlock]);
+            setNewTagInput({ en: '', ja: '' });
+          };
+          
+          // 完成プロンプトの生成
+          const generateFinalPrompt = () => {
+            if (blocks.length === 0) return '';
+            
+            const format = settings.outputFormat || 'sdxl';
+            
+            if (format === 'sdxl') {
+              return blocks.map(block => {
+                const tag = block.en;
+                if (block.weight !== 1.0) {
+                  return `(${tag}:${block.weight.toFixed(2)})`;
+                }
+                return tag;
+              }).join(', ');
+            } else if (format === 'flux') {
+              return blocks.map(block => block.en).join('. ') + '.';
+            } else {
+              return blocks.map(block => block.en).join(' ');
+            }
+          };
+          
+          // 画像生成
+          const handleGenerateImage = async () => {
+            setIsGenerating(true);
+            
+            try {
+              const response = await axios.post('/api/generate-image', {
+                prompt: generateFinalPrompt(),
+                model: settings.model
+              });
+              
+              setGeneratedImage(response.data.image.url);
+            } catch (error) {
+              console.error('Image generation failed:', error);
+              setGeneratedImage('https://via.placeholder.com/512x512.png?text=Generated+Image');
+            } finally {
+              setIsGenerating(false);
+            }
+          };
+          
+          // クリップボードにコピー
+          const copyToClipboard = (text) => {
+            navigator.clipboard.writeText(text);
+          };
+          
+          return React.createElement('div', { className: 'min-h-screen bg-gray-50' },
+            // ヘッダー
+            React.createElement('header', { className: 'bg-white shadow-sm border-b' },
+              React.createElement('div', { className: 'px-4 py-3 flex justify-between items-center' },
+                React.createElement('h1', { className: 'text-2xl font-bold text-gray-800' }, 'SS Prompt Manager'),
+                React.createElement('button', {
+                  onClick: () => setIsSettingsOpen(true),
+                  className: 'p-2 hover:bg-gray-100 rounded-lg transition-colors'
+                }, React.createElement(IconSettings))
+              )
+            ),
+            
+            // タブ
+            React.createElement('div', { className: 'bg-white border-b px-4' },
+              React.createElement('div', { className: 'flex gap-4' },
+                React.createElement('button', {
+                  onClick: () => setActiveTab('text'),
+                  className: cn(
+                    'py-3 px-4 border-b-2 transition-colors flex items-center gap-2',
+                    activeTab === 'text' ? 'border-blue-500 text-blue-600' : 'border-transparent hover:text-gray-600'
+                  )
+                }, React.createElement(IconFileText), 'text'),
+                React.createElement('button', {
+                  onClick: () => setActiveTab('image'),
+                  className: cn(
+                    'py-3 px-4 border-b-2 transition-colors flex items-center gap-2',
+                    activeTab === 'image' ? 'border-blue-500 text-blue-600' : 'border-transparent hover:text-gray-600'
+                  )
+                }, React.createElement(IconImage), 'image')
+              )
+            ),
+            
+            // メインコンテンツ
+            React.createElement('div', { className: 'p-4' },
+              activeTab === 'text' && React.createElement('div', { className: 'split-view' },
+                // 左側：メインエリア
+                React.createElement('div', { className: 'space-y-4' },
+                  // 入力エリア
+                  React.createElement('div', { className: 'bg-white rounded-lg p-4 shadow' },
+                    React.createElement('textarea', {
+                      value: inputText,
+                      onChange: (e) => setInputText(e.target.value),
+                      placeholder: 'プロンプトを入力...',
+                      className: 'w-full h-32 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500'
+                    }),
+                    
+                    // 操作ボタン
+                    React.createElement('div', { className: 'flex gap-2 mt-3 flex-wrap' },
+                      React.createElement('button', {
+                        onClick: handleSplit,
+                        className: 'px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors'
+                      }, '分解'),
+                      React.createElement('button', {
+                        onClick: handleAIColorize,
+                        className: 'px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors flex items-center gap-2'
+                      }, React.createElement(IconPalette), 'AI色分け'),
+                      React.createElement('button', {
+                        onClick: () => {
+                          setInputText('');
+                          setBlocks([]);
+                        },
+                        className: 'px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg transition-colors'
+                      }, 'クリア'),
+                      
+                      React.createElement('div', { className: 'flex items-center gap-2 ml-auto' },
+                        React.createElement('select', {
+                          value: settings.outputFormat,
+                          onChange: (e) => setSettings({ ...settings, outputFormat: e.target.value }),
+                          className: 'px-3 py-2 border rounded-lg'
+                        },
+                          React.createElement('option', { value: 'sdxl' }, 'SDXLタグ形式'),
+                          React.createElement('option', { value: 'flux' }, 'Fluxフレーズ形式'),
+                          React.createElement('option', { value: 'imagefx' }, 'ImageFX形式')
+                        ),
+                        
+                        React.createElement('select', {
+                          value: settings.model,
+                          onChange: (e) => setSettings({ ...settings, model: e.target.value }),
+                          className: 'px-3 py-2 border rounded-lg'
+                        },
+                          React.createElement('option', { value: 'gpt-4' }, 'GPT-4.0'),
+                          React.createElement('option', { value: 'gpt-3.5-turbo' }, 'GPT-3.5'),
+                          React.createElement('option', { value: 'claude-3' }, 'Claude-3')
+                        ),
+                        
+                        React.createElement('button', {
+                          onClick: handleAIGenerate,
+                          className: 'px-4 py-2 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors flex items-center gap-2'
+                        }, React.createElement(IconSparkles), 'AI生成')
+                      )
+                    )
+                  ),
+                  
+                  // タグ編集エリア
+                  React.createElement('div', { className: 'bg-white rounded-lg p-4 shadow' },
+                    React.createElement('div', { className: 'grid grid-cols-2 gap-4' },
+                      // 英語カラム
+                      React.createElement('div', {},
+                        React.createElement('div', { className: 'flex items-center justify-between mb-3' },
+                          React.createElement('h3', { className: 'font-semibold text-gray-700' }, 'English'),
+                          React.createElement('div', { className: 'flex gap-2' },
+                            React.createElement('input', {
+                              type: 'text',
+                              value: newTagInput.en,
+                              onChange: (e) => setNewTagInput({ ...newTagInput, en: e.target.value }),
+                              onKeyDown: (e) => {
+                                if (e.key === 'Enter') {
+                                  addNewTag('en');
+                                }
+                              },
+                              placeholder: '新しいタグを追加',
+                              className: 'px-3 py-1 border rounded-lg text-sm'
+                            }),
+                            React.createElement('button', {
+                              onClick: () => addNewTag('en'),
+                              className: 'px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600'
+                            }, React.createElement(IconPlus))
+                          )
+                        ),
+                        
+                        React.createElement('div', { className: 'space-y-2 max-h-96 overflow-y-auto' },
+                          blocks.map(block =>
+                            React.createElement(TagBlock, {
+                              key: block.id,
+                              block: block,
+                              onUpdate: updateBlock,
+                              onDelete: deleteBlock,
+                              onWeightChange: changeWeight,
+                              language: 'en'
+                            })
+                          )
+                        )
+                      ),
+                      
+                      // 日本語カラム
+                      React.createElement('div', {},
+                        React.createElement('div', { className: 'flex items-center justify-between mb-3' },
+                          React.createElement('h3', { className: 'font-semibold text-gray-700' }, '日本語'),
+                          React.createElement('div', { className: 'flex gap-2' },
+                            React.createElement('input', {
+                              type: 'text',
+                              value: newTagInput.ja,
+                              onChange: (e) => setNewTagInput({ ...newTagInput, ja: e.target.value }),
+                              onKeyDown: (e) => {
+                                if (e.key === 'Enter') {
+                                  addNewTag('ja');
+                                }
+                              },
+                              placeholder: '新しいタグを追加',
+                              className: 'px-3 py-1 border rounded-lg text-sm'
+                            }),
+                            React.createElement('button', {
+                              onClick: () => addNewTag('ja'),
+                              className: 'px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600'
+                            }, React.createElement(IconPlus))
+                          )
+                        ),
+                        
+                        React.createElement('div', { className: 'space-y-2 max-h-96 overflow-y-auto' },
+                          blocks.map(block =>
+                            React.createElement(TagBlock, {
+                              key: block.id,
+                              block: block,
+                              onUpdate: updateBlock,
+                              onDelete: deleteBlock,
+                              onWeightChange: changeWeight,
+                              language: 'ja'
+                            })
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  
+                  // 完成プロンプト
+                  React.createElement('div', { className: 'bg-white rounded-lg p-4 shadow' },
+                    React.createElement('div', { className: 'flex items-center justify-between mb-3' },
+                      React.createElement('h3', { className: 'font-semibold text-gray-700' }, '完成プロンプト'),
+                      React.createElement('button', {
+                        onClick: () => copyToClipboard(generateFinalPrompt()),
+                        className: 'px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-2'
+                      }, React.createElement(IconCopy), 'コピー')
+                    ),
+                    React.createElement('div', { className: 'p-3 bg-gray-50 rounded-lg' },
+                      React.createElement('pre', { className: 'whitespace-pre-wrap text-sm font-mono' },
+                        generateFinalPrompt() || 'プロンプトがまだ生成されていません'
+                      )
+                    )
+                  )
+                ),
+                
+                // 右側：画像生成エリア
+                React.createElement('div', { className: 'bg-white rounded-lg p-4 shadow' },
+                  React.createElement('h3', { className: 'font-semibold text-gray-700 mb-3' }, '画像生成'),
+                  
+                  React.createElement('div', { className: 'space-y-3' },
+                    React.createElement('div', {},
+                      React.createElement('label', { className: 'block text-sm text-gray-600 mb-1' }, 'プロンプト'),
+                      React.createElement('div', { className: 'p-2 bg-gray-50 rounded text-sm max-h-32 overflow-y-auto' },
+                        generateFinalPrompt() || 'プロンプトなし'
+                      )
+                    ),
+                    
+                    React.createElement('div', {},
+                      React.createElement('label', { className: 'block text-sm text-gray-600 mb-1' }, 'モデル'),
+                      React.createElement('select', { className: 'w-full px-3 py-2 border rounded-lg' },
+                        React.createElement('option', {}, 'SDXL 1.0'),
+                        React.createElement('option', {}, 'Flux.1 Dev'),
+                        React.createElement('option', {}, 'Midjourney v6')
+                      )
+                    ),
+                    
+                    React.createElement('button', {
+                      onClick: handleGenerateImage,
+                      disabled: isGenerating || !generateFinalPrompt(),
+                      className: 'w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+                    },
+                      isGenerating ? 
+                        React.createElement(React.Fragment, {},
+                          React.createElement(IconRefresh),
+                          '生成中...'
+                        ) :
+                        React.createElement(React.Fragment, {},
+                          React.createElement(IconSparkles),
+                          '生成'
+                        )
+                    ),
+                    
+                    generatedImage && React.createElement('div', { className: 'mt-4' },
+                      React.createElement('img', {
+                        src: generatedImage,
+                        alt: 'Generated',
+                        className: 'w-full rounded-lg shadow-lg'
+                      })
+                    )
+                  )
+                )
+              ),
+              
+              activeTab === 'image' && React.createElement('div', { className: 'bg-white rounded-lg p-8 text-center' },
+                React.createElement(IconImage),
+                React.createElement('p', { className: 'text-gray-600 mt-4' }, '画像解析機能は今後実装予定です')
+              )
+            ),
+            
+            // 設定モーダル
+            React.createElement(SettingsModal, {
+              isOpen: isSettingsOpen,
+              onClose: () => setIsSettingsOpen(false),
+              settings: settings,
+              onSettingsChange: setSettings
+            })
+          );
+        };
+        
+        // アプリケーションのマウント
+        const root = ReactDOM.createRoot(document.getElementById('app'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
