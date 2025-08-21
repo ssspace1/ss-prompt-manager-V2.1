@@ -80,10 +80,12 @@ let appState = {
   tags: [],
   currentTab: 'text',
   outputFormat: 'sdxl',
-  settingsOpen: false
+  settingsOpen: false,
+  apiKey: localStorage.getItem('openrouter-api-key') || '',
+  selectedModel: localStorage.getItem('selected-model') || 'openai/gpt-4o-mini'
 };
 
-// Translation function
+// Translation function - Dictionary fallback
 function translateToJapanese(text) {
   const lower = text.toLowerCase().trim();
   
@@ -102,6 +104,46 @@ function translateToJapanese(text) {
   return text;
 }
 
+// AI Translation function
+async function translateWithAI(text, targetLang = 'ja') {
+  if (!appState.apiKey) {
+    return targetLang === 'ja' ? translateToJapanese(text) : text;
+  }
+  
+  try {
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        targetLang,
+        apiKey: appState.apiKey
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Translation failed');
+    }
+    
+    const data = await response.json();
+    return data.translated || text;
+  } catch (error) {
+    console.error('AI translation error:', error);
+    return targetLang === 'ja' ? translateToJapanese(text) : text;
+  }
+}
+
+// Translate from Japanese to English
+function translateToEnglish(text) {
+  // Reverse lookup in dictionary
+  for (const [eng, jpn] of Object.entries(translationDict)) {
+    if (jpn === text) {
+      return eng;
+    }
+  }
+  return text;
+}
+
 // Create tag element
 function createTagElement(tag, language) {
   const div = document.createElement('div');
@@ -116,10 +158,15 @@ function createTagElement(tag, language) {
     other: 'bg-gray-100 border-gray-400'
   };
   
-  div.className = `p-2 mb-2 border-2 rounded-lg ${categoryColors[tag.category] || categoryColors.other}`;
+  div.className = `p-2 mb-2 border-2 rounded-lg ${categoryColors[tag.category] || categoryColors.other} transition-all`;
   div.innerHTML = `
     <div class="flex items-center justify-between">
-      <span class="flex-1">${language === 'en' ? tag.en : tag.ja}</span>
+      <span id="tag-${language}-${tag.id}" 
+            class="flex-1 cursor-pointer hover:bg-white hover:bg-opacity-50 px-1 rounded"
+            onclick="App.makeEditable(${tag.id}, '${language}')"
+            title="Click to edit">
+        ${language === 'en' ? tag.en : tag.ja}
+      </span>
       <div class="flex items-center gap-1">
         <button onclick="App.changeWeight(${tag.id}, -0.1)" class="px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded text-xs">
           <i class="fas fa-minus"></i>
@@ -213,22 +260,69 @@ function categorizeTag(text) {
   return 'other';
 }
 
+// Helper functions
+function showLoading(message = 'Loading...') {
+  let loader = document.getElementById('loading-indicator');
+  if (!loader) {
+    loader = document.createElement('div');
+    loader.id = 'loading-indicator';
+    loader.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.9);color:white;padding:20px 40px;border-radius:10px;z-index:10000;display:flex;align-items:center;';
+    document.body.appendChild(loader);
+  }
+  loader.innerHTML = `<i class="fas fa-spinner fa-spin mr-3"></i><span>${message}</span>`;
+  loader.style.display = 'flex';
+}
+
+function hideLoading() {
+  const loader = document.getElementById('loading-indicator');
+  if (loader) {
+    loader.style.display = 'none';
+  }
+}
+
+function showNotification(message, type = 'success') {
+  const notification = document.createElement('div');
+  notification.style.cssText = `position:fixed;top:20px;right:20px;padding:15px 20px;border-radius:5px;z-index:9999;display:flex;align-items:center;animation:slideIn 0.3s ease;`;
+  
+  const colors = {
+    success: 'background:#10b981;color:white;',
+    error: 'background:#ef4444;color:white;',
+    info: 'background:#3b82f6;color:white;'
+  };
+  
+  notification.style.cssText += colors[type] || colors.info;
+  notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} mr-2"></i>${message}`;
+  
+  document.body.appendChild(notification);
+  setTimeout(() => notification.remove(), 3000);
+}
+
 // Global App object
 window.App = {
-  splitText: () => {
+  splitText: async () => {
     const input = document.getElementById('input-text');
     if (!input || !input.value.trim()) return;
     
     const parts = input.value.split(/[,，.。、]/).filter(p => p.trim());
     
-    appState.tags = parts.map((part, i) => ({
-      id: Date.now() + i,
-      en: part.trim(),
-      ja: translateToJapanese(part.trim()),
-      weight: 1.0,
-      category: categorizeTag(part.trim())
-    }));
+    showLoading('Splitting and translating tags...');
     
+    // Create tags with AI translation if available
+    const tagPromises = parts.map(async (part, i) => {
+      const trimmedPart = part.trim();
+      const ja = await translateWithAI(trimmedPart, 'ja');
+      
+      return {
+        id: Date.now() + i,
+        en: trimmedPart,
+        ja: ja,
+        weight: 1.0,
+        category: categorizeTag(trimmedPart)
+      };
+    });
+    
+    appState.tags = await Promise.all(tagPromises);
+    hideLoading();
     renderTags();
   },
   
@@ -246,42 +340,47 @@ window.App = {
     renderTags();
   },
   
-  generateOptimized: () => {
+  generateOptimized: async () => {
     const input = document.getElementById('input-text');
     if (!input || !input.value.trim()) return;
     
-    // Add quality tags
-    const qualityTags = ['masterpiece', 'best quality', 'detailed', '8k resolution'];
-    const styleTags = ['professional lighting', 'sharp focus'];
+    if (!appState.apiKey) {
+      alert('Please set your OpenRouter API key in Settings first');
+      return;
+    }
     
-    App.splitText();
+    showLoading('Generating optimized tags with AI...');
     
-    // Add quality tags at the beginning
-    const newTags = [];
-    qualityTags.forEach((tag, i) => {
-      newTags.push({
-        id: Date.now() - 100 + i,
-        en: tag,
-        ja: translateToJapanese(tag),
-        weight: 1.2,
-        category: 'quality'
+    try {
+      const response = await fetch('/api/generate-tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: input.value.trim(),
+          format: appState.outputFormat,
+          apiKey: appState.apiKey
+        })
       });
-    });
-    
-    appState.tags = [...newTags, ...appState.tags];
-    
-    // Add style tags at the end
-    styleTags.forEach((tag, i) => {
-      appState.tags.push({
-        id: Date.now() + 1000 + i,
-        en: tag,
-        ja: translateToJapanese(tag),
-        weight: 1.0,
-        category: 'style'
-      });
-    });
-    
-    renderTags();
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate tags');
+      }
+      
+      const data = await response.json();
+      
+      if (data.tags && data.tags.length > 0) {
+        appState.tags = data.tags;
+        renderTags();
+        
+        // Show notification
+        showNotification(`Generated ${data.tags.length} tags with AI`);
+      }
+    } catch (error) {
+      console.error('Generation error:', error);
+      alert('Failed to generate tags with AI. Please check your API key and try again.');
+    } finally {
+      hideLoading();
+    }
   },
   
   pasteFromClipboard: async () => {
@@ -328,31 +427,39 @@ window.App = {
     renderTags();
   },
   
-  addNewTag: (lang) => {
+  addNewTag: async (lang) => {
     const input = document.getElementById(`new-tag-${lang}`);
     if (!input || !input.value.trim()) return;
     
     const text = input.value.trim();
+    showLoading('Adding and translating tag...');
+    
     const newTag = {
       id: Date.now(),
-      en: lang === 'en' ? text : text,
-      ja: lang === 'ja' ? text : translateToJapanese(text),
+      en: '',
+      ja: '',
       weight: 1.0,
-      category: categorizeTag(text)
+      category: 'other'
     };
     
-    if (lang === 'ja') {
-      // Reverse translate if needed
-      for (const [eng, jpn] of Object.entries(translationDict)) {
-        if (jpn === text) {
-          newTag.en = eng;
-          break;
-        }
+    if (lang === 'en') {
+      newTag.en = text;
+      newTag.ja = await translateWithAI(text, 'ja');
+      newTag.category = categorizeTag(text);
+    } else {
+      newTag.ja = text;
+      // Try AI translation from Japanese to English
+      if (appState.apiKey) {
+        newTag.en = await translateWithAI(text, 'en');
+      } else {
+        newTag.en = translateToEnglish(text);
       }
+      newTag.category = categorizeTag(newTag.en);
     }
     
     appState.tags.push(newTag);
     input.value = '';
+    hideLoading();
     renderTags();
   },
   
@@ -362,6 +469,67 @@ window.App = {
       tag.weight = Math.max(0.1, Math.min(2.0, tag.weight + delta));
       renderTags();
     }
+  },
+  
+  updateTagText: async (id, lang, newText) => {
+    const tag = appState.tags.find(t => t.id === id);
+    if (!tag) return;
+    
+    // Update the text for the specific language
+    tag[lang] = newText;
+    
+    // Translate to the other language
+    if (lang === 'en') {
+      tag.ja = await translateWithAI(newText, 'ja');
+      tag.category = categorizeTag(newText);
+    } else {
+      tag.en = await translateWithAI(newText, 'en');
+      tag.category = categorizeTag(tag.en);
+    }
+    
+    renderTags();
+  },
+  
+  makeEditable: (id, lang) => {
+    const element = document.getElementById(`tag-${lang}-${id}`);
+    if (!element) return;
+    
+    const tag = appState.tags.find(t => t.id === id);
+    if (!tag) return;
+    
+    const originalText = tag[lang];
+    
+    // Create input element
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = originalText;
+    input.className = 'w-full px-2 py-1 border rounded';
+    
+    // Replace span with input
+    element.innerHTML = '';
+    element.appendChild(input);
+    input.focus();
+    input.select();
+    
+    // Handle save on blur or enter
+    const saveEdit = async () => {
+      const newText = input.value.trim();
+      if (newText && newText !== originalText) {
+        await App.updateTagText(id, lang, newText);
+      } else {
+        renderTags(); // Restore original if empty or unchanged
+      }
+    };
+    
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveEdit();
+      } else if (e.key === 'Escape') {
+        renderTags();
+      }
+    });
   },
   
   deleteTag: (id) => {
@@ -453,6 +621,11 @@ window.App = {
     const modal = document.getElementById('settings-modal');
     if (modal) {
       modal.classList.add('active');
+      // Load saved API key
+      const keyInput = document.getElementById('openrouter-api-key');
+      if (keyInput) {
+        keyInput.value = appState.apiKey;
+      }
     }
   },
   
@@ -486,6 +659,7 @@ window.App = {
   },
   
   updateOpenRouterKey: (key) => {
+    appState.apiKey = key;
     localStorage.setItem('openrouter-api-key', key);
   },
   

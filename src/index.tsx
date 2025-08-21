@@ -1,7 +1,267 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
-// Simple HTML for React app mounting
+
+type Bindings = {
+  AI_API_KEY?: string;
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
+
+// Enable CORS for API routes
+app.use('/api/*', cors())
+
+// Serve static files
+app.use('/static/*', serveStatic({ root: './public' }))
+
+// AI Translation API endpoint
+app.post('/api/translate', async (c) => {
+  const { text, targetLang = 'ja', apiKey } = await c.req.json();
+  
+  if (!text) {
+    return c.json({ error: 'Text is required' }, 400);
+  }
+  
+  // Use provided API key or environment variable
+  const key = apiKey || c.env?.AI_API_KEY;
+  
+  if (!key) {
+    // Fallback to simple dictionary translation
+    return c.json({
+      translated: text,
+      source: 'dictionary'
+    });
+  }
+  
+  try {
+    // Call OpenRouter API for translation
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+        'X-Title': 'SS Prompt Manager'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: targetLang === 'ja' 
+              ? 'You are a professional translator. Translate the given image generation prompt tags from English to Japanese. Keep the translation natural and appropriate for image generation. Output only the translation, no explanations.'
+              : 'You are a professional translator. Translate the given image generation prompt tags from Japanese to English. Keep the translation natural and appropriate for image generation. Output only the translation, no explanations.'
+          },
+          {
+            role: 'user',
+            content: text
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 100
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Translation API failed');
+    }
+    
+    const data = await response.json();
+    return c.json({
+      translated: data.choices[0].message.content.trim(),
+      source: 'ai'
+    });
+  } catch (error) {
+    console.error('Translation error:', error);
+    return c.json({
+      translated: text,
+      source: 'dictionary',
+      error: 'AI translation failed, using dictionary'
+    });
+  }
+});
+
+// AI Generate Tags API endpoint
+app.post('/api/generate-tags', async (c) => {
+  const { prompt, format = 'sdxl', apiKey } = await c.req.json();
+  
+  if (!prompt) {
+    return c.json({ error: 'Prompt is required' }, 400);
+  }
+  
+  const key = apiKey || c.env?.AI_API_KEY;
+  
+  if (!key) {
+    return c.json({ error: 'API key is required' }, 400);
+  }
+  
+  const systemPrompts = {
+    sdxl: `You are an expert at generating SDXL image generation tags. Convert the user's prompt into a comprehensive set of comma-separated tags.
+Rules:
+1. Start with quality tags: masterpiece, best quality, ultra-detailed
+2. Add subject description tags
+3. Include style and composition tags
+4. Add lighting and atmosphere tags
+5. Output format: tag1, tag2, tag3:weight, tag4
+6. Use weights (0.5-2.0) for important elements
+7. Output only tags, no explanations`,
+    flux: `You are an expert at generating Flux image generation prompts. Convert the user's input into natural, descriptive phrases.
+Rules:
+1. Use natural language descriptions
+2. Be specific and detailed
+3. Include artistic style if relevant
+4. Describe composition and lighting
+5. Output format: Natural sentences that flow well
+6. Output only the prompt, no explanations`,
+    imagefx: `You are an expert at generating ImageFX prompts. Convert the user's input into clear instructions.
+Rules:
+1. Use clear, direct language
+2. Specify artistic style explicitly
+3. Include mood and atmosphere
+4. Be concise but comprehensive
+5. Output only the prompt, no explanations`
+  };
+  
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+        'X-Title': 'SS Prompt Manager'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompts[format] || systemPrompts.sdxl
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 300
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Generation API failed');
+    }
+    
+    const data = await response.json();
+    const generatedText = data.choices[0].message.content.trim();
+    
+    // Parse generated tags into structured format
+    let tags = [];
+    if (format === 'sdxl') {
+      // Split by comma and parse
+      const parts = generatedText.split(',').map(p => p.trim());
+      tags = parts.map((part, i) => {
+        const match = part.match(/^(.+?):(\d+\.?\d*)$/);
+        if (match) {
+          return {
+            id: Date.now() + i,
+            en: match[1].trim(),
+            weight: parseFloat(match[2])
+          };
+        }
+        return {
+          id: Date.now() + i,
+          en: part,
+          weight: 1.0
+        };
+      });
+    } else {
+      // For flux and imagefx, treat as single block
+      tags = [{
+        id: Date.now(),
+        en: generatedText,
+        weight: 1.0
+      }];
+    }
+    
+    // Translate tags to Japanese
+    const translatedTags = await Promise.all(tags.map(async (tag) => {
+      try {
+        const transResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+            'X-Title': 'SS Prompt Manager'
+          },
+          body: JSON.stringify({
+            model: 'openai/gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'Translate this image generation tag/prompt from English to Japanese. Keep it natural and appropriate for image generation. Output only the translation.'
+              },
+              {
+                role: 'user',
+                content: tag.en
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 100
+          })
+        });
+        
+        if (transResponse.ok) {
+          const transData = await transResponse.json();
+          tag.ja = transData.choices[0].message.content.trim();
+        } else {
+          tag.ja = tag.en; // Fallback to English
+        }
+      } catch (e) {
+        tag.ja = tag.en; // Fallback to English
+      }
+      
+      // Categorize tag
+      tag.category = categorizeTag(tag.en);
+      return tag;
+    }));
+    
+    return c.json({
+      tags: translatedTags,
+      format,
+      raw: generatedText
+    });
+  } catch (error) {
+    console.error('Generation error:', error);
+    return c.json({ error: 'Failed to generate tags' }, 500);
+  }
+});
+
+// Helper function to categorize tags
+function categorizeTag(text: string): string {
+  const categoryKeywords = {
+    person: ['girl', 'boy', 'woman', 'man', 'person', 'people', 'child', 'teen', 'adult'],
+    appearance: ['hair', 'eyes', 'face', 'smile', 'expression', 'beautiful', 'cute', 'handsome'],
+    clothing: ['dress', 'shirt', 'skirt', 'uniform', 'clothes', 'wearing', 'outfit', 'costume'],
+    pose: ['sitting', 'standing', 'walking', 'running', 'pose', 'posing', 'action'],
+    background: ['background', 'scenery', 'forest', 'city', 'sky', 'room', 'outdoor', 'indoor'],
+    quality: ['masterpiece', 'quality', 'resolution', 'detailed', 'realistic', 'hd', '4k', '8k'],
+    style: ['anime', 'realistic', 'cartoon', 'painting', 'illustration', 'digital', 'art', 'style'],
+    other: []
+  };
+  
+  const lower = text.toLowerCase();
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    for (const keyword of keywords) {
+      if (lower.includes(keyword)) {
+        return category;
+      }
+    }
+  }
+  return 'other';
+}
+// Main HTML page
 const appHtml = `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -792,8 +1052,6 @@ interface OpenRouterModel {
     max_completion_tokens?: number
   }
 }
-
-const app = new Hono<{ Bindings: Bindings }>()
 
 // CORS設定
 app.use('/api/*', cors({
