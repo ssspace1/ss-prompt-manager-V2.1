@@ -535,6 +535,11 @@ window.App = {
       modal.remove();
     }
     appState.editingPrompt = null;
+    
+    // Update the custom formats list if settings modal is open
+    if (document.getElementById('settings-modal')?.classList.contains('active')) {
+      App.updateCustomFormatsList();
+    }
   },
   
   savePrompt: () => {
@@ -572,15 +577,29 @@ window.App = {
     appState.systemPrompts[name] = `You are an expert at generating ${name} prompts.\nConvert the user's input into the ${name} format.\n\nOutput only the formatted prompt, no explanations.`;
     localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
     
-    // Add to select dropdown
-    const select = document.getElementById('output-format');
-    if (select) {
+    // Add to both select dropdowns
+    const formatSelect = document.getElementById('output-format');
+    const finalFormatSelect = document.getElementById('final-output-format');
+    
+    if (formatSelect) {
       const option = document.createElement('option');
       option.value = name;
       option.textContent = name.toUpperCase();
-      select.appendChild(option);
-      select.value = name;
+      formatSelect.appendChild(option);
+      formatSelect.value = name;
       appState.outputFormat = name;
+    }
+    
+    if (finalFormatSelect) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name.toUpperCase();
+      finalFormatSelect.appendChild(option);
+    }
+    
+    // Update the custom formats list if settings modal is open
+    if (document.getElementById('settings-modal')?.classList.contains('active')) {
+      App.updateCustomFormatsList();
     }
     
     showNotification(`Custom format '${name}' added!`);
@@ -800,7 +819,92 @@ window.App = {
       if (keyInput) {
         keyInput.value = appState.apiKey;
       }
+      // Populate custom formats list
+      App.updateCustomFormatsList();
     }
+  },
+  
+  updateCustomFormatsList: () => {
+    const container = document.getElementById('custom-formats-list');
+    if (!container) return;
+    
+    const customFormats = Object.keys(appState.systemPrompts).filter(
+      key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural'].includes(key)
+    );
+    
+    if (customFormats.length === 0) {
+      container.innerHTML = '<p class="text-gray-500 text-sm">No custom formats added yet.</p>';
+      return;
+    }
+    
+    container.innerHTML = customFormats.map(format => `
+      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <div class="flex-1">
+          <div class="font-medium">${format.toUpperCase()}</div>
+          <div class="text-xs text-gray-500">Custom format</div>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="App.showPromptEditor('${format}')" 
+                  class="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors">
+            <i class="fas fa-edit mr-1"></i>Edit
+          </button>
+          <button onclick="App.deleteCustomFormat('${format}')" 
+                  class="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors">
+            <i class="fas fa-trash mr-1"></i>Delete
+          </button>
+        </div>
+      </div>
+    `).join('');
+  },
+  
+  deleteCustomFormat: (format) => {
+    // Don't allow deletion of default formats
+    if (['sdxl', 'flux', 'imagefx', 'imagefx-natural'].includes(format)) {
+      alert('Cannot delete default formats!');
+      return;
+    }
+    
+    if (!confirm(`Delete custom format '${format}'? This cannot be undone.`)) {
+      return;
+    }
+    
+    // Remove from system prompts
+    delete appState.systemPrompts[format];
+    localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+    
+    // Remove from select dropdowns
+    const formatSelect = document.getElementById('output-format');
+    const finalFormatSelect = document.getElementById('final-output-format');
+    
+    if (formatSelect) {
+      const option = Array.from(formatSelect.options).find(opt => opt.value === format);
+      if (option) option.remove();
+      
+      // Reset to default if this was selected
+      if (appState.outputFormat === format) {
+        formatSelect.value = 'sdxl';
+        appState.outputFormat = 'sdxl';
+        localStorage.setItem('output-format', 'sdxl');
+      }
+    }
+    
+    if (finalFormatSelect) {
+      const option = Array.from(finalFormatSelect.options).find(opt => opt.value === format);
+      if (option) option.remove();
+      
+      // Reset to default if this was selected
+      if (appState.finalOutputFormat === format) {
+        finalFormatSelect.value = 'sdxl';
+        appState.finalOutputFormat = 'sdxl';
+        localStorage.setItem('final-output-format', 'sdxl');
+        updateOutput();
+      }
+    }
+    
+    // Update the list
+    App.updateCustomFormatsList();
+    
+    showNotification(`Custom format '${format}' deleted`);
   },
   
   closeSettings: () => {
@@ -829,7 +933,23 @@ window.App = {
   },
   
   setSettingsTab: (tab) => {
-    console.log('Settings tab:', tab);
+    // Hide all tabs
+    ['api', 'formats', 'preferences'].forEach(t => {
+      const content = document.getElementById(`settings-${t}`);
+      const tabBtn = document.querySelector(`[data-settings-tab="${t}"]`);
+      if (content) {
+        content.style.display = t === tab ? 'block' : 'none';
+      }
+      if (tabBtn) {
+        if (t === tab) {
+          tabBtn.classList.add('border-blue-500', 'text-blue-600');
+          tabBtn.classList.remove('border-transparent', 'text-gray-600');
+        } else {
+          tabBtn.classList.add('border-transparent', 'text-gray-600');
+          tabBtn.classList.remove('border-blue-500', 'text-blue-600');
+        }
+      }
+    });
   },
   
   updateOpenRouterKey: (key) => {

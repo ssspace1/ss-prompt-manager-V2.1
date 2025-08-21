@@ -860,10 +860,13 @@ const appHtml = `<!DOCTYPE html>
                 <div class="border-b mb-4">
                     <div class="flex gap-4">
                         <button class="py-2 px-4 border-b-2 border-blue-500 text-blue-600" 
+                                data-settings-tab="api"
                                 onclick="App.setSettingsTab('api')">API Keys</button>
                         <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
-                                onclick="App.setSettingsTab('prompts')">System Prompts</button>
+                                data-settings-tab="formats"
+                                onclick="App.setSettingsTab('formats')">Custom Formats</button>
                         <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
+                                data-settings-tab="preferences"
                                 onclick="App.setSettingsTab('preferences')">Preferences</button>
                     </div>
                 </div>
@@ -984,6 +987,70 @@ const appHtml = `<!DOCTYPE html>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Translation Prompt</label>
                         <textarea id="sp-translate" rows="4" 
                                   class="w-full px-3 py-2 border rounded-lg text-sm font-mono"></textarea>
+                    </div>
+                </div>
+                
+                <!-- Custom Formats Tab -->
+                <div id="settings-formats" class="space-y-4 hidden">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-medium text-gray-700">
+                                <i class="fas fa-palette mr-2 text-purple-500"></i>
+                                Custom Output Formats
+                            </h3>
+                            <button onclick="App.addCustomFormat()" 
+                                    class="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-plus mr-1"></i>Add New Format
+                            </button>
+                        </div>
+                        
+                        <p class="text-sm text-gray-600 mb-4">
+                            Create custom formats with your own system prompts for AI generation.
+                            These formats will appear in both AI Format and Final Output dropdowns.
+                        </p>
+                        
+                        <!-- Custom Formats List -->
+                        <div id="custom-formats-list" class="space-y-2">
+                            <!-- Dynamically populated -->
+                        </div>
+                        
+                        <!-- Default Formats Info -->
+                        <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                            <h4 class="font-medium text-blue-900 mb-2">Default Formats</h4>
+                            <div class="space-y-1 text-sm text-blue-700">
+                                <div class="flex items-center justify-between">
+                                    <span><i class="fas fa-tag mr-1"></i> SDXL Tags</span>
+                                    <button onclick="App.showPromptEditor('sdxl')" 
+                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                        <i class="fas fa-edit"></i> View/Edit
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span><i class="fas fa-tag mr-1"></i> Flux Phrases</span>
+                                    <button onclick="App.showPromptEditor('flux')" 
+                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                        <i class="fas fa-edit"></i> View/Edit
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span><i class="fas fa-tag mr-1"></i> ImageFX</span>
+                                    <button onclick="App.showPromptEditor('imagefx')" 
+                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                        <i class="fas fa-edit"></i> View/Edit
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span><i class="fas fa-tag mr-1"></i> ImageFX Natural</span>
+                                    <button onclick="App.showPromptEditor('imagefx-natural')" 
+                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                        <i class="fas fa-edit"></i> View/Edit
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-blue-600 mt-2">
+                                Default formats can be edited but not deleted. Use "Reset to Default" to restore original prompts.
+                            </p>
+                        </div>
                     </div>
                 </div>
                 
