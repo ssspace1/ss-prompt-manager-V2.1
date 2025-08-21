@@ -14,10 +14,8 @@
 
 ## URL
 - **開発環境**: https://3000-icbwmbmktn0pgobop47sb-6532622b.e2b.dev
-- **日本語タグテスト**: https://3000-icbwmbmktn0pgobop47sb-6532622b.e2b.dev/test-japanese-tags.html 🆕
-- **翻訳テストページ**: https://3000-icbwmbmktn0pgobop47sb-6532622b.e2b.dev/test-translation.html
-- **本番環境**: 未デプロイ
-- **GitHub**: 未設定
+- **GitHub**: https://github.com/ssspace1/ss-prompt-manager-V2.1
+- **本番環境**: 未デプロイ（Cloudflare Pages予定）
 - **ヘルスチェック**: https://3000-icbwmbmktn0pgobop47sb-6532622b.e2b.dev/api/health
 
 ## 現在完成している機能
