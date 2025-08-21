@@ -1,21 +1,187 @@
-```txt
-npm install
-npm run dev
-```
+# SS Prompt Manager
 
-```txt
-npm run deploy
-```
+## プロジェクト概要
+- **名前**: SS Prompt Manager
+- **目標**: 自然言語／既存プロンプト／画像から、モデル別（SDXL／Flux／ImageFX／カスタム）の最適プロンプトを"英⇄日ブロック編集UI"で整え、ワンクリックでAPI画像生成まで試せるWebアプリ
+- **主な機能**:
+  - テキストプロンプトの分解・色分け・最適化
+  - 英日バイリンガル対応のタグ編集
+  - ドラッグ&ドロップによるタグ順序変更
+  - 重み調整機能
+  - 複数出力形式サポート（SDXL/Flux/ImageFX）
+  - API経由での画像生成（将来実装）
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+## URL
+- **開発環境**: https://3000-icbwmbmktn0pgobop47sb-6532622b.e2b.dev
+- **ヘルスチェック**: https://3000-icbwmbmktn0pgobop47sb-6532622b.e2b.dev/api/health
+- **GitHub**: (未設定)
 
-```txt
-npm run cf-typegen
-```
+## 現在完成した機能
+1. **基本UI構築**
+   - タイトルバーと設定ボタン
+   - text/imageタブ切り替え
+   - スプリットビューレイアウト（左：メインエリア、右：画像生成エリア）
 
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
+2. **テキスト入力ブロック**
+   - プロンプト入力エリア
+   - 分解ボタン（カンマ・ピリオド区切りで自動分割）
+   - AI色分けボタン（カテゴリ別色付け）
+   - クリアボタン
+   - 出力形式トグル（SDXL/Flux/ImageFX）
+   - モデル選択（GPT-4/GPT-3.5/Claude-3）
+   - AI生成ボタン
 
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
+3. **タグ編集エリア**
+   - 英語/日本語の2カラム表示
+   - ブロック単位での編集
+   - カテゴリ別色分け（8種類）
+   - 重み調整機能（0.1〜2.0）
+   - インライン編集
+   - 新規タグ追加機能
+   - ドラッグ&ドロップ（UI実装済み）
+
+4. **完成プロンプト表示**
+   - リアルタイムプレビュー
+   - ワンクリックコピー機能
+   - 形式別出力（SDXL/Flux/ImageFX）
+
+5. **API実装**
+   - `/api/split` - テキスト分解
+   - `/api/categorize` - カテゴリ分類
+   - `/api/translate` - 翻訳（簡易版）
+   - `/api/optimize` - プロンプト最適化
+   - `/api/generate-image` - 画像生成（モック）
+   - `/api/settings` - 設定管理
+   - `/api/system-prompts` - システムプロンプト管理
+   - `/api/health` - ヘルスチェック
+
+## 機能エントリーポイント
+
+### フロントエンド機能
+- **テキスト分解**: 「分解」ボタンクリック
+- **AI色分け**: 「AI色分け」ボタンクリック
+- **AI生成**: 「AI生成」ボタンクリック
+- **タグ編集**: タグブロックをクリックして直接編集
+- **重み調整**: 各タグブロックの上下矢印ボタン
+- **新規タグ追加**: 各カラム上部の入力欄にタグを入力してEnterキー
+- **形式切替**: ドロップダウンメニューから選択
+- **設定画面**: 右上の設定アイコンをクリック
+
+### API エンドポイント
+- `POST /api/split` - テキストをブロックに分解
+- `POST /api/categorize` - ブロックをカテゴリ分類
+- `POST /api/translate` - テキスト翻訳
+- `POST /api/optimize` - プロンプト最適化
+- `POST /api/generate-image` - 画像生成
+- `GET/POST /api/settings` - 設定の取得/保存
+- `GET/POST /api/system-prompts` - システムプロンプトの取得/更新
+
+## 未実装機能
+1. **高度な翻訳機能**
+   - OpenRouter APIを使った本格的な翻訳
+   - 翻訳キャッシュシステム
+   - 双方向自動同期
+
+2. **システムプロンプト管理**
+   - SPの編集・保存・複製・インポート機能
+   - テスト実行機能
+   - 既定に戻す機能
+
+3. **画像生成機能**
+   - 実際のAPI接続（ComfyUI/A1111/クラウドサービス）
+   - パラメータ設定パネル
+   - 生成履歴管理
+   - A/B比較機能
+
+4. **画像解析機能**（imageタブ）
+   - 画像アップロード
+   - LLMベースの画像解析
+   - タグ検出器との統合
+
+5. **データ永続化**
+   - Cloudflare KVを使った設定保存
+   - D1データベースを使った履歴管理
+   - R2を使った画像保存
+
+6. **パフォーマンス最適化**
+   - 仮想リスト化
+   - Web Worker活用
+   - 差分レンダリング
+
+## 推奨される次のステップ
+
+1. **OpenRouter API統合**
+   - 実際の翻訳機能実装
+   - AIベースのカテゴリ分類
+   - プロンプト最適化の高度化
+
+2. **Cloudflareサービス統合**
+   - D1データベースのセットアップ
+   - KVストレージの設定
+   - R2バケットの作成
+
+3. **画像生成API接続**
+   - ComfyUI REST APIアダプター実装
+   - Stable Diffusion Web UI対応
+   - クラウドサービス（Replicate等）統合
+
+4. **UI/UX改善**
+   - ドラッグ&ドロップの順序変更機能完成
+   - キーボードショートカット追加
+   - レスポンシブデザイン改善
+
+5. **テスト・ドキュメント**
+   - ユニットテスト追加
+   - E2Eテスト実装
+   - APIドキュメント作成
+
+## データアーキテクチャ
+- **データモデル**: ブロックベースのプロンプト構造
+  - Block: { id, en, ja, weight, category, locked }
+  - Settings: { outputFormat, model, apiKeys, formats, categories }
+  - SystemPrompt: { type, content }
+- **ストレージサービス**: 
+  - Cloudflare KV（設定・キャッシュ）- 将来実装
+  - Cloudflare D1（履歴・ユーザーデータ）- 将来実装
+  - Cloudflare R2（画像ファイル）- 将来実装
+- **データフロー**: 
+  - 入力 → 分解 → カテゴリ分類 → 編集 → 最適化 → 出力
+
+## 使い方ガイド
+
+1. **基本的な使い方**
+   - テキスト入力欄にプロンプトを入力
+   - 「分解」ボタンでタグに分割
+   - 「AI色分け」でカテゴリ別に色分け
+   - タグをクリックして編集、重みを調整
+   - 完成プロンプトをコピーして使用
+
+2. **高度な使い方**
+   - 出力形式を切り替えて異なるモデル用に最適化
+   - 英語/日本語の両方から編集可能
+   - 新規タグを追加して独自のプロンプト作成
+   - 設定画面でAPIキーやモデルを設定
+
+## デプロイメント
+- **プラットフォーム**: Cloudflare Pages
+- **ステータス**: ✅ 開発環境稼働中
+- **技術スタック**: Hono + TypeScript + React (ESM) + TailwindCSS
+- **最終更新**: 2025-08-21
+
+## 開発コマンド
+```bash
+# 開発サーバー起動
+npm run dev:sandbox
+
+# ビルド
+npm run build
+
+# PM2で起動
+pm2 start ecosystem.config.cjs
+
+# ログ確認
+pm2 logs --nostream
+
+# デプロイ（将来）
+npm run deploy:prod
 ```

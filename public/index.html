@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SS Prompt Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        [data-category="person"] { background-color: #fef3c7; border-color: #fbbf24; }
+        [data-category="appearance"] { background-color: #dbeafe; border-color: #60a5fa; }
+        [data-category="clothing"] { background-color: #fce7f3; border-color: #f9a8d4; }
+        [data-category="pose"] { background-color: #e9d5ff; border-color: #c084fc; }
+        [data-category="background"] { background-color: #d1fae5; border-color: #34d399; }
+        [data-category="quality"] { background-color: #fed7aa; border-color: #fb923c; }
+        [data-category="style"] { background-color: #fef3c7; border-color: #fde047; }
+        [data-category="other"] { background-color: #e5e7eb; border-color: #9ca3af; }
+        
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr min(400px, 30%);
+            gap: 1rem;
+            height: calc(100vh - 120px);
+        }
+        
+        .block-card {
+            transition: all 0.2s ease;
+            cursor: move;
+        }
+        
+        .block-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        
+        .block-card.dragging {
+            opacity: 0.5;
+        }
+        
+        .tag-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            width: 100%;
+        }
+        
+        .tag-input:focus {
+            background: white;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* スクロールバーのスタイリング */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script type="module" src="/static/app.js"></script>
+</body>
+</html>
