@@ -83,7 +83,7 @@ app.post('/api/translate', async (c) => {
 
 // AI Generate Tags API endpoint
 app.post('/api/generate-tags', async (c) => {
-  const { prompt, format = 'sdxl', apiKey } = await c.req.json();
+  const { prompt, format = 'sdxl', apiKey, systemPrompt } = await c.req.json();
   
   if (!prompt) {
     return c.json({ error: 'Prompt is required' }, 400);
@@ -95,7 +95,7 @@ app.post('/api/generate-tags', async (c) => {
     return c.json({ error: 'API key is required' }, 400);
   }
   
-  const systemPrompts = {
+  const defaultSystemPrompts = {
     sdxl: `You are an expert at generating SDXL image generation tags. Convert the user's prompt into a comprehensive set of comma-separated tags.
 Rules:
 1. Start with quality tags: masterpiece, best quality, ultra-detailed
@@ -136,7 +136,7 @@ Rules:
         messages: [
           {
             role: 'system',
-            content: systemPrompts[format] || systemPrompts.sdxl
+            content: systemPrompt || defaultSystemPrompts[format] || defaultSystemPrompts.sdxl
           },
           {
             role: 'user',
@@ -568,14 +568,26 @@ const appHtml = `<!DOCTYPE html>
                                 </button>
                                 
                                 <div class="ml-auto flex items-center gap-2">
-                                    <label class="text-sm text-gray-600">Output:</label>
-                                    <select id="output-format" onchange="App.updateOutputFormat()" 
-                                            class="px-3 py-2 border rounded-lg text-sm">
-                                        <option value="sdxl">SDXL Tags</option>
-                                        <option value="flux">Flux Phrases</option>
-                                        <option value="imagefx">ImageFX Natural</option>
-                                        <option value="custom">Custom Format</option>
-                                    </select>
+                                    <label class="text-sm text-gray-600">AI Format:</label>
+                                    <div class="flex items-center gap-1">
+                                        <select id="output-format" onchange="App.updateOutputFormat()" 
+                                                class="px-3 py-2 border rounded-lg text-sm">
+                                            <option value="sdxl">SDXL Tags</option>
+                                            <option value="flux">Flux Phrases</option>
+                                            <option value="imagefx">ImageFX</option>
+                                            <option value="imagefx-natural">ImageFX Natural</option>
+                                        </select>
+                                        <button onclick="App.showPromptEditor()" 
+                                                class="px-2 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                                                title="Edit System Prompt">
+                                            <i class="fas fa-cog"></i>
+                                        </button>
+                                        <button onclick="App.addCustomFormat()" 
+                                                class="px-2 py-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+                                                title="Add Custom Format">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
                                     
                                     <!-- Model indicator -->
                                     <div class="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600" title="Current AI Model">
@@ -683,15 +695,25 @@ const appHtml = `<!DOCTYPE html>
                                     <i class="fas fa-file-export mr-2 text-orange-500"></i>
                                     Final Output
                                 </h2>
-                                <div class="flex gap-2">
-                                    <button onclick="App.copyOutput()" 
-                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                                        <i class="fas fa-copy mr-1"></i>Copy
-                                    </button>
-                                    <button onclick="App.downloadOutput()" 
-                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                                        <i class="fas fa-download mr-1"></i>Download
-                                    </button>
+                                <div class="flex items-center gap-2">
+                                    <label class="text-sm text-gray-600">Format:</label>
+                                    <select id="final-output-format" onchange="App.updateFinalOutputFormat()" 
+                                            class="px-2 py-1 border rounded text-sm">
+                                        <option value="sdxl">SDXL Tags</option>
+                                        <option value="flux">Flux Phrases</option>
+                                        <option value="imagefx">ImageFX</option>
+                                        <option value="imagefx-natural">ImageFX Natural</option>
+                                    </select>
+                                    <div class="flex gap-1 ml-2">
+                                        <button onclick="App.copyOutput()" 
+                                                class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                            <i class="fas fa-copy mr-1"></i>Copy
+                                        </button>
+                                        <button onclick="App.downloadOutput()" 
+                                                class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                            <i class="fas fa-download mr-1"></i>Download
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             

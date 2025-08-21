@@ -80,10 +80,54 @@ let appState = {
   tags: [],
   currentTab: 'text',
   outputFormat: 'sdxl',
+  finalOutputFormat: 'sdxl', // Separate format for Final Output
   settingsOpen: false,
   apiKey: localStorage.getItem('openrouter-api-key') || '',
-  selectedModel: localStorage.getItem('selected-model') || 'openai/gpt-4o-mini'
+  selectedModel: localStorage.getItem('selected-model') || 'openai/gpt-4o-mini',
+  systemPrompts: JSON.parse(localStorage.getItem('system-prompts') || '{}'),
+  editingPrompt: null // Currently editing prompt format
 };
+
+// Default system prompts
+const defaultSystemPrompts = {
+  sdxl: `You are an expert at generating SDXL image generation tags. Convert the user's prompt into a comprehensive set of comma-separated tags.
+Rules:
+1. Start with quality tags: masterpiece, best quality, ultra-detailed
+2. Add subject description tags
+3. Include style and composition tags
+4. Add lighting and atmosphere tags
+5. Output format: tag1, tag2, tag3:weight, tag4
+6. Use weights (0.5-2.0) for important elements
+7. Output only tags, no explanations`,
+  flux: `You are an expert at generating Flux image generation prompts. Convert the user's input into natural, descriptive phrases.
+Rules:
+1. Use natural language descriptions
+2. Be specific and detailed
+3. Include artistic style if relevant
+4. Describe composition and lighting
+5. Output format: Natural sentences that flow well
+6. Output only the prompt, no explanations`,
+  imagefx: `You are an expert at generating ImageFX prompts. Convert the user's input into clear instructions.
+Rules:
+1. Use clear, direct language
+2. Specify artistic style explicitly
+3. Include mood and atmosphere
+4. Be concise but comprehensive
+5. Output only the prompt, no explanations`,
+  'imagefx-natural': `You are an expert at generating ImageFX Natural Language prompts. Convert the user's input into flowing, descriptive prose.
+Rules:
+1. Write in natural, flowing sentences
+2. Focus on visual storytelling
+3. Include sensory details
+4. Maintain coherent narrative
+5. Output only the descriptive text, no explanations`
+};
+
+// Initialize system prompts with defaults if not set
+if (Object.keys(appState.systemPrompts).length === 0) {
+  appState.systemPrompts = {...defaultSystemPrompts};
+  localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+}
 
 // Translation function - Dictionary fallback
 function translateToJapanese(text) {
@@ -212,7 +256,8 @@ function updateOutput() {
     return;
   }
   
-  const format = appState.outputFormat || 'sdxl';
+  // Use finalOutputFormat for display, not the generation format
+  const format = appState.finalOutputFormat || 'sdxl';
   let output = '';
   
   if (format === 'sdxl') {
@@ -224,8 +269,12 @@ function updateOutput() {
     }).join(', ');
   } else if (format === 'flux') {
     output = appState.tags.map(tag => tag.en).join('. ') + '.';
+  } else if (format === 'imagefx' || format === 'imagefx-natural') {
+    // Natural language format
+    output = appState.tags.map(tag => tag.en).join(', ') + '.';
   } else {
-    output = appState.tags.map(tag => tag.en).join(' ');
+    // Custom formats - default to comma-separated
+    output = appState.tags.map(tag => tag.en).join(', ');
   }
   
   outputElement.textContent = output;
@@ -352,13 +401,17 @@ window.App = {
     showLoading('Generating optimized tags with AI...');
     
     try {
+      // Get custom system prompt if available
+      const systemPrompt = appState.systemPrompts[appState.outputFormat] || null;
+      
       const response = await fetch('/api/generate-tags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: input.value.trim(),
           format: appState.outputFormat,
-          apiKey: appState.apiKey
+          apiKey: appState.apiKey,
+          systemPrompt: systemPrompt // Send custom prompt if available
         })
       });
       
@@ -409,8 +462,129 @@ window.App = {
     if (select) {
       appState.outputFormat = select.value;
       localStorage.setItem('output-format', select.value);
-      updateOutput();
+      // Do NOT update output here - format is only for AI generation
     }
+  },
+  
+  updateFinalOutputFormat: () => {
+    const select = document.getElementById('final-output-format');
+    if (select) {
+      appState.finalOutputFormat = select.value;
+      localStorage.setItem('final-output-format', select.value);
+      updateOutput(); // Update output only when Final Output format changes
+    }
+  },
+  
+  showPromptEditor: (format) => {
+    appState.editingPrompt = format || appState.outputFormat;
+    const modal = document.createElement('div');
+    modal.id = 'prompt-editor-modal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    
+    const prompt = appState.systemPrompts[appState.editingPrompt] || '';
+    const isDefault = defaultSystemPrompts[appState.editingPrompt] === prompt;
+    
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">
+            <i class="fas fa-edit mr-2"></i>
+            Edit System Prompt: ${appState.editingPrompt.toUpperCase()}
+          </h2>
+          <button onclick="App.closePromptEditor()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            System Prompt for ${appState.editingPrompt} format:
+          </label>
+          <textarea 
+            id="prompt-editor-text" 
+            class="w-full h-64 p-3 border rounded-lg font-mono text-sm"
+            placeholder="Enter system prompt for AI generation...">${prompt}</textarea>
+        </div>
+        
+        <div class="flex justify-between">
+          <div>
+            ${!isDefault ? `
+              <button onclick="App.resetPromptToDefault()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">
+                <i class="fas fa-undo mr-2"></i>Reset to Default
+              </button>
+            ` : ''}
+          </div>
+          <div class="space-x-2">
+            <button onclick="App.closePromptEditor()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">
+              Cancel
+            </button>
+            <button onclick="App.savePrompt()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
+              <i class="fas fa-save mr-2"></i>Save Prompt
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+  },
+  
+  closePromptEditor: () => {
+    const modal = document.getElementById('prompt-editor-modal');
+    if (modal) {
+      modal.remove();
+    }
+    appState.editingPrompt = null;
+  },
+  
+  savePrompt: () => {
+    const textarea = document.getElementById('prompt-editor-text');
+    if (textarea && appState.editingPrompt) {
+      appState.systemPrompts[appState.editingPrompt] = textarea.value;
+      localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+      showNotification(`System prompt for ${appState.editingPrompt} saved!`);
+      App.closePromptEditor();
+    }
+  },
+  
+  resetPromptToDefault: () => {
+    if (appState.editingPrompt && defaultSystemPrompts[appState.editingPrompt]) {
+      const textarea = document.getElementById('prompt-editor-text');
+      if (textarea) {
+        textarea.value = defaultSystemPrompts[appState.editingPrompt];
+      }
+    }
+  },
+  
+  addCustomFormat: () => {
+    const name = prompt('Enter a name for the new format (lowercase, no spaces):');
+    if (!name || !name.match(/^[a-z0-9-]+$/)) {
+      alert('Invalid format name. Use only lowercase letters, numbers, and hyphens.');
+      return;
+    }
+    
+    if (appState.systemPrompts[name]) {
+      alert('Format already exists!');
+      return;
+    }
+    
+    // Add new format with default prompt
+    appState.systemPrompts[name] = `You are an expert at generating ${name} prompts.\nConvert the user's input into the ${name} format.\n\nOutput only the formatted prompt, no explanations.`;
+    localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+    
+    // Add to select dropdown
+    const select = document.getElementById('output-format');
+    if (select) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name.toUpperCase();
+      select.appendChild(option);
+      select.value = name;
+      appState.outputFormat = name;
+    }
+    
+    showNotification(`Custom format '${name}' added!`);
+    App.showPromptEditor(name);
   },
   
   sortTags: (type) => {
@@ -932,6 +1106,49 @@ window.App = {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('SS Prompt Manager initialized');
+  
+  // Initialize output formats
+  const savedOutputFormat = localStorage.getItem('output-format');
+  if (savedOutputFormat) {
+    const formatSelect = document.getElementById('output-format');
+    if (formatSelect) {
+      formatSelect.value = savedOutputFormat;
+      appState.outputFormat = savedOutputFormat;
+    }
+  }
+  
+  const savedFinalFormat = localStorage.getItem('final-output-format');
+  if (savedFinalFormat) {
+    const finalFormatSelect = document.getElementById('final-output-format');
+    if (finalFormatSelect) {
+      finalFormatSelect.value = savedFinalFormat;
+      appState.finalOutputFormat = savedFinalFormat;
+    }
+  }
+  
+  // Populate custom formats in dropdowns
+  const customFormats = Object.keys(appState.systemPrompts).filter(
+    key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural'].includes(key)
+  );
+  
+  customFormats.forEach(format => {
+    const formatSelect = document.getElementById('output-format');
+    const finalFormatSelect = document.getElementById('final-output-format');
+    
+    if (formatSelect) {
+      const option = document.createElement('option');
+      option.value = format;
+      option.textContent = format.toUpperCase();
+      formatSelect.appendChild(option);
+    }
+    
+    if (finalFormatSelect) {
+      const option = document.createElement('option');
+      option.value = format;
+      option.textContent = format.toUpperCase();
+      finalFormatSelect.appendChild(option);
+    }
+  });
   
   // Load saved API key
   const savedKey = localStorage.getItem('openrouter-api-key');
