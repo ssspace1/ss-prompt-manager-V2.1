@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SS Prompt Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        [data-category="person"] { background-color: #fef3c7; border-color: #fbbf24; }
+        [data-category="appearance"] { background-color: #dbeafe; border-color: #60a5fa; }
+        [data-category="clothing"] { background-color: #fce7f3; border-color: #f9a8d4; }
+        [data-category="pose"] { background-color: #e9d5ff; border-color: #c084fc; }
+        [data-category="background"] { background-color: #d1fae5; border-color: #34d399; }
+        [data-category="quality"] { background-color: #fed7aa; border-color: #fb923c; }
+        [data-category="style"] { background-color: #fef3c7; border-color: #fde047; }
+        [data-category="other"] { background-color: #e5e7eb; border-color: #9ca3af; }
+        
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr min(400px, 30%);
+            gap: 1rem;
+            height: calc(100vh - 120px);
+            position: relative;
+        }
+        
+        .resizer {
+            position: absolute;
+            right: calc(min(400px, 30%) - 4px);
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            background: transparent;
+            cursor: col-resize;
+            z-index: 10;
+        }
+        
+        .resizer:hover {
+            background: rgba(59, 130, 246, 0.3);
+        }
+        
+        .block-card {
+            transition: all 0.2s ease;
+            cursor: move;
+            user-select: none;
+        }
+        
+        .block-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        
+        .block-card.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+        }
+        
+        .block-card.drag-over {
+            border-top: 3px solid #3b82f6;
+        }
+        
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            display: none;
+        }
+        
+        .modal-backdrop.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 0.5rem;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .inline-edit {
+            background: transparent;
+            border: 1px solid transparent;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            width: 100%;
+        }
+        
+        .inline-edit:focus {
+            background: white;
+            border-color: #3b82f6;
+            outline: none;
+        }
+        
+        pre.json-display {
+            background: #f3f4f6;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app">
+        <!-- ヘッダー -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="px-4 py-3 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-800">SS Prompt Manager</h1>
+                <button onclick="openSettings()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <i class="fas fa-cog text-xl"></i>
+                </button>
+            </div>
+        </header>
+        
+        <!-- タブ -->
+        <div class="bg-white border-b px-4">
+            <div class="flex gap-4">
+                <button onclick="setMainTab('text')" id="tab-text" class="py-3 px-4 border-b-2 border-blue-500 text-blue-600 transition-colors">
+                    <i class="fas fa-file-alt mr-2"></i>text
+                </button>
+                <button onclick="setMainTab('image')" id="tab-image" class="py-3 px-4 border-b-2 border-transparent hover:text-gray-600 transition-colors">
+                    <i class="fas fa-image mr-2"></i>image
+                </button>
+            </div>
+        </div>
+        
+        <!-- メインコンテンツ -->
+        <div class="p-4" id="content-text">
+            <div class="split-view" id="split-container">
+                <!-- リサイザー -->
+                <div class="resizer" id="resizer"></div>
+                
+                <!-- 左側：メインエリア -->
+                <div class="space-y-4 overflow-y-auto">
+                    <!-- 入力エリア -->
+                    <div class="bg-white rounded-lg p-4 shadow">
+                        <textarea id="input-text" placeholder="プロンプトを入力..." 
+                            class="w-full h-32 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        
+                        <!-- 操作ボタン -->
+                        <div class="flex gap-2 mt-3 flex-wrap">
+                            <button onclick="splitText()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                分解
+                            </button>
+                            <button onclick="colorizeBlocks()" class="px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors">
+                                <i class="fas fa-palette mr-2"></i>AI色分け
+                            </button>
+                            <button onclick="clearAll()" class="px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg transition-colors">
+                                クリア
+                            </button>
+                            
+                            <div class="flex items-center gap-2 ml-auto">
+                                <select id="output-format" onchange="updateFinalPrompt()" class="px-3 py-2 border rounded-lg">
+                                    <option value="sdxl">SDXLタグ形式</option>
+                                    <option value="flux">Fluxフレーズ形式</option>
+                                    <option value="imagefx">ImageFX形式</option>
+                                </select>
+                                
+                                <select id="model-select" class="px-3 py-2 border rounded-lg">
+                                    <option value="gpt-4">GPT-4.0</option>
+                                    <option value="gpt-3.5-turbo">GPT-3.5</option>
+                                    <option value="claude-3">Claude-3</option>
+                                </select>
+                                
+                                <button onclick="generateAI()" class="px-4 py-2 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors">
+                                    <i class="fas fa-sparkles mr-2"></i>AI生成
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- タグ編集エリア -->
+                    <div class="bg-white rounded-lg p-4 shadow">
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- 英語カラム -->
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="font-semibold text-gray-700">English</h3>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="new-tag-en" placeholder="新しいタグを追加" 
+                                            class="px-3 py-1 border rounded-lg text-sm"
+                                            onkeydown="if(event.key==='Enter')addNewTag('en')">
+                                        <button onclick="addNewTag('en')" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="blocks-en" class="space-y-2 max-h-96 overflow-y-auto"></div>
+                            </div>
+                            
+                            <!-- 日本語カラム -->
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="font-semibold text-gray-700">日本語</h3>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="new-tag-ja" placeholder="新しいタグを追加" 
+                                            class="px-3 py-1 border rounded-lg text-sm"
+                                            onkeydown="if(event.key==='Enter')addNewTag('ja')">
+                                        <button onclick="addNewTag('ja')" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="blocks-ja" class="space-y-2 max-h-96 overflow-y-auto"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 完成プロンプト -->
+                    <div class="bg-white rounded-lg p-4 shadow">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-700">完成プロンプト</h3>
+                            <div class="flex gap-2">
+                                <button onclick="exportPrompt('txt')" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg">
+                                    <i class="fas fa-download mr-2"></i>TXT
+                                </button>
+                                <button onclick="exportPrompt('json')" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg">
+                                    <i class="fas fa-download mr-2"></i>JSON
+                                </button>
+                                <button onclick="copyPrompt()" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg">
+                                    <i class="fas fa-copy mr-2"></i>コピー
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <pre id="final-prompt" class="whitespace-pre-wrap text-sm font-mono">プロンプトがまだ生成されていません</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右側：画像生成エリア -->
+                <div class="bg-white rounded-lg p-4 shadow overflow-y-auto">
+                    <h3 class="font-semibold text-gray-700 mb-3">画像生成</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">プロンプト</label>
+                            <div id="preview-prompt" class="p-2 bg-gray-50 rounded text-sm max-h-32 overflow-y-auto">
+                                プロンプトなし
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">モデル</label>
+                            <select id="image-model" class="w-full px-3 py-2 border rounded-lg">
+                                <option value="sdxl">SDXL 1.0</option>
+                                <option value="flux">Flux.1 Dev</option>
+                                <option value="midjourney">Midjourney v6</option>
+                            </select>
+                        </div>
+                        
+                        <!-- パラメータ設定 -->
+                        <details class="border rounded-lg p-3">
+                            <summary class="cursor-pointer font-medium text-sm">詳細設定</summary>
+                            <div class="mt-3 space-y-2">
+                                <div>
+                                    <label class="text-xs text-gray-600">Steps</label>
+                                    <input type="number" id="param-steps" value="20" min="1" max="150" class="w-full px-2 py-1 border rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">CFG Scale</label>
+                                    <input type="number" id="param-cfg" value="7" min="1" max="20" step="0.5" class="w-full px-2 py-1 border rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Seed</label>
+                                    <input type="number" id="param-seed" value="-1" class="w-full px-2 py-1 border rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-600">Size</label>
+                                    <select id="param-size" class="w-full px-2 py-1 border rounded text-sm">
+                                        <option value="512x512">512x512</option>
+                                        <option value="768x768">768x768</option>
+                                        <option value="1024x1024">1024x1024</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </details>
+                        
+                        <button onclick="generateImage()" id="generate-btn" class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            <i class="fas fa-sparkles mr-2"></i>生成
+                        </button>
+                        
+                        <div id="generated-image" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-4 hidden" id="content-image">
+            <div class="bg-white rounded-lg p-8 text-center">
+                <i class="fas fa-image text-6xl text-gray-400 mb-4"></i>
+                <p class="text-gray-600">画像解析機能は今後実装予定です</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 設定モーダル -->
+    <div id="settings-modal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">設定</h2>
+                <button onclick="closeSettings()" class="text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- 設定タブ -->
+            <div class="flex gap-2 mb-4 border-b">
+                <button onclick="setSettingsTab('api')" class="settings-tab px-4 py-2 border-b-2 border-blue-500 text-blue-600">API設定</button>
+                <button onclick="setSettingsTab('sp')" class="settings-tab px-4 py-2 border-b-2 border-transparent">システムプロンプト</button>
+                <button onclick="setSettingsTab('format')" class="settings-tab px-4 py-2 border-b-2 border-transparent">フォーマット定義</button>
+                <button onclick="setSettingsTab('other')" class="settings-tab px-4 py-2 border-b-2 border-transparent">その他</button>
+            </div>
+            
+            <!-- API設定タブ -->
+            <div id="tab-api" class="tab-content active">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block font-medium mb-2">OpenRouter API Key</label>
+                        <input type="password" id="openrouter-key" placeholder="sk-or-..." class="w-full px-3 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">画像生成API エンドポイント</label>
+                        <input type="text" id="image-api-endpoint" placeholder="http://localhost:7860/api/generate" class="w-full px-3 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">画像生成API トークン</label>
+                        <input type="password" id="image-api-token" placeholder="オプション" class="w-full px-3 py-2 border rounded-lg">
+                    </div>
+                    <button onclick="testAPIConnection()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                        接続テスト
+                    </button>
+                </div>
+            </div>
+            
+            <!-- システムプロンプトタブ -->
+            <div id="tab-sp" class="tab-content">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block font-medium mb-2">翻訳用プロンプト</label>
+                        <textarea id="sp-translation" rows="4" class="w-full px-3 py-2 border rounded-lg font-mono text-sm">You are a professional translator for image generation prompts. Translate between English and Japanese accurately.</textarea>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">カテゴリ分類用プロンプト</label>
+                        <textarea id="sp-categorization" rows="4" class="w-full px-3 py-2 border rounded-lg font-mono text-sm">Classify each element into: person, appearance, clothing, pose, background, quality, style, or other.</textarea>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">最適化用プロンプト</label>
+                        <textarea id="sp-optimization" rows="4" class="w-full px-3 py-2 border rounded-lg font-mono text-sm">Optimize prompts with appropriate quality tags and weights based on the target model.</textarea>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="resetSystemPrompts()" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                            既定に戻す
+                        </button>
+                        <button onclick="testSystemPrompt()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            テスト実行
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- フォーマット定義タブ -->
+            <div id="tab-format" class="tab-content">
+                <div class="space-y-4">
+                    <div class="border rounded-lg p-3">
+                        <h3 class="font-medium mb-2">SDXL タグ形式</h3>
+                        <textarea rows="2" class="w-full px-2 py-1 border rounded text-sm font-mono">{{tags}}, (weight:1.0)</textarea>
+                        <button class="mt-2 text-sm text-blue-600 hover:underline">編集</button>
+                    </div>
+                    <div class="border rounded-lg p-3">
+                        <h3 class="font-medium mb-2">Flux フレーズ形式</h3>
+                        <textarea rows="2" class="w-full px-2 py-1 border rounded text-sm font-mono">A {{description}}, highly detailed</textarea>
+                        <button class="mt-2 text-sm text-blue-600 hover:underline">編集</button>
+                    </div>
+                    <button onclick="addNewFormat()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                        <i class="fas fa-plus mr-2"></i>新規フォーマット追加
+                    </button>
+                </div>
+            </div>
+            
+            <!-- その他タブ -->
+            <div id="tab-other" class="tab-content">
+                <div class="space-y-4">
+                    <div>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="auto-save" checked class="rounded">
+                            <span>自動保存を有効にする</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="keep-history" checked class="rounded">
+                            <span>クリア時に履歴を保持</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">UIテーマ</label>
+                        <select id="ui-theme" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="light">ライト</option>
+                            <option value="dark">ダーク（未実装）</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">言語</label>
+                        <select id="ui-language" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="ja">日本語</option>
+                            <option value="en">English（未実装）</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end gap-2">
+                <button onclick="closeSettings()" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-lg">
+                    キャンセル
+                </button>
+                <button onclick="saveSettings()" class="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded-lg">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // グローバル変数
+        let blocks = [];
+        let settings = JSON.parse(localStorage.getItem('ss-prompt-settings') || '{}');
+        let translationCache = new Map();
+        let draggedBlock = null;
+        let isResizing = false;
+        
+        // 初期化
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            setupResizer();
+            setupDragAndDrop();
+        });
+        
+        // 設定の読み込み
+        function loadSettings() {
+            const defaultSettings = {
+                outputFormat: 'sdxl',
+                model: 'gpt-4',
+                openRouterKey: '',
+                imageApiEndpoint: '',
+                imageApiToken: '',
+                autoSave: true,
+                keepHistory: true,
+                systemPrompts: {
+                    translation: 'You are a professional translator for image generation prompts.',
+                    categorization: 'Classify each element into categories.',
+                    optimization: 'Optimize prompts with appropriate tags.'
+                }
+            };
+            
+            settings = { ...defaultSettings, ...settings };
+            
+            // UIに反映
+            document.getElementById('output-format').value = settings.outputFormat;
+            document.getElementById('model-select').value = settings.model;
+            document.getElementById('auto-save').checked = settings.autoSave;
+            document.getElementById('keep-history').checked = settings.keepHistory;
+        }
+        
+        // 設定の保存
+        function saveSettings() {
+            settings.openRouterKey = document.getElementById('openrouter-key').value;
+            settings.imageApiEndpoint = document.getElementById('image-api-endpoint').value;
+            settings.imageApiToken = document.getElementById('image-api-token').value;
+            settings.autoSave = document.getElementById('auto-save').checked;
+            settings.keepHistory = document.getElementById('keep-history').checked;
+            
+            settings.systemPrompts = {
+                translation: document.getElementById('sp-translation').value,
+                categorization: document.getElementById('sp-categorization').value,
+                optimization: document.getElementById('sp-optimization').value
+            };
+            
+            localStorage.setItem('ss-prompt-settings', JSON.stringify(settings));
+            closeSettings();
+            alert('設定を保存しました');
+        }
+        
+        // リサイザーのセットアップ
+        function setupResizer() {
+            const resizer = document.getElementById('resizer');
+            const container = document.getElementById('split-container');
+            
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'col-resize';
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                
+                const containerRect = container.getBoundingClientRect();
+                const newRightWidth = containerRect.right - e.clientX;
+                const rightWidthPercent = (newRightWidth / containerRect.width) * 100;
+                
+                if (rightWidthPercent > 20 && rightWidthPercent < 50) {
+                    container.style.gridTemplateColumns = `1fr ${newRightWidth}px`;
+                    resizer.style.right = `${newRightWidth - 4}px`;
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+                document.body.style.cursor = '';
+            });
+        }
+        
+        // ドラッグ&ドロップのセットアップ
+        function setupDragAndDrop() {
+            document.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+            
+            document.addEventListener('drop', (e) => {
+                e.preventDefault();
+            });
+        }
+        
+        // タブ切り替え
+        function setMainTab(tab) {
+            document.querySelectorAll('[id^="tab-"]').forEach(el => {
+                if (el.id.startsWith('tab-') && !el.classList.contains('settings-tab')) {
+                    el.classList.remove('border-blue-500', 'text-blue-600');
+                    el.classList.add('border-transparent');
+                }
+            });
+            document.querySelectorAll('[id^="content-"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+            
+            document.getElementById('tab-' + tab).classList.add('border-blue-500', 'text-blue-600');
+            document.getElementById('tab-' + tab).classList.remove('border-transparent');
+            document.getElementById('content-' + tab).classList.remove('hidden');
+        }
+        
+        // 設定モーダル
+        function openSettings() {
+            document.getElementById('settings-modal').classList.add('active');
+            // 現在の設定を表示
+            document.getElementById('openrouter-key').value = settings.openRouterKey || '';
+            document.getElementById('image-api-endpoint').value = settings.imageApiEndpoint || '';
+            document.getElementById('image-api-token').value = settings.imageApiToken || '';
+            document.getElementById('sp-translation').value = settings.systemPrompts?.translation || '';
+            document.getElementById('sp-categorization').value = settings.systemPrompts?.categorization || '';
+            document.getElementById('sp-optimization').value = settings.systemPrompts?.optimization || '';
+        }
+        
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+        
+        function setSettingsTab(tab) {
+            document.querySelectorAll('.settings-tab').forEach(el => {
+                el.classList.remove('border-blue-500', 'text-blue-600');
+                el.classList.add('border-transparent');
+            });
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            event.target.classList.add('border-blue-500', 'text-blue-600');
+            event.target.classList.remove('border-transparent');
+            document.getElementById('tab-' + tab).classList.add('active');
+        }
+        
+        // テキスト分解
+        async function splitText() {
+            const text = document.getElementById('input-text').value;
+            if (!text) return;
+            
+            try {
+                const response = await fetch('/api/split', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                const data = await response.json();
+                blocks = data.blocks;
+                
+                // 自動翻訳を試みる
+                if (settings.openRouterKey) {
+                    await translateBlocks();
+                }
+                
+                renderBlocks();
+            } catch (error) {
+                console.error('Split error:', error);
+                // フォールバック
+                const parts = text.split(/[,，.。、]/g).filter(p => p.trim());
+                blocks = parts.map((part, i) => ({
+                    id: Date.now() + i,
+                    en: part.trim(),
+                    ja: part.trim(),
+                    weight: 1.0,
+                    category: 'other',
+                    locked: false
+                }));
+                renderBlocks();
+            }
+        }
+        
+        // ブロックの翻訳
+        async function translateBlocks() {
+            for (let block of blocks) {
+                if (!translationCache.has(block.en)) {
+                    // 実際の翻訳API呼び出し（OpenRouter経由）
+                    try {
+                        const response = await fetch('/api/translate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                text: block.en, 
+                                from: 'en', 
+                                to: 'ja',
+                                apiKey: settings.openRouterKey 
+                            })
+                        });
+                        const data = await response.json();
+                        block.ja = data.translated;
+                        translationCache.set(block.en, data.translated);
+                    } catch (error) {
+                        console.error('Translation error:', error);
+                    }
+                }
+            }
+        }
+        
+        // AI色分け
+        async function colorizeBlocks() {
+            if (blocks.length === 0) return;
+            
+            try {
+                const response = await fetch('/api/categorize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        blocks,
+                        systemPrompt: settings.systemPrompts?.categorization
+                    })
+                });
+                const data = await response.json();
+                blocks = data.blocks;
+                renderBlocks();
+            } catch (error) {
+                console.error('Categorize error:', error);
+                // フォールバック
+                const categories = ['person', 'appearance', 'clothing', 'pose', 'background', 'quality', 'style', 'other'];
+                blocks = blocks.map(block => ({
+                    ...block,
+                    category: categories[Math.floor(Math.random() * categories.length)]
+                }));
+                renderBlocks();
+            }
+        }
+        
+        // AI生成
+        async function generateAI() {
+            const text = document.getElementById('input-text').value;
+            if (!text) return;
+            
+            try {
+                const response = await fetch('/api/optimize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: text,
+                        format: settings.outputFormat,
+                        systemPrompt: settings.systemPrompts?.optimization
+                    })
+                });
+                const data = await response.json();
+                
+                const optimized = typeof data.optimized === 'string' 
+                    ? data.optimized 
+                    : data.optimized.positive;
+                    
+                document.getElementById('input-text').value = optimized;
+                await splitText();
+            } catch (error) {
+                console.error('Optimize error:', error);
+                // フォールバック
+                const optimized = 'masterpiece, best quality, ' + text + ', detailed, 8k';
+                document.getElementById('input-text').value = optimized;
+                await splitText();
+            }
+        }
+        
+        // クリア
+        function clearAll() {
+            if (settings.keepHistory) {
+                // 履歴として保存
+                const history = JSON.parse(localStorage.getItem('ss-prompt-history') || '[]');
+                history.push({
+                    blocks: blocks,
+                    timestamp: new Date().toISOString()
+                });
+                localStorage.setItem('ss-prompt-history', JSON.stringify(history.slice(-10))); // 最新10件のみ保持
+            }
+            
+            document.getElementById('input-text').value = '';
+            blocks = [];
+            renderBlocks();
+        }
+        
+        // 新しいタグ追加
+        async function addNewTag(lang) {
+            const input = document.getElementById('new-tag-' + lang);
+            const value = input.value.trim();
+            if (!value) return;
+            
+            const newBlock = {
+                id: Date.now(),
+                en: lang === 'en' ? value : '',
+                ja: lang === 'ja' ? value : '',
+                weight: 1.0,
+                category: 'other',
+                locked: false
+            };
+            
+            // 翻訳を試みる
+            if (settings.openRouterKey) {
+                try {
+                    const response = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text: value,
+                            from: lang,
+                            to: lang === 'en' ? 'ja' : 'en',
+                            apiKey: settings.openRouterKey
+                        })
+                    });
+                    const data = await response.json();
+                    if (lang === 'en') {
+                        newBlock.ja = data.translated;
+                    } else {
+                        newBlock.en = data.translated;
+                    }
+                } catch (error) {
+                    // フォールバック
+                    if (lang === 'en') {
+                        newBlock.ja = value + '_翻訳済み';
+                    } else {
+                        newBlock.en = value + '_translated';
+                    }
+                }
+            } else {
+                // APIキーがない場合のフォールバック
+                if (lang === 'en') {
+                    newBlock.ja = value + '_翻訳済み';
+                } else {
+                    newBlock.en = value + '_translated';
+                }
+            }
+            
+            blocks.push(newBlock);
+            input.value = '';
+            renderBlocks();
+            
+            if (settings.autoSave) {
+                saveToLocalStorage();
+            }
+        }
+        
+        // ブロックのレンダリング
+        function renderBlocks() {
+            const enContainer = document.getElementById('blocks-en');
+            const jaContainer = document.getElementById('blocks-ja');
+            
+            enContainer.innerHTML = '';
+            jaContainer.innerHTML = '';
+            
+            blocks.forEach((block, index) => {
+                // 英語ブロック
+                const enBlock = createBlockElement(block, 'en', index);
+                enContainer.appendChild(enBlock);
+                
+                // 日本語ブロック
+                const jaBlock = createBlockElement(block, 'ja', index);
+                jaContainer.appendChild(jaBlock);
+            });
+            
+            updateFinalPrompt();
+        }
+        
+        // ブロック要素の作成
+        function createBlockElement(block, lang, index) {
+            const div = document.createElement('div');
+            div.className = `block-card p-3 border-2 rounded-lg mb-2`;
+            div.setAttribute('data-category', block.category);
+            div.setAttribute('data-block-id', block.id);
+            div.setAttribute('data-index', index);
+            div.draggable = !block.locked;
+            
+            const categoryColors = {
+                person: 'bg-yellow-100 border-yellow-400',
+                appearance: 'bg-blue-100 border-blue-400',
+                clothing: 'bg-pink-100 border-pink-400',
+                pose: 'bg-purple-100 border-purple-400',
+                background: 'bg-green-100 border-green-400',
+                quality: 'bg-orange-100 border-orange-400',
+                style: 'bg-yellow-100 border-yellow-500',
+                other: 'bg-gray-100 border-gray-400'
+            };
+            
+            div.className += ' ' + (categoryColors[block.category] || categoryColors.other);
+            
+            // ドラッグイベント
+            div.addEventListener('dragstart', (e) => {
+                draggedBlock = { block, index };
+                div.classList.add('dragging');
+            });
+            
+            div.addEventListener('dragend', () => {
+                div.classList.remove('dragging');
+                draggedBlock = null;
+            });
+            
+            div.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (draggedBlock && draggedBlock.index !== index) {
+                    div.classList.add('drag-over');
+                }
+            });
+            
+            div.addEventListener('dragleave', () => {
+                div.classList.remove('drag-over');
+            });
+            
+            div.addEventListener('drop', (e) => {
+                e.preventDefault();
+                div.classList.remove('drag-over');
+                
+                if (draggedBlock && draggedBlock.index !== index) {
+                    // ブロックの順序を入れ替え
+                    const temp = blocks[draggedBlock.index];
+                    blocks[draggedBlock.index] = blocks[index];
+                    blocks[index] = temp;
+                    renderBlocks();
+                }
+            });
+            
+            div.innerHTML = `
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex-1">
+                        <input type="text" value="${block[lang]}" 
+                            class="inline-edit"
+                            onchange="updateBlockText(${block.id}, '${lang}', this.value)"
+                            onkeyup="debounceTranslate(${block.id}, '${lang}', this.value)">
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="toggleLock(${block.id})" class="text-gray-600 hover:text-gray-800">
+                            <i class="fas fa-${block.locked ? 'lock' : 'unlock'} text-xs"></i>
+                        </button>
+                        <button onclick="changeWeight(${block.id}, 0.05)" class="text-gray-600 hover:text-gray-800">
+                            <i class="fas fa-chevron-up text-xs"></i>
+                        </button>
+                        <span class="text-sm font-mono w-10 text-center">${block.weight.toFixed(2)}</span>
+                        <button onclick="changeWeight(${block.id}, -0.05)" class="text-gray-600 hover:text-gray-800">
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <button onclick="duplicateBlock(${block.id})" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-copy text-xs"></i>
+                        </button>
+                        <button onclick="deleteBlock(${block.id})" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            return div;
+        }
+        
+        // デバウンス翻訳
+        let translateTimeout = null;
+        function debounceTranslate(id, lang, value) {
+            clearTimeout(translateTimeout);
+            translateTimeout = setTimeout(() => {
+                translateBlockText(id, lang, value);
+            }, 500);
+        }
+        
+        // ブロックテキストの翻訳
+        async function translateBlockText(id, fromLang, text) {
+            const block = blocks.find(b => b.id === id);
+            if (!block || !settings.openRouterKey) return;
+            
+            const toLang = fromLang === 'en' ? 'ja' : 'en';
+            
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        from: fromLang,
+                        to: toLang,
+                        apiKey: settings.openRouterKey
+                    })
+                });
+                const data = await response.json();
+                block[toLang] = data.translated;
+                renderBlocks();
+            } catch (error) {
+                console.error('Translation error:', error);
+            }
+        }
+        
+        // ブロックテキストの更新
+        function updateBlockText(id, lang, value) {
+            const block = blocks.find(b => b.id === id);
+            if (!block) return;
+            
+            block[lang] = value;
+            updateFinalPrompt();
+            
+            if (settings.autoSave) {
+                saveToLocalStorage();
+            }
+        }
+        
+        // ロック切り替え
+        function toggleLock(id) {
+            const block = blocks.find(b => b.id === id);
+            if (!block) return;
+            
+            block.locked = !block.locked;
+            renderBlocks();
+        }
+        
+        // ブロック複製
+        function duplicateBlock(id) {
+            const block = blocks.find(b => b.id === id);
+            if (!block) return;
+            
+            const newBlock = {
+                ...block,
+                id: Date.now()
+            };
+            
+            const index = blocks.findIndex(b => b.id === id);
+            blocks.splice(index + 1, 0, newBlock);
+            renderBlocks();
+        }
+        
+        // 重み変更
+        function changeWeight(id, delta) {
+            const block = blocks.find(b => b.id === id);
+            if (!block) return;
+            
+            block.weight = Math.max(0.1, Math.min(2.0, block.weight + delta));
+            renderBlocks();
+        }
+        
+        // ブロック削除
+        function deleteBlock(id) {
+            blocks = blocks.filter(b => b.id !== id);
+            renderBlocks();
+        }
+        
+        // 完成プロンプトの更新
+        function updateFinalPrompt() {
+            const format = document.getElementById('output-format').value;
+            let prompt = '';
+            
+            if (blocks.length > 0) {
+                if (format === 'sdxl') {
+                    prompt = blocks.map(b => {
+                        const tag = b.en;
+                        return b.weight !== 1.0 ? `(${tag}:${b.weight.toFixed(2)})` : tag;
+                    }).join(', ');
+                } else if (format === 'flux') {
+                    prompt = blocks.map(b => b.en).join('. ') + '.';
+                } else {
+                    prompt = blocks.map(b => b.en).join(' ');
+                }
+            }
+            
+            document.getElementById('final-prompt').textContent = prompt || 'プロンプトがまだ生成されていません';
+            document.getElementById('preview-prompt').textContent = prompt || 'プロンプトなし';
+        }
+        
+        // プロンプトコピー
+        function copyPrompt() {
+            const text = document.getElementById('final-prompt').textContent;
+            navigator.clipboard.writeText(text);
+            
+            // フィードバック表示
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check mr-2"></i>コピー済み';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+            }, 2000);
+        }
+        
+        // プロンプトエクスポート
+        function exportPrompt(format) {
+            const prompt = document.getElementById('final-prompt').textContent;
+            const data = format === 'json' 
+                ? JSON.stringify({ prompt, blocks, settings: { format: settings.outputFormat } }, null, 2)
+                : prompt;
+            
+            const blob = new Blob([data], { type: format === 'json' ? 'application/json' : 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `prompt_${new Date().getTime()}.${format}`;
+            a.click();
+        }
+        
+        // 画像生成
+        async function generateImage() {
+            const prompt = document.getElementById('final-prompt').textContent;
+            if (!prompt || prompt === 'プロンプトがまだ生成されていません') return;
+            
+            const btn = document.getElementById('generate-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> 生成中...';
+            
+            document.getElementById('generated-image').innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt,
+                        model: document.getElementById('image-model').value,
+                        parameters: {
+                            steps: document.getElementById('param-steps').value,
+                            cfg: document.getElementById('param-cfg').value,
+                            seed: document.getElementById('param-seed').value,
+                            size: document.getElementById('param-size').value
+                        },
+                        apiEndpoint: settings.imageApiEndpoint,
+                        apiToken: settings.imageApiToken
+                    })
+                });
+                const data = await response.json();
+                
+                document.getElementById('generated-image').innerHTML = 
+                    `<img src="${data.image.url}" alt="Generated" class="w-full rounded-lg shadow-lg">
+                     <div class="mt-2 text-xs text-gray-600">
+                        Seed: ${data.image.seed} | Model: ${data.image.model}
+                     </div>`;
+            } catch (error) {
+                document.getElementById('generated-image').innerHTML = 
+                    '<p class="text-red-600">生成に失敗しました: ' + error.message + '</p>';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sparkles mr-2"></i>生成';
+            }
+        }
+        
+        // API接続テスト
+        async function testAPIConnection() {
+            alert('API接続テストを実行します（実装予定）');
+        }
+        
+        // システムプロンプトのリセット
+        function resetSystemPrompts() {
+            document.getElementById('sp-translation').value = 'You are a professional translator for image generation prompts. Translate between English and Japanese accurately.';
+            document.getElementById('sp-categorization').value = 'Classify each element into: person, appearance, clothing, pose, background, quality, style, or other.';
+            document.getElementById('sp-optimization').value = 'Optimize prompts with appropriate quality tags and weights based on the target model.';
+        }
+        
+        // システムプロンプトのテスト
+        async function testSystemPrompt() {
+            const testInput = prompt('テスト入力を入力してください:', 'beautiful girl, long hair');
+            if (!testInput) return;
+            
+            const result = {
+                input: testInput,
+                translation: 'テスト結果（翻訳）',
+                categorization: 'テスト結果（カテゴリ）',
+                optimization: 'テスト結果（最適化）'
+            };
+            
+            alert('テスト結果:\n' + JSON.stringify(result, null, 2));
+        }
+        
+        // 新規フォーマット追加
+        function addNewFormat() {
+            const name = prompt('フォーマット名を入力:');
+            if (!name) return;
+            
+            const template = prompt('テンプレートを入力 ({{tags}}などの変数を使用):');
+            if (!template) return;
+            
+            alert(`新規フォーマット "${name}" を追加しました（実装予定）`);
+        }
+        
+        // ローカルストレージへの保存
+        function saveToLocalStorage() {
+            const data = {
+                blocks,
+                inputText: document.getElementById('input-text').value,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('ss-prompt-current', JSON.stringify(data));
+        }
+        
+        // ローカルストレージからの読み込み
+        function loadFromLocalStorage() {
+            const data = JSON.parse(localStorage.getItem('ss-prompt-current') || '{}');
+            if (data.blocks) {
+                blocks = data.blocks;
+                document.getElementById('input-text').value = data.inputText || '';
+                renderBlocks();
+            }
+        }
+        
+        // 自動保存の設定
+        if (settings.autoSave) {
+            setInterval(saveToLocalStorage, 30000); // 30秒ごとに自動保存
+        }
+        
+        // ページ読み込み時に前回の状態を復元
+        loadFromLocalStorage();
+    </script>
+</body>
+</html>
