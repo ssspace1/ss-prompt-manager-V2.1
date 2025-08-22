@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag & Drop Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .tag-card {
+            cursor: grab;
+            transition: all 0.2s;
+        }
+        .tag-card:active {
+            cursor: grabbing;
+        }
+        .tag-card.dragging {
+            opacity: 0.3;
+            transform: scale(1.02);
+        }
+        .drop-zone {
+            min-height: 2px;
+            transition: all 0.3s;
+            opacity: 0;
+        }
+        .drop-zone-active {
+            min-height: 20px;
+            margin: 4px 0;
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px dashed rgba(59, 130, 246, 0.4);
+            border-radius: 6px;
+            opacity: 1;
+        }
+        .drop-zone-hover {
+            min-height: 40px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 3px solid #3b82f6;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+    </style>
+</head>
+<body class="p-8 bg-gray-100">
+    <h1 class="text-2xl font-bold mb-4">Drag & Drop Test</h1>
+    
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <h2 class="text-lg font-semibold mb-2">English Tags</h2>
+            <div id="tags-en" class="space-y-2 p-4 bg-white rounded">
+                <!-- Tags will be added here -->
+            </div>
+        </div>
+        
+        <div>
+            <h2 class="text-lg font-semibold mb-2">Japanese Tags</h2>
+            <div id="tags-ja" class="space-y-2 p-4 bg-white rounded">
+                <!-- Tags will be added here -->
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4 p-4 bg-gray-200 rounded">
+        <h3 class="font-semibold">Console Log:</h3>
+        <div id="console-log" class="font-mono text-sm mt-2"></div>
+    </div>
+
+    <script>
+        const log = (msg) => {
+            console.log(msg);
+            const logDiv = document.getElementById('console-log');
+            logDiv.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
+        };
+
+        const tags = [
+            { id: 1, en: 'masterpiece', ja: '傑作' },
+            { id: 2, en: 'best quality', ja: '最高品質' },
+            { id: 3, en: '1girl', ja: '1人の女の子' }
+        ];
+
+        let draggedElement = null;
+        let draggedIndex = null;
+
+        function createDropZone(index) {
+            const zone = document.createElement('div');
+            zone.className = 'drop-zone';
+            zone.dataset.index = index;
+            
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('drop-zone-hover');
+                log(`Dragover zone ${index}`);
+            });
+            
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('drop-zone-hover');
+            });
+            
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                log(`Dropped at zone ${index}`);
+                zone.classList.remove('drop-zone-hover');
+                
+                if (draggedIndex !== null && draggedIndex !== index) {
+                    // Reorder tags
+                    const [movedTag] = tags.splice(draggedIndex, 1);
+                    const insertIndex = index + (draggedIndex < index ? 0 : 1);
+                    tags.splice(insertIndex, 0, movedTag);
+                    renderTags();
+                }
+            });
+            
+            return zone;
+        }
+
+        function createTagCard(tag, index, lang) {
+            const card = document.createElement('div');
+            card.className = 'tag-card bg-blue-100 p-2 rounded border border-blue-300';
+            card.draggable = true;
+            card.dataset.index = index;
+            card.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-grip-vertical text-gray-400"></i>
+                    <span>${lang === 'en' ? tag.en : tag.ja}</span>
+                </div>
+            `;
+            
+            card.addEventListener('dragstart', (e) => {
+                draggedElement = card;
+                draggedIndex = index;
+                card.classList.add('dragging');
+                log(`Started dragging tag ${index}: ${tag.en}`);
+                
+                // Show drop zones
+                setTimeout(() => {
+                    document.querySelectorAll('.drop-zone').forEach(z => {
+                        z.classList.add('drop-zone-active');
+                    });
+                }, 10);
+            });
+            
+            card.addEventListener('dragend', () => {
+                card.classList.remove('dragging');
+                document.querySelectorAll('.drop-zone').forEach(z => {
+                    z.classList.remove('drop-zone-active', 'drop-zone-hover');
+                });
+                draggedElement = null;
+                draggedIndex = null;
+                log('Drag ended');
+            });
+            
+            return card;
+        }
+
+        function renderTags() {
+            const enContainer = document.getElementById('tags-en');
+            const jaContainer = document.getElementById('tags-ja');
+            
+            enContainer.innerHTML = '';
+            jaContainer.innerHTML = '';
+            
+            // Add first drop zone
+            enContainer.appendChild(createDropZone(-1));
+            jaContainer.appendChild(createDropZone(-1));
+            
+            tags.forEach((tag, index) => {
+                enContainer.appendChild(createTagCard(tag, index, 'en'));
+                enContainer.appendChild(createDropZone(index));
+                
+                jaContainer.appendChild(createTagCard(tag, index, 'ja'));
+                jaContainer.appendChild(createDropZone(index));
+            });
+            
+            log('Tags rendered');
+        }
+
+        // Initialize
+        renderTags();
+        log('Test page loaded');
+    </script>
+</body>
+</html>

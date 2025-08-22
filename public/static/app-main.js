@@ -196,7 +196,7 @@ const TagEditor = {
     // Escape text for HTML attributes
     const escapedText = text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     
-    // Create compact content layout with vertical arrow buttons
+    // Create compact content layout without drag handle
     card.innerHTML = `
       <div class="flex items-center gap-2">
         <div class="flex-1 min-w-0">
@@ -320,7 +320,8 @@ const TagEditor = {
     
     // Show all drop zones
     setTimeout(() => {
-      document.querySelectorAll('.drop-zone').forEach(zone => {
+      const zones = document.querySelectorAll('.drop-zone');
+      zones.forEach(zone => {
         if (zone.dataset.context === TagEditor.draggedContext && 
             zone.dataset.lang === TagEditor.draggedLang) {
           zone.classList.add('drop-zone-active');
@@ -350,32 +351,95 @@ const TagEditor = {
   },
   
   handleDragOver: function(e) {
-    // Prevent default for tag cards but don't show indicators
-    // Drop zones will handle the visual feedback
+    // Allow dropping on cards for better hit detection
     if (e.preventDefault) {
       e.preventDefault();
     }
+    
+    // Check if valid drop target
+    if (!TagEditor.draggedElement ||
+        this.dataset.context !== TagEditor.draggedContext ||
+        this.dataset.lang !== TagEditor.draggedLang ||
+        this === TagEditor.draggedElement) {
+      return false;
+    }
+    
+    // Determine if dropping above or below based on mouse position
+    const rect = this.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    const dropAbove = e.clientY < midpoint;
+    
+    // Find the appropriate drop zone (before or after this card)
+    const cardIndex = parseInt(this.dataset.index);
+    const targetZoneIndex = dropAbove ? cardIndex - 1 : cardIndex;
+    
+    // Activate the nearest drop zone
+    const zones = this.parentElement.querySelectorAll('.drop-zone');
+    zones.forEach(zone => {
+      const zoneIndex = parseInt(zone.dataset.index);
+      if (zoneIndex === targetZoneIndex) {
+        zone.classList.add('drop-zone-hover');
+      } else {
+        zone.classList.remove('drop-zone-hover');
+      }
+    });
+    
+    e.dataTransfer.dropEffect = 'move';
     return false;
   },
   
   handleDrop: function(e) {
-    // Prevent drop on cards, only allow on drop zones
+    // Handle drop on cards
     if (e.stopPropagation) {
       e.stopPropagation();
     }
     e.preventDefault();
+    
+    if (!TagEditor.draggedElement ||
+        this.dataset.context !== TagEditor.draggedContext ||
+        this.dataset.lang !== TagEditor.draggedLang ||
+        this === TagEditor.draggedElement) {
+      return false;
+    }
+    
+    // Determine drop position
+    const rect = this.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    const dropAbove = e.clientY < midpoint;
+    
+    const cardIndex = parseInt(this.dataset.index);
+    const dropIndex = dropAbove ? cardIndex - 1 : cardIndex;
+    
+    if (TagEditor.draggedIndex !== null) {
+      // Perform the move
+      if (TagEditor.draggedContext === 'image') {
+        TagEditor.moveImageTagToPosition(TagEditor.draggedIndex, dropIndex);
+      } else {
+        TagEditor.moveMainTagToPosition(TagEditor.draggedIndex, dropIndex);
+      }
+    }
+    
     return false;
   },
   
   handleDragEnter: function(e) {
-    // No visual feedback on cards
+    // Prevent default to allow drop
+    e.preventDefault();
   },
   
   handleDragLeave: function(e) {
-    // No visual feedback on cards
+    // Clean up hover states when leaving
+    const relatedTarget = e.relatedTarget;
+    if (!relatedTarget || !this.contains(relatedTarget)) {
+      // Clear nearby drop zone hovers
+      const zones = this.parentElement?.querySelectorAll('.drop-zone-hover');
+      if (zones) {
+        zones.forEach(zone => zone.classList.remove('drop-zone-hover'));
+      }
+    }
   },
   
-  // Drop zone event handlers
+  // Drop zone event handlers - improved sensitivity
   handleDropZoneDragOver: function(e) {
     if (e.preventDefault) {
       e.preventDefault();
@@ -389,7 +453,18 @@ const TagEditor = {
     }
     
     e.dataTransfer.dropEffect = 'move';
-    this.classList.add('drop-zone-hover');
+    
+    // Add hover class immediately for better responsiveness
+    if (!this.classList.contains('drop-zone-hover')) {
+      // Remove hover from other zones first
+      document.querySelectorAll('.drop-zone-hover').forEach(zone => {
+        if (zone !== this) {
+          zone.classList.remove('drop-zone-hover');
+        }
+      });
+      this.classList.add('drop-zone-hover');
+    }
+    
     return false;
   },
   
@@ -2651,14 +2726,14 @@ Be detailed and specific in your description.`;
       const temp = App.imageState.imageTags[index];
       App.imageState.imageTags[index] = App.imageState.imageTags[newIndex];
       App.imageState.imageTags[newIndex] = temp;
-      TagEditor.renderTags('image')();
+      TagEditor.renderTags('image');
     }
   },
   
   // Remove image tag
   removeImageTag: (index) => {
     App.imageState.imageTags.splice(index, 1);
-    TagEditor.renderTags('image')();
+    TagEditor.renderTags('image');
   },
   
   // Sort image tags
@@ -2674,7 +2749,7 @@ Be detailed and specific in your description.`;
     TagEditor.renderTags('image');
   },
   
-  // Add new image tag
+  // Add new image tag (same mechanism as Text to Prompt)
   addNewImageTag: async (lang) => {
     const input = document.getElementById(`new-image-tag-${lang}`);
     if (!input || !input.value.trim()) return;
@@ -2696,10 +2771,11 @@ Be detailed and specific in your description.`;
       newTag.category = categorizeTag(text);
     } else {
       newTag.ja = text;
+      // Same translation mechanism as Text to Prompt
       if (appState.apiKey) {
         newTag.en = await translateWithAI(text, 'en');
       } else {
-        newTag.en = App.reverseTranslate(text);
+        newTag.en = translateToEnglish(text);
       }
       newTag.category = categorizeTag(newTag.en);
     }
@@ -2983,6 +3059,27 @@ Be detailed and specific in your description.`;
 
 // Initialize Image to Prompt on load
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize with sample tags for demonstration
+  if (appState.tags.length === 0) {
+    appState.tags = [
+      { id: 1, en: 'masterpiece', ja: '傑作', weight: 1.2, category: 'quality' },
+      { id: 2, en: 'best quality', ja: '最高品質', weight: 1.1, category: 'quality' },
+      { id: 3, en: '1girl', ja: '1人の女の子', weight: 1.0, category: 'person' },
+      { id: 4, en: 'long hair', ja: '長い髪', weight: 1.0, category: 'appearance' },
+      { id: 5, en: 'school uniform', ja: '学生服', weight: 1.0, category: 'clothing' }
+    ];
+    TagEditor.renderTags('main');
+  }
+  
+  if (App.imageState.imageTags.length === 0) {
+    App.imageState.imageTags = [
+      { id: 'img-1', en: 'sunset', ja: '夕日', weight: 1.0, category: 'background' },
+      { id: 'img-2', en: 'landscape', ja: '風景', weight: 1.0, category: 'style' },
+      { id: 'img-3', en: 'mountains', ja: '山', weight: 1.0, category: 'background' }
+    ];
+    TagEditor.renderTags('image');
+  }
+  
   // Load saved vision model
   const savedVisionModel = localStorage.getItem('vision-model');
   if (savedVisionModel) {

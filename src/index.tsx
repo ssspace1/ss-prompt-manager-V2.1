@@ -333,13 +333,12 @@ const appHtml = `<!DOCTYPE html>
         
         /* Drag and Drop Styles */
         .tag-card {
-            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
-                        box-shadow 0.2s ease;
             cursor: grab;
             position: relative;
             min-height: auto;
             display: block;
             margin: 0 !important;
+            transition: none; /* Remove transition to prevent unwanted animations */
         }
         
         /* Stack cards directly with border overlap */
@@ -352,12 +351,13 @@ const appHtml = `<!DOCTYPE html>
             line-height: 0;
         }
         
-        #tags-en > *, #tags-ja > *, #image-tags-en > *, #image-tags-ja > * {
+        #tags-en > *, #tags-ja > *, #image-tags-ja > * {
             line-height: normal;
         }
         
+        /* Only slight hover effect, no movement */
         .tag-card:hover {
-            transform: translateY(-1px);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         
         /* Compact arrow buttons */
@@ -382,69 +382,96 @@ const appHtml = `<!DOCTYPE html>
         }
         
         .tag-card.dragging {
-            opacity: 0.3;
-            transform: scale(1.02) rotate(1deg);
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
+            opacity: 0.4;
+            transform: scale(0.98);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
             z-index: 1000;
             cursor: grabbing !important;
+            transition: transform 0.15s ease, opacity 0.15s ease;
         }
         
-        /* Drop zone styles */
+        /* Drop zone styles - Invisible but with large hit area */
         .drop-zone {
+            position: relative;
             height: 0;
             margin: 0;
             padding: 0;
             background: transparent;
+            border: none;
+            opacity: 0;
+            pointer-events: none;
             transition: all 0.2s ease;
-            position: relative;
-            overflow: hidden;
-            display: block;
-            line-height: 0;
         }
         
+        /* Large invisible drop zones when dragging - overlapping with tags */
         .drop-zone-active {
-            height: 0;
-            margin: 0;
-            padding: 0;
+            height: 30px !important;
+            margin: -13px 0 !important; /* Overlap with adjacent tags */
+            pointer-events: auto !important;
+            position: relative;
+            z-index: 999;
+            /* Visual indicator - just a thin line */
+            background: transparent;
+            opacity: 1;
         }
         
-        .drop-zone-hover {
-            height: 16px;
-            margin: 2px 0;
-            padding: 0;
-            background: linear-gradient(90deg, 
-                rgba(59, 130, 246, 0.1) 0%, 
-                rgba(139, 92, 246, 0.2) 50%, 
-                rgba(59, 130, 246, 0.1) 100%);
-            border-radius: 4px;
-            animation: dropZonePulse 1s ease-in-out infinite;
-        }
-        
-        .drop-zone-hover::before {
+        /* Add subtle line indicator in the middle */
+        .drop-zone-active::after {
             content: '';
             position: absolute;
             top: 50%;
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                #3b82f6 20%, 
-                #8b5cf6 50%, 
-                #3b82f6 80%, 
-                transparent 100%);
+            background: rgba(59, 130, 246, 0.2);
             transform: translateY(-50%);
-            animation: slideIndicator 2s linear infinite;
+            pointer-events: none;
+        }
+        
+        /* Visual feedback when hovering - keep it minimal */
+        .drop-zone-hover {
+            /* Keep the large hit area */
+            height: 30px !important;
+            margin: -13px 0 !important;
+            background: transparent !important;
+            border: none !important;
+            opacity: 1;
+        }
+        
+        /* Stronger visual line when hovering */
+        .drop-zone-hover::after {
+            height: 3px !important;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                #3b82f6 20%,
+                #3b82f6 80%,
+                transparent 100%) !important;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+        }
+        
+        /* Optional: Small text indicator on strong hover */
+        .drop-zone-hover::before {
+            content: '• • •';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #3b82f6;
+            font-size: 8px;
+            font-weight: bold;
+            opacity: 0.6;
+            letter-spacing: 2px;
+            pointer-events: none;
         }
         
         @keyframes dropZonePulse {
             0%, 100% { 
-                opacity: 0.6;
+                opacity: 0.8;
                 transform: scaleY(1);
             }
             50% { 
                 opacity: 1;
-                transform: scaleY(1.1);
+                transform: scaleY(1.05);
             }
         }
         
@@ -461,25 +488,17 @@ const appHtml = `<!DOCTYPE html>
         
         /* Remove old drag indicators as we're using drop zones now */
         
-        /* Grab handle icon */
-        .drag-handle {
+        /* Cursor feedback for draggable areas */
+        .tag-card {
             cursor: grab;
-            opacity: 0.3;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        .tag-card:hover .drag-handle {
-            opacity: 0.6;
-            transform: translateX(1px);
-            color: #3b82f6;
-        }
-        
-        .tag-card:active .drag-handle,
-        .tag-card.dragging .drag-handle {
+        .tag-card:active {
             cursor: grabbing;
-            opacity: 1;
-            color: #8b5cf6;
-            transform: scale(1.1);
+        }
+        
+        .tag-card.dragging {
+            cursor: grabbing !important;
         }
         
         /* Prevent text selection during drag */
