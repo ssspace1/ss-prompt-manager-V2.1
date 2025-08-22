@@ -374,52 +374,71 @@ const appHtml = `<!DOCTYPE html>
             cursor: grabbing !important;
         }
         
+        /* Drop zone styles */
+        .drop-zone {
+            height: 2px;
+            margin: 2px 0;
+            background: transparent;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .drop-zone-active {
+            height: 4px;
+            margin: 4px 0;
+        }
+        
+        .drop-zone-hover {
+            height: 20px;
+            margin: 8px 0;
+            background: linear-gradient(90deg, 
+                rgba(59, 130, 246, 0.1) 0%, 
+                rgba(139, 92, 246, 0.2) 50%, 
+                rgba(59, 130, 246, 0.1) 100%);
+            border-radius: 4px;
+            animation: dropZonePulse 1s ease-in-out infinite;
+        }
+        
+        .drop-zone-hover::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                #3b82f6 20%, 
+                #8b5cf6 50%, 
+                #3b82f6 80%, 
+                transparent 100%);
+            transform: translateY(-50%);
+            animation: slideIndicator 2s linear infinite;
+        }
+        
+        @keyframes dropZonePulse {
+            0%, 100% { 
+                opacity: 0.6;
+                transform: scaleY(1);
+            }
+            50% { 
+                opacity: 1;
+                transform: scaleY(1.1);
+            }
+        }
+        
+        @keyframes slideIndicator {
+            0% { transform: translateY(-50%) translateX(-100%); }
+            100% { transform: translateY(-50%) translateX(100%); }
+        }
+        
         .tag-card.drag-over {
             transform: scale(0.97);
             opacity: 0.7;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        .drag-indicator {
-            position: absolute;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #3b82f6 100%);
-            background-size: 200% 100%;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            border-radius: 3px;
-            pointer-events: none;
-        }
-        
-        .drag-indicator.show-top {
-            top: -2px;
-            opacity: 1;
-            animation: slideGradient 2s linear infinite, glowPulse 1s ease-in-out infinite;
-        }
-        
-        .drag-indicator.show-bottom {
-            bottom: -2px;
-            opacity: 1;
-            animation: slideGradient 2s linear infinite, glowPulse 1s ease-in-out infinite;
-        }
-        
-        @keyframes slideGradient {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
-        }
-        
-        @keyframes glowPulse {
-            0%, 100% { 
-                transform: scaleY(1);
-                filter: brightness(1) drop-shadow(0 0 2px rgba(59, 130, 246, 0.4));
-            }
-            50% { 
-                transform: scaleY(1.5);
-                filter: brightness(1.3) drop-shadow(0 0 4px rgba(59, 130, 246, 0.7));
-            }
-        }
+        /* Remove old drag indicators as we're using drop zones now */
         
         /* Grab handle icon */
         .drag-handle {

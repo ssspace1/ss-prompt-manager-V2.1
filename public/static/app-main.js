@@ -138,6 +138,12 @@ const TagEditor = {
     enContainer.innerHTML = '';
     jaContainer.innerHTML = '';
     
+    // Add drop zone at the beginning
+    const enDropZoneFirst = TagEditor.createDropZone(-1, 'en', context);
+    const jaDropZoneFirst = TagEditor.createDropZone(-1, 'ja', context);
+    enContainer.appendChild(enDropZoneFirst);
+    jaContainer.appendChild(jaDropZoneFirst);
+    
     ctx.tags.forEach((tag, index) => {
       const colorClass = TagEditor.categoryColors[tag.category] || TagEditor.categoryColors.other;
       
@@ -148,10 +154,31 @@ const TagEditor = {
       // Japanese tag card
       const jaCard = TagEditor.createTagCard(tag, index, 'ja', colorClass, context);
       jaContainer.appendChild(jaCard);
+      
+      // Add drop zone after each card
+      const enDropZone = TagEditor.createDropZone(index, 'en', context);
+      const jaDropZone = TagEditor.createDropZone(index, 'ja', context);
+      enContainer.appendChild(enDropZone);
+      jaContainer.appendChild(jaDropZone);
     });
     
     // Update outputs
     TagEditor.updateOutput(context);
+  },
+  
+  // Create a drop zone indicator
+  createDropZone: (index, lang, context) => {
+    const dropZone = document.createElement('div');
+    dropZone.className = 'drop-zone';
+    dropZone.dataset.index = index;
+    dropZone.dataset.context = context;
+    dropZone.dataset.lang = lang;
+    
+    dropZone.addEventListener('dragover', TagEditor.handleDropZoneDragOver);
+    dropZone.addEventListener('drop', TagEditor.handleDropZoneDrop);
+    dropZone.addEventListener('dragleave', TagEditor.handleDropZoneDragLeave);
+    
+    return dropZone;
   },
   
   // Create a tag card element with drag and drop
@@ -291,11 +318,14 @@ const TagEditor = {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', this.innerHTML);
     
-    // Add a slight delay before adding the dragging effect for smooth animation
+    // Show all drop zones
     setTimeout(() => {
-      if (this.classList.contains('dragging')) {
-        this.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-      }
+      document.querySelectorAll('.drop-zone').forEach(zone => {
+        if (zone.dataset.context === TagEditor.draggedContext && 
+            zone.dataset.lang === TagEditor.draggedLang) {
+          zone.classList.add('drop-zone-active');
+        }
+      });
     }, 10);
   },
   
@@ -303,9 +333,9 @@ const TagEditor = {
     this.classList.remove('dragging');
     this.style.transition = '';
     
-    // Remove all drag indicators with smooth animation
-    document.querySelectorAll('.drag-indicator').forEach(indicator => {
-      indicator.classList.remove('show-top', 'show-bottom');
+    // Hide all drop zones
+    document.querySelectorAll('.drop-zone').forEach(zone => {
+      zone.classList.remove('drop-zone-active', 'drop-zone-hover');
     });
     
     document.querySelectorAll('.tag-card').forEach(card => {
@@ -320,50 +350,56 @@ const TagEditor = {
   },
   
   handleDragOver: function(e) {
+    // Prevent default for tag cards but don't show indicators
+    // Drop zones will handle the visual feedback
     if (e.preventDefault) {
       e.preventDefault();
     }
-    e.dataTransfer.dropEffect = 'move';
-    
-    // Only allow drop in the same context and language
-    if (!TagEditor.draggedElement || 
-        this.dataset.context !== TagEditor.draggedContext || 
-        this.dataset.lang !== TagEditor.draggedLang) {
-      e.dataTransfer.dropEffect = 'none';
-      return false;
-    }
-    
-    // Don't show indicator on the dragged element itself
-    if (this === TagEditor.draggedElement) {
-      return false;
-    }
-    
-    const rect = this.getBoundingClientRect();
-    const midpoint = rect.top + rect.height / 2;
-    
-    // Clear all indicators first
-    document.querySelectorAll('.drag-indicator').forEach(indicator => {
-      indicator.classList.remove('show-top', 'show-bottom');
-    });
-    
-    // Show indicator based on mouse position
-    const indicators = this.querySelectorAll('.drag-indicator');
-    if (e.clientY < midpoint) {
-      indicators[0]?.classList.add('show-top');
-    } else {
-      indicators[1]?.classList.add('show-bottom');
-    }
-    
     return false;
   },
   
   handleDrop: function(e) {
+    // Prevent drop on cards, only allow on drop zones
+    if (e.stopPropagation) {
+      e.stopPropagation();
+    }
+    e.preventDefault();
+    return false;
+  },
+  
+  handleDragEnter: function(e) {
+    // No visual feedback on cards
+  },
+  
+  handleDragLeave: function(e) {
+    // No visual feedback on cards
+  },
+  
+  // Drop zone event handlers
+  handleDropZoneDragOver: function(e) {
+    if (e.preventDefault) {
+      e.preventDefault();
+    }
+    
+    // Check if this is a valid drop target
+    if (!TagEditor.draggedElement ||
+        this.dataset.context !== TagEditor.draggedContext ||
+        this.dataset.lang !== TagEditor.draggedLang) {
+      return false;
+    }
+    
+    e.dataTransfer.dropEffect = 'move';
+    this.classList.add('drop-zone-hover');
+    return false;
+  },
+  
+  handleDropZoneDrop: function(e) {
     if (e.stopPropagation) {
       e.stopPropagation();
     }
     e.preventDefault();
     
-    // Only allow drop in the same context and language
+    // Check if this is a valid drop
     if (!TagEditor.draggedElement ||
         this.dataset.context !== TagEditor.draggedContext ||
         this.dataset.lang !== TagEditor.draggedLang) {
@@ -372,80 +408,55 @@ const TagEditor = {
     
     const dropIndex = parseInt(this.dataset.index);
     
-    if (TagEditor.draggedElement !== this && TagEditor.draggedIndex !== null) {
-      const rect = this.getBoundingClientRect();
-      const midpoint = rect.top + rect.height / 2;
-      const insertBefore = e.clientY < midpoint;
-      
-      // Perform the move with animation
+    if (TagEditor.draggedIndex !== null) {
+      // Perform the move
       if (TagEditor.draggedContext === 'image') {
-        TagEditor.moveImageTag(TagEditor.draggedIndex, dropIndex, insertBefore);
+        TagEditor.moveImageTagToPosition(TagEditor.draggedIndex, dropIndex);
       } else {
-        TagEditor.moveMainTag(TagEditor.draggedIndex, dropIndex, insertBefore);
+        TagEditor.moveMainTagToPosition(TagEditor.draggedIndex, dropIndex);
       }
     }
     
     return false;
   },
   
-  handleDragEnter: function(e) {
-    if (TagEditor.draggedElement &&
-        this !== TagEditor.draggedElement &&
-        this.dataset.context === TagEditor.draggedContext &&
-        this.dataset.lang === TagEditor.draggedLang) {
-      this.classList.add('drag-over');
-      this.style.transition = 'all 0.2s ease';
-    }
+  handleDropZoneDragLeave: function(e) {
+    this.classList.remove('drop-zone-hover');
   },
   
-  handleDragLeave: function(e) {
-    // Only remove if we're actually leaving the element
-    const relatedTarget = e.relatedTarget;
-    if (!this.contains(relatedTarget)) {
-      this.classList.remove('drag-over');
-      this.querySelectorAll('.drag-indicator').forEach(indicator => {
-        indicator.classList.remove('show-top', 'show-bottom');
-      });
-    }
-  },
-  
-  // Move tag functions for drag and drop with smooth animation
-  moveMainTag: (fromIndex, toIndex, insertBefore) => {
+  // Move tag to specific position for drop zones
+  moveMainTagToPosition: (fromIndex, toPosition) => {
     const tags = appState.tags;
     const [movedTag] = tags.splice(fromIndex, 1);
     
-    let newIndex = toIndex;
-    if (fromIndex < toIndex) {
-      newIndex = insertBefore ? toIndex - 1 : toIndex;
-    } else {
-      newIndex = insertBefore ? toIndex : toIndex + 1;
+    // toPosition is -1 for the first position, otherwise it's the index after which to insert
+    let newIndex = toPosition + 1;
+    if (fromIndex <= toPosition) {
+      newIndex = toPosition;
     }
     
     // Ensure index is within bounds
     newIndex = Math.max(0, Math.min(tags.length, newIndex));
     tags.splice(newIndex, 0, movedTag);
     
-    // Add a small delay for smooth visual transition
-    setTimeout(() => TagEditor.renderTags('main'), 50);
+    TagEditor.renderTags('main');
   },
   
-  moveImageTag: (fromIndex, toIndex, insertBefore) => {
+  moveImageTagToPosition: (fromIndex, toPosition) => {
     const tags = App.imageState.imageTags;
     const [movedTag] = tags.splice(fromIndex, 1);
     
-    let newIndex = toIndex;
-    if (fromIndex < toIndex) {
-      newIndex = insertBefore ? toIndex - 1 : toIndex;
-    } else {
-      newIndex = insertBefore ? toIndex : toIndex + 1;
+    // toPosition is -1 for the first position, otherwise it's the index after which to insert
+    let newIndex = toPosition + 1;
+    if (fromIndex <= toPosition) {
+      newIndex = toPosition;
     }
     
     // Ensure index is within bounds
     newIndex = Math.max(0, Math.min(tags.length, newIndex));
     tags.splice(newIndex, 0, movedTag);
     
-    // Add a small delay for smooth visual transition
-    setTimeout(() => TagEditor.renderTags('image'), 50);
+    TagEditor.renderTags('image');
   },
   
   // Update output for both contexts
