@@ -1370,36 +1370,188 @@ window.App = {
   },
   
   updateCustomFormatsList: () => {
+    // Update Text to Prompt custom formats
     const container = document.getElementById('custom-formats-list');
+    if (container) {
+      const customFormats = Object.keys(appState.systemPrompts).filter(
+        key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural'].includes(key)
+      );
+      
+      if (customFormats.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm">No custom formats added yet.</p>';
+      } else {
+        container.innerHTML = customFormats.map(format => `
+          <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex-1">
+              <div class="font-medium">${format.toUpperCase()}</div>
+              <div class="text-xs text-gray-500">Text to Prompt format</div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="App.showPromptEditor('${format}')" 
+                      class="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors">
+                <i class="fas fa-edit mr-1"></i>Edit
+              </button>
+              <button onclick="App.deleteCustomFormat('${format}')" 
+                      class="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors">
+                <i class="fas fa-trash mr-1"></i>Delete
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+    
+    // Update Image to Prompt custom formats
+    App.updateImageCustomFormatsList();
+  },
+
+  // Update Image custom formats list
+  updateImageCustomFormatsList: () => {
+    const container = document.getElementById('image-custom-formats-list');
     if (!container) return;
     
-    const customFormats = Object.keys(appState.systemPrompts).filter(
-      key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural'].includes(key)
-    );
+    const imageCustomFormats = Object.keys(App.imageState.customFormats);
     
-    if (customFormats.length === 0) {
+    if (imageCustomFormats.length === 0) {
       container.innerHTML = '<p class="text-gray-500 text-sm">No custom formats added yet.</p>';
       return;
     }
     
-    container.innerHTML = customFormats.map(format => `
+    container.innerHTML = imageCustomFormats.map(format => `
       <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
         <div class="flex-1">
           <div class="font-medium">${format.toUpperCase()}</div>
-          <div class="text-xs text-gray-500">Custom format</div>
+          <div class="text-xs text-gray-500">Image to Prompt format</div>
         </div>
         <div class="flex gap-2">
-          <button onclick="App.showPromptEditor('${format}')" 
-                  class="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors">
+          <button onclick="App.showImageCustomFormatEditor('${format}')" 
+                  class="px-3 py-1 text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors">
             <i class="fas fa-edit mr-1"></i>Edit
           </button>
-          <button onclick="App.deleteCustomFormat('${format}')" 
+          <button onclick="App.deleteImageCustomFormatFromSettings('${format}')" 
                   class="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors">
             <i class="fas fa-trash mr-1"></i>Delete
           </button>
         </div>
       </div>
     `).join('');
+  },
+
+  // Show image custom format editor from settings
+  showImageCustomFormatEditor: (formatName) => {
+    const currentPrompt = App.imageState.customFormats[formatName];
+    
+    if (!currentPrompt) {
+      showNotification('Format not found', 'error');
+      return;
+    }
+    
+    // Create modal HTML
+    const modalHTML = `
+      <div id="prompt-editor-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-800">
+              <i class="fas fa-image mr-2 text-purple-500"></i>
+              Edit Image Format: ${formatName}
+            </h2>
+            <button onclick="App.closePromptEditor()" class="text-gray-500 hover:text-gray-700">
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">System Prompt</label>
+            <textarea id="prompt-editor-textarea" 
+                      class="w-full h-64 p-3 border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Enter system prompt...">${currentPrompt}</textarea>
+          </div>
+          
+          <div class="flex justify-between">
+            <div>
+              <button onclick="App.deleteImageCustomFormatFromModal('${formatName}')" 
+                      class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 mr-2">
+                Delete Format
+              </button>
+            </div>
+            <div>
+              <button onclick="App.closePromptEditor()" 
+                      class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 mr-2">
+                Cancel
+              </button>
+              <button onclick="App.saveImageCustomFormatFromModal('${formatName}')" 
+                      class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+  },
+
+  // Save image custom format from modal
+  saveImageCustomFormatFromModal: (formatName) => {
+    const textarea = document.getElementById('prompt-editor-textarea');
+    
+    if (!textarea || !textarea.value.trim()) {
+      showNotification('Please enter a system prompt', 'error');
+      return;
+    }
+    
+    const newPrompt = textarea.value.trim();
+    
+    // Update custom format
+    App.imageState.customFormats[formatName] = newPrompt;
+    localStorage.setItem('image-custom-formats', JSON.stringify(App.imageState.customFormats));
+    
+    App.updateImageFormatDropdowns();
+    App.updateImageCustomFormatsList();
+    App.closePromptEditor();
+    
+    showNotification(`Image format "${formatName}" updated`, 'success');
+  },
+
+  // Delete image custom format from modal
+  deleteImageCustomFormatFromModal: (formatName) => {
+    if (confirm(`Are you sure you want to delete the image format "${formatName}"?`)) {
+      delete App.imageState.customFormats[formatName];
+      localStorage.setItem('image-custom-formats', JSON.stringify(App.imageState.customFormats));
+      
+      // If currently selected format is deleted, switch to SDXL
+      if (App.imageState.imageOutputFormat === formatName) {
+        App.imageState.imageOutputFormat = 'sdxl';
+        App.imageState.imageFinalFormat = 'sdxl';
+        App.updateImageFormatDropdowns();
+      }
+      
+      App.updateImageCustomFormatsList();
+      App.closePromptEditor();
+      
+      showNotification(`Image format "${formatName}" deleted`, 'success');
+    }
+  },
+
+  // Delete image custom format from settings list
+  deleteImageCustomFormatFromSettings: (formatName) => {
+    if (confirm(`Are you sure you want to delete the image format "${formatName}"?`)) {
+      delete App.imageState.customFormats[formatName];
+      localStorage.setItem('image-custom-formats', JSON.stringify(App.imageState.customFormats));
+      
+      // If currently selected format is deleted, switch to SDXL
+      if (App.imageState.imageOutputFormat === formatName) {
+        App.imageState.imageOutputFormat = 'sdxl';
+        App.imageState.imageFinalFormat = 'sdxl';
+        App.updateImageFormatDropdowns();
+      }
+      
+      App.updateImageCustomFormatsList();
+      
+      showNotification(`Image format "${formatName}" deleted`, 'success');
+    }
   },
   
   deleteCustomFormat: (format) => {
@@ -1791,7 +1943,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
   
-  // Populate custom formats in dropdowns
+  // Populate custom formats in dropdowns for Text to Prompt
   const customFormats = Object.keys(appState.systemPrompts).filter(
     key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural'].includes(key)
   );
@@ -1814,6 +1966,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       finalFormatSelect.appendChild(option);
     }
   });
+
+  // Initialize Image to Prompt formats
+  const savedImageOutputFormat = localStorage.getItem('image-output-format');
+  if (savedImageOutputFormat) {
+    App.imageState.imageOutputFormat = savedImageOutputFormat;
+  }
+  
+  const savedImageFinalFormat = localStorage.getItem('image-final-output-format');
+  if (savedImageFinalFormat) {
+    App.imageState.imageFinalFormat = savedImageFinalFormat;
+  }
+  
+  // Update image format dropdowns with custom formats
+  App.updateImageFormatDropdowns();
+  
+  // Update custom formats lists in settings
+  App.updateCustomFormatsList();
   
   // Load saved API key
   const savedKey = localStorage.getItem('openrouter-api-key');
@@ -1881,7 +2050,8 @@ Object.assign(App, {
     imageOutputFormat: 'sdxl',
     imageFinalFormat: 'sdxl',  // Separate format for final output
     imageTags: [],  // Separate tags for image tab
-    analysisVisible: false
+    analysisVisible: false,
+    customFormats: JSON.parse(localStorage.getItem('image-custom-formats') || '{}')  // Image-specific custom formats
   },
   
   // Handle image upload
@@ -2434,7 +2604,7 @@ Be detailed and specific in your description.`;
         promptTextarea.value = 'Generating prompt...';
       }
       
-      const formatPrompts = App.getFormatSystemPrompts();
+      const formatPrompts = App.getImageFormatSystemPrompts();
       const systemPromptGeneration = formatPrompts[App.imageState.imageOutputFormat];
       
       const promptResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -3098,6 +3268,7 @@ Rules:
     const select = document.getElementById('image-final-output-format');
     if (select) {
       App.imageState.imageFinalFormat = select.value;
+      localStorage.setItem('image-final-output-format', select.value);
       TagEditor.updateOutput('image');
     }
   },
@@ -3194,14 +3365,238 @@ Rules:
   
   // Show image prompt editor modal
   showImagePromptEditor: () => {
-    // TODO: Implement modal for editing system prompts
-    showNotification('System prompt editor coming soon', 'info');
+    const currentFormat = App.imageState.imageOutputFormat;
+    const systemPrompts = App.getImageFormatSystemPrompts();
+    const currentPrompt = systemPrompts[currentFormat];
+    
+    if (!currentPrompt) {
+      showNotification('No system prompt found for current format', 'error');
+      return;
+    }
+    
+    const isCustomFormat = currentFormat in App.imageState.customFormats;
+    const title = isCustomFormat ? 
+      `Edit Custom Format: ${currentFormat}` : 
+      `Edit System Prompt: ${currentFormat.toUpperCase()}`;
+    
+    // Create modal HTML
+    const modalHTML = `
+      <div id="prompt-editor-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-800">${title}</h2>
+            <button onclick="App.closePromptEditor()" class="text-gray-500 hover:text-gray-700">
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">System Prompt</label>
+            <textarea id="prompt-editor-textarea" 
+                      class="w-full h-64 p-3 border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter system prompt...">${currentPrompt}</textarea>
+          </div>
+          
+          <div class="flex justify-between">
+            <div>
+              ${!isCustomFormat ? `
+                <button onclick="App.resetImagePromptToDefault()" 
+                        class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 mr-2">
+                  Reset to Default
+                </button>
+              ` : `
+                <button onclick="App.deleteImageCustomFormat('${currentFormat}')" 
+                        class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 mr-2">
+                  Delete Format
+                </button>
+              `}
+            </div>
+            <div>
+              <button onclick="App.closePromptEditor()" 
+                      class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 mr-2">
+                Cancel
+              </button>
+              <button onclick="App.saveImagePromptEdit()" 
+                      class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+  },
+
+  // Close prompt editor modal
+  closePromptEditor: () => {
+    const modal = document.getElementById('prompt-editor-modal');
+    if (modal) {
+      modal.remove();
+    }
+  },
+
+  // Save image prompt edit
+  saveImagePromptEdit: () => {
+    const textarea = document.getElementById('prompt-editor-textarea');
+    const currentFormat = App.imageState.imageOutputFormat;
+    
+    if (!textarea || !textarea.value.trim()) {
+      showNotification('Please enter a system prompt', 'error');
+      return;
+    }
+    
+    const newPrompt = textarea.value.trim();
+    
+    // Save to appropriate storage
+    if (currentFormat in App.imageState.customFormats) {
+      // Update custom format
+      App.imageState.customFormats[currentFormat] = newPrompt;
+      localStorage.setItem('image-custom-formats', JSON.stringify(App.imageState.customFormats));
+      showNotification(`Custom format "${currentFormat}" updated`, 'success');
+    } else {
+      // Save default format override (could be implemented later)
+      showNotification('Default format prompts cannot be permanently modified', 'info');
+    }
+    
+    App.closePromptEditor();
+  },
+
+  // Reset image prompt to default
+  resetImagePromptToDefault: () => {
+    const currentFormat = App.imageState.imageOutputFormat;
+    const defaultPrompts = App.getFormatSystemPrompts();
+    const defaultPrompt = defaultPrompts[currentFormat];
+    
+    if (defaultPrompt) {
+      const textarea = document.getElementById('prompt-editor-textarea');
+      if (textarea) {
+        textarea.value = defaultPrompt;
+        showNotification('Reset to default prompt', 'info');
+      }
+    }
+  },
+
+  // Delete image custom format
+  deleteImageCustomFormat: (formatName) => {
+    if (confirm(`Are you sure you want to delete the custom format "${formatName}"?`)) {
+      delete App.imageState.customFormats[formatName];
+      localStorage.setItem('image-custom-formats', JSON.stringify(App.imageState.customFormats));
+      
+      // If currently selected format is deleted, switch to SDXL
+      if (App.imageState.imageOutputFormat === formatName) {
+        App.imageState.imageOutputFormat = 'sdxl';
+        App.imageState.imageFinalFormat = 'sdxl';
+      }
+      
+      App.updateImageFormatDropdowns();
+      App.closePromptEditor();
+      
+      showNotification(`Custom format "${formatName}" deleted`, 'success');
+    }
   },
   
   // Add custom format for image
   addImageCustomFormat: () => {
-    // TODO: Implement custom format addition
-    showNotification('Custom format addition coming soon', 'info');
+    const formatName = prompt('Enter custom format name (lowercase letters and hyphens only):');
+    if (!formatName) return;
+    
+    const validName = /^[a-z-]+$/.test(formatName);
+    if (!validName) {
+      showNotification('Format name must contain only lowercase letters and hyphens', 'error');
+      return;
+    }
+    
+    if (formatName in App.getImageFormatSystemPrompts() || formatName in App.imageState.customFormats) {
+      showNotification('Format name already exists', 'error');
+      return;
+    }
+    
+    const systemPrompt = prompt('Enter system prompt for this format:', 
+      'Convert the image analysis into your custom format. Rules:\n1. Add your specific formatting rules\n2. Output only the formatted result, no explanations');
+    
+    if (!systemPrompt) return;
+    
+    App.imageState.customFormats[formatName] = systemPrompt;
+    localStorage.setItem('image-custom-formats', JSON.stringify(App.imageState.customFormats));
+    
+    // Update format dropdowns
+    App.updateImageFormatDropdowns();
+    
+    showNotification(`Custom format "${formatName}" added for Image to Prompt`, 'success');
+  },
+
+  // Get image format system prompts (default + custom)
+  getImageFormatSystemPrompts: () => {
+    const defaultPrompts = App.getFormatSystemPrompts();
+    return { ...defaultPrompts, ...App.imageState.customFormats };
+  },
+
+  // Update image format dropdowns
+  updateImageFormatDropdowns: () => {
+    const outputFormatSelect = document.getElementById('image-output-format');
+    const finalFormatSelect = document.getElementById('image-final-output-format');
+    
+    if (outputFormatSelect) {
+      // Clear existing options
+      outputFormatSelect.innerHTML = '';
+      
+      // Add default formats
+      const defaultFormats = [
+        { value: 'sdxl', label: 'SDXL Tags' },
+        { value: 'flux', label: 'Flux Phrases' },
+        { value: 'imagefx', label: 'ImageFX Commands' },
+        { value: 'natural', label: 'Natural Language' }
+      ];
+      
+      defaultFormats.forEach(format => {
+        const option = document.createElement('option');
+        option.value = format.value;
+        option.textContent = format.label;
+        outputFormatSelect.appendChild(option);
+      });
+      
+      // Add custom formats
+      Object.keys(App.imageState.customFormats).forEach(formatName => {
+        const option = document.createElement('option');
+        option.value = formatName;
+        option.textContent = formatName.charAt(0).toUpperCase() + formatName.slice(1).replace(/-/g, ' ');
+        outputFormatSelect.appendChild(option);
+      });
+      
+      // Restore selected value
+      outputFormatSelect.value = App.imageState.imageOutputFormat;
+    }
+    
+    if (finalFormatSelect) {
+      // Update final format dropdown similarly
+      finalFormatSelect.innerHTML = '';
+      
+      const defaultFormats = [
+        { value: 'sdxl', label: 'SDXL Tags' },
+        { value: 'flux', label: 'Flux Phrases' },
+        { value: 'imagefx', label: 'ImageFX' },
+        { value: 'imagefx-natural', label: 'ImageFX Natural' }
+      ];
+      
+      defaultFormats.forEach(format => {
+        const option = document.createElement('option');
+        option.value = format.value;
+        option.textContent = format.label;
+        finalFormatSelect.appendChild(option);
+      });
+      
+      Object.keys(App.imageState.customFormats).forEach(formatName => {
+        const option = document.createElement('option');
+        option.value = formatName;
+        option.textContent = formatName.charAt(0).toUpperCase() + formatName.slice(1).replace(/-/g, ' ');
+        finalFormatSelect.appendChild(option);
+      });
+      
+      finalFormatSelect.value = App.imageState.imageFinalFormat;
+    }
   },
   
   // Split image prompt to tags

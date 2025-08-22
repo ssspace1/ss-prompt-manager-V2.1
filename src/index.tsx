@@ -1445,12 +1445,29 @@ const appHtml = `<!DOCTYPE html>
                         
                         <p class="text-sm text-gray-600 mb-4">
                             Create custom formats with your own system prompts for AI generation.
-                            These formats will appear in both AI Format and Final Output dropdowns.
+                            These formats will appear in AI Format and Final Output dropdowns.
                         </p>
                         
-                        <!-- Custom Formats List -->
-                        <div id="custom-formats-list" class="space-y-2">
-                            <!-- Dynamically populated -->
+                        <!-- Text to Prompt Custom Formats -->
+                        <div class="mb-6">
+                            <h4 class="font-medium text-gray-800 mb-3 flex items-center">
+                                <i class="fas fa-file-text mr-2 text-blue-500"></i>
+                                Text to Prompt Formats
+                            </h4>
+                            <div id="custom-formats-list" class="space-y-2">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
+                        
+                        <!-- Image to Prompt Custom Formats -->
+                        <div class="mb-6">
+                            <h4 class="font-medium text-gray-800 mb-3 flex items-center">
+                                <i class="fas fa-image mr-2 text-purple-500"></i>
+                                Image to Prompt Formats
+                            </h4>
+                            <div id="image-custom-formats-list" class="space-y-2">
+                                <!-- Dynamically populated -->
+                            </div>
                         </div>
                         
                         <!-- Default Formats Info -->
