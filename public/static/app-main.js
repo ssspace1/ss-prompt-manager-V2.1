@@ -2474,8 +2474,112 @@ Be detailed and specific in your description.`;
         promptTextarea.value = generatedPrompt;
       }
       
-      // Step 3: Parse and populate tag editor
-      App.parsePromptToImageTags(generatedPrompt);
+      // Step 3: Generate structured tags using JSON schema approach
+      try {
+        // Enhanced system prompt for JSON tag generation
+        const tagSystemPrompt = `You are a tag normalizer & bilingual mapper for image prompts.
+
+Input: Image analysis text
+Output ONLY JSON in this exact format:
+{
+  "pairs": [
+    {
+      "en": "...",
+      "ja": "...",
+      "weight": number,
+      "category": "person|appearance|clothes|pose|background|quality|style|other"
+    }
+  ]
+}
+
+Rules:
+- Produce short, natural Japanese tags that creators actually write
+- Keep one-to-one meaning with the English tag; avoid free paraphrasing
+- Weight: 1.0 for normal, 1.2-1.5 for important elements, 0.8-0.9 for less important
+- Category mapping:
+  * person: 1girl, woman, child, etc.
+  * appearance: eyes, hair, smile, beautiful, etc.
+  * clothes: dress, uniform, hoodie, etc.
+  * pose: sitting, standing, running, etc.
+  * background: forest, city, outdoor, etc.
+  * quality: masterpiece, detailed, 8k, etc.
+  * style: anime, realistic, painting, etc.
+  * other: everything else
+- No markdown, no explanations, ONLY the JSON object`;
+
+        const tagResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${appState.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.href,
+            'X-Title': 'SS Prompt Manager'
+          },
+          body: JSON.stringify({
+            model: appState.selectedModel || 'openai/gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: tagSystemPrompt
+              },
+              {
+                role: 'user',
+                content: `Based on this image analysis, generate optimized English tags with natural Japanese translations:\n\n${analysis}`
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 800
+          })
+        });
+
+        if (tagResponse.ok) {
+          const tagData = await tagResponse.json();
+          let tagResponseText = tagData.choices[0].message.content.trim();
+          
+          // Remove markdown code blocks if present
+          tagResponseText = tagResponseText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+          
+          try {
+            const tagsData = JSON.parse(tagResponseText);
+            
+            if (tagsData.pairs && Array.isArray(tagsData.pairs)) {
+              // Clear existing tags and populate with AI-generated ones
+              App.imageState.imageTags = [];
+              
+              tagsData.pairs.forEach((pair, index) => {
+                if (pair.en && pair.ja) {
+                  App.imageState.imageTags.push({
+                    id: `ai-tag-${Date.now()}-${index}`,
+                    en: pair.en,
+                    ja: pair.ja,
+                    weight: pair.weight || 1.0,
+                    category: pair.category || 'other'
+                  });
+                }
+              });
+
+              // Update UI
+              TagEditor.renderTags('image');
+              
+              // Update generated prompt textarea
+              App.updateImagePromptOutput();
+            } else {
+              throw new Error('Invalid response format');
+            }
+          } catch (parseError) {
+            console.error('JSON parse error, falling back to text parsing:', parseError);
+            // Fallback to old parsing method
+            App.parsePromptToImageTags(generatedPrompt);
+          }
+        } else {
+          // Fallback to old parsing method
+          App.parsePromptToImageTags(generatedPrompt);
+        }
+      } catch (tagError) {
+        console.error('Tag generation failed, falling back to prompt parsing:', tagError);
+        // Fallback to old parsing method
+        App.parsePromptToImageTags(generatedPrompt);
+      }
       
       showNotification('Analysis and generation complete', 'success');
       
@@ -2560,7 +2664,142 @@ Be detailed and specific in your description.`;
     });
     
     // Update UI
-    TagEditor.renderTags('image')();
+    TagEditor.renderTags('image');
+  },
+
+  // AI Generate tags with JSON schema
+  generateImageTagsFromAI: async () => {
+    if (!App.imageState.analysisResult) {
+      showNotification('Please analyze the image first', 'error');
+      return;
+    }
+    
+    if (!appState.apiKey) {
+      showNotification('Please configure your OpenRouter API key in settings', 'error');
+      return;
+    }
+
+    const generateBtn = document.getElementById('image-ai-generate-btn');
+    
+    if (generateBtn) {
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating Tags...';
+    }
+
+    try {
+      // Enhanced system prompt for JSON tag generation
+      const systemPrompt = `You are a tag normalizer & bilingual mapper for image prompts.
+
+Input: Image analysis text
+Output ONLY JSON in this exact format:
+{
+  "pairs": [
+    {
+      "en": "...",
+      "ja": "...",
+      "weight": number,
+      "category": "person|appearance|clothes|pose|background|quality|style|other"
+    }
+  ]
+}
+
+Rules:
+- Produce short, natural Japanese tags that creators actually write
+- Keep one-to-one meaning with the English tag; avoid free paraphrasing
+- Weight: 1.0 for normal, 1.2-1.5 for important elements, 0.8-0.9 for less important
+- Category mapping:
+  * person: 1girl, woman, child, etc.
+  * appearance: eyes, hair, smile, beautiful, etc.
+  * clothes: dress, uniform, hoodie, etc.
+  * pose: sitting, standing, running, etc.
+  * background: forest, city, outdoor, etc.
+  * quality: masterpiece, detailed, 8k, etc.
+  * style: anime, realistic, painting, etc.
+  * other: everything else
+- No markdown, no explanations, ONLY the JSON object`;
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${appState.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.href,
+          'X-Title': 'SS Prompt Manager'
+        },
+        body: JSON.stringify({
+          model: appState.selectedModel || 'openai/gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: `Based on this image analysis, generate optimized English tags with natural Japanese translations:\n\n${App.imageState.analysisResult}`
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 800
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to generate tags');
+      }
+
+      const data = await response.json();
+      let responseText = data.choices[0].message.content.trim();
+      
+      // Remove markdown code blocks if present
+      responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      
+      // Parse JSON response
+      let tagsData;
+      try {
+        tagsData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, 'Response:', responseText);
+        throw new Error('Invalid JSON response from AI. Please try again.');
+      }
+
+      // Validate schema
+      if (!tagsData.pairs || !Array.isArray(tagsData.pairs)) {
+        throw new Error('Invalid response format - missing pairs array');
+      }
+
+      // Clear existing tags and populate with AI-generated ones
+      App.imageState.imageTags = [];
+      
+      tagsData.pairs.forEach((pair, index) => {
+        if (pair.en && pair.ja) {
+          App.imageState.imageTags.push({
+            id: `ai-tag-${Date.now()}-${index}`,
+            en: pair.en,
+            ja: pair.ja,
+            weight: pair.weight || 1.0,
+            category: pair.category || 'other'
+          });
+        }
+      });
+
+      // Update UI
+      TagEditor.renderTags('image');
+      
+      // Update generated prompt textarea
+      App.updateImagePromptOutput();
+      
+      showNotification(`Generated ${App.imageState.imageTags.length} AI tags with translations`, 'success');
+      
+    } catch (error) {
+      console.error('Tag generation error:', error);
+      showNotification(`Tag generation failed: ${error.message}`, 'error');
+    } finally {
+      if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-sparkles mr-2"></i>AI Generate';
+      }
+    }
   },
   
   
@@ -2933,7 +3172,7 @@ Be detailed and specific in your description.`;
       }
     });
     
-    TagEditor.renderTags('image')();
+    TagEditor.renderTags('image');
     showNotification('Translation complete', 'success');
   },
   
