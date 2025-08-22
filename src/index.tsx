@@ -1100,9 +1100,9 @@ const appHtml = `<!DOCTYPE html>
                     </div>
                     
                     <!-- Bottom Section: Tag Editor and Final Output -->
-                    <div class="flex gap-4 flex-1 overflow-hidden">
+                    <div class="flex gap-4 flex-1">
                         <!-- Tag Editor Section -->
-                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1 overflow-hidden">
+                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1">
                             <div class="flex items-center justify-between mb-3">
                                 <h2 class="text-lg font-semibold text-gray-700">
                                     <i class="fas fa-tags mr-2 text-green-500"></i>
@@ -1123,9 +1123,9 @@ const appHtml = `<!DOCTYPE html>
                             </div>
                             
                             <!-- Bilingual Tag Columns for Image Tab -->
-                            <div class="grid grid-cols-2 gap-4" style="height: calc(100% - 40px);">
+                            <div class="grid grid-cols-2 gap-4">
                                 <!-- English Column -->
-                                <div class="flex flex-col">
+                                <div>
                                     <div class="flex items-center justify-between mb-2 pb-2 border-b">
                                         <h3 class="font-medium text-gray-700">
                                             <i class="fas fa-globe mr-1 text-blue-500"></i>English
@@ -1149,13 +1149,13 @@ const appHtml = `<!DOCTYPE html>
                                     </div>
                                     
                                     <!-- Tag List -->
-                                    <div id="image-tags-en" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2">
+                                    <div id="image-tags-en" class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
                                 
                                 <!-- Japanese Column -->
-                                <div class="flex flex-col">
+                                <div>
                                     <div class="flex items-center justify-between mb-2 pb-2 border-b">
                                         <h3 class="font-medium text-gray-700">
                                             <i class="fas fa-torii-gate mr-1 text-red-500"></i>日本語
@@ -1179,7 +1179,7 @@ const appHtml = `<!DOCTYPE html>
                                     </div>
                                     
                                     <!-- Tag List -->
-                                    <div id="image-tags-ja" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2">
+                                    <div id="image-tags-ja" class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
