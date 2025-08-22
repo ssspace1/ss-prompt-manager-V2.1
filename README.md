@@ -18,9 +18,18 @@
 - **本番環境**: 未デプロイ（Cloudflare Pages予定）
 - **ヘルスチェック**: https://3000-icbwmbmktn0pgobop47sb-6532622b.e2b.dev/api/health
 
-## 🎉 最新アップデート (2025-08-22 20:30)
+## 🎉 最新アップデート (2025-08-22 22:00)
 
-### Image to Prompt機能の完全実装 ✨
+### AI Format・Custom Format機能の完全分離と統合実装 🔥
+- **日本語翻訳表示修正**: Image to Promptタブで日本語タグが正しく表示されるように修正
+- **AI Format独立化**: Text to PromptとImage to Promptで完全に独立したAI Format設定
+- **Custom Format分離**: Settings内でText用とImage用のカスタムフォーマットを分けて表示
+- **システムプロンプト編集**: 歯車ボタン（⚙️）でフォーマット別にシステムプロンプト編集可能
+- **新規フォーマット追加**: プラスボタン（➕）でImage to Prompt専用カスタムフォーマット作成
+- **独立したlocalStorage**: Text/Image用カスタムフォーマットを別々に保存・管理
+- **完全なモーダル編集UI**: システムプロンプトの編集・削除・リセット機能
+
+### Image to Prompt機能の完全実装 ✨  
 - **AIエラー修正**: 「AI Analysis Result」エラーを解決（TagEditor.renderTags二重呼び出しの修正）
 - **画像解析機能**: 画像アップロード時に自動でAI Generateボタンを有効化
 - **JSON構造化タグ生成**: AIによる英語→日本語のタグ生成をJSONスキーマで実装
@@ -219,6 +228,10 @@
 - ✅ **JSON構造化タグ生成** - 英日対訳ペアの自動作成
 - ✅ **Split to Tags機械分割** - カンマ・ピリオドでの自動分割
 - ✅ **Image to Prompt完全実装** - 画像からプロンプト生成まで一貫したワークフロー
+- ✅ **AI Format分離** - Text/Image用AI Formatの完全独立
+- ✅ **Custom Format管理** - Text/Image別カスタムフォーマット作成・編集・削除
+- ✅ **システムプロンプト編集** - 歯車ボタンでリアルタイム編集
+- ✅ **新規フォーマット追加** - プラスボタンで簡単追加
 
 ### 短期（1-2週間）
 - [ ] 画像生成API統合
