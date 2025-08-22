@@ -114,17 +114,17 @@ const TagEditor = {
     };
   },
   
-  // Category colors
+  // Category colors - Use data-category CSS styling
   categoryColors: {
-    person: 'bg-yellow-50 border-yellow-300',
-    appearance: 'bg-pink-50 border-pink-300',
-    clothes: 'bg-purple-50 border-purple-300',
-    clothing: 'bg-purple-50 border-purple-300',
-    pose: 'bg-indigo-50 border-indigo-300',
-    background: 'bg-green-50 border-green-300',
-    quality: 'bg-blue-50 border-blue-300',
-    style: 'bg-orange-50 border-orange-300',
-    other: 'bg-gray-50 border-gray-300'
+    person: 'border-2',
+    appearance: 'border-2', 
+    clothing: 'border-2',
+    action: 'border-2',
+    background: 'border-2',
+    quality: 'border-2',
+    style: 'border-2',
+    object: 'border-2',
+    other: 'border-2'
   },
   
   // Render tags for both contexts
@@ -184,11 +184,12 @@ const TagEditor = {
   // Create a tag card element with drag and drop
   createTagCard: (tag, index, lang, colorClass, context) => {
     const card = document.createElement('div');
-    card.className = `tag-card ${colorClass} border rounded-md p-2 hover:shadow-md transition-all relative cursor-move`;
+    card.className = `tag-card tag-block ${colorClass} rounded-md p-2 hover:shadow-md transition-all relative cursor-move`;
     card.draggable = true;
     card.dataset.index = index;
     card.dataset.context = context;
     card.dataset.lang = lang;
+    card.dataset.category = tag.category || 'other'; // Set data-category for CSS styling
     
     const text = lang === 'en' ? tag.en : tag.ja;
     const funcPrefix = context === 'image' ? 'TagEditor.imageTag' : 'TagEditor.mainTag';

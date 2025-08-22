@@ -286,7 +286,7 @@ const appHtml = `<!DOCTYPE html>
             background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); 
             border-color: #f9a8d4;
         }
-        [data-category="pose"] { 
+        [data-category="action"] { 
             background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%); 
             border-color: #c084fc;
         }
@@ -301,6 +301,10 @@ const appHtml = `<!DOCTYPE html>
         [data-category="style"] { 
             background: linear-gradient(135deg, #fef3c7 0%, #fde047 100%); 
             border-color: #fde047;
+        }
+        [data-category="object"] {
+            background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+            border-color: #3b82f6;
         }
         [data-category="other"] { 
             background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); 
