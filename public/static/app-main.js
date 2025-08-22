@@ -154,51 +154,246 @@ const TagEditor = {
     TagEditor.updateOutput(context);
   },
   
-  // Create a tag card element
+  // Create a tag card element with drag and drop
   createTagCard: (tag, index, lang, colorClass, context) => {
     const card = document.createElement('div');
-    card.className = `tag-card ${colorClass} border rounded-lg p-2 hover:shadow-md transition-all`;
+    card.className = `tag-card ${colorClass} border rounded-lg p-2 hover:shadow-md transition-all relative cursor-move`;
+    card.draggable = true;
+    card.dataset.index = index;
+    card.dataset.context = context;
+    card.dataset.lang = lang;
     
     const text = lang === 'en' ? tag.en : tag.ja;
     const funcPrefix = context === 'image' ? 'TagEditor.imageTag' : 'TagEditor.mainTag';
     
-    card.innerHTML = `
-      <div class="flex items-center gap-2">
-        <button onclick="${funcPrefix}.move(${index}, -1)" 
-                class="px-1 py-0.5 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded transition-colors"
-                title="${lang === 'en' ? 'Move up' : '上へ移動'}">
-          <i class="fas fa-chevron-up text-xs"></i>
+    // Add drag indicator elements positioned at the edges
+    const topIndicator = document.createElement('div');
+    topIndicator.className = 'drag-indicator';
+    topIndicator.style.cssText = 'position: absolute; top: -2px; left: 0; right: 0;';
+    card.appendChild(topIndicator);
+    
+    const bottomIndicator = document.createElement('div');
+    bottomIndicator.className = 'drag-indicator';
+    bottomIndicator.style.cssText = 'position: absolute; bottom: -2px; left: 0; right: 0;';
+    card.appendChild(bottomIndicator);
+    
+    // Create content container
+    const content = document.createElement('div');
+    content.className = 'flex items-center gap-2 relative';
+    content.innerHTML = `
+      <i class="fas fa-grip-vertical drag-handle text-gray-400 hover:text-gray-600 transition-colors"></i>
+      <input type="text" value="${text}" 
+             class="flex-1 px-2 py-1 text-sm bg-white/70 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-text"
+             onchange="${funcPrefix}.updateText(${index}, '${lang}', this.value)"
+             placeholder="${lang === 'en' ? 'English tag' : '日本語タグ'}">
+      <div class="flex items-center gap-1">
+        <button onclick="${funcPrefix}.decreaseWeight(${index})" 
+                class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors cursor-pointer">
+          <i class="fas fa-minus text-xs"></i>
         </button>
-        <button onclick="${funcPrefix}.move(${index}, 1)" 
-                class="px-1 py-0.5 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded transition-colors"
-                title="${lang === 'en' ? 'Move down' : '下へ移動'}">
-          <i class="fas fa-chevron-down text-xs"></i>
-        </button>
-        <input type="text" value="${text}" 
-               class="flex-1 px-2 py-1 text-sm bg-white/70 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
-               onchange="${funcPrefix}.updateText(${index}, '${lang}', this.value)"
-               placeholder="${lang === 'en' ? 'English tag' : '日本語タグ'}">
-        <div class="flex items-center gap-1">
-          <button onclick="${funcPrefix}.decreaseWeight(${index})" 
-                  class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors">
-            <i class="fas fa-minus text-xs"></i>
-          </button>
-          <input type="number" value="${tag.weight}" min="0.1" max="2.0" step="0.05" 
-                 class="w-14 px-1 py-0.5 text-xs text-center border rounded"
-                 onchange="${funcPrefix}.updateWeight(${index}, this.value)">
-          <button onclick="${funcPrefix}.increaseWeight(${index})" 
-                  class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors">
-            <i class="fas fa-plus text-xs"></i>
-          </button>
-        </div>
-        <button onclick="${funcPrefix}.remove(${index})" 
-                class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors">
-          <i class="fas fa-trash text-xs"></i>
+        <input type="number" value="${tag.weight.toFixed(2)}" min="0.1" max="2.0" step="0.05" 
+               class="w-14 px-1 py-0.5 text-xs text-center border rounded cursor-text"
+               onchange="${funcPrefix}.updateWeight(${index}, this.value)">
+        <button onclick="${funcPrefix}.increaseWeight(${index})" 
+                class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors cursor-pointer">
+          <i class="fas fa-plus text-xs"></i>
         </button>
       </div>
+      <button onclick="${funcPrefix}.remove(${index})" 
+              class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors cursor-pointer">
+        <i class="fas fa-trash text-xs"></i>
+      </button>
     `;
+    card.appendChild(content);
+    
+    // Add drag event listeners
+    card.addEventListener('dragstart', TagEditor.handleDragStart);
+    card.addEventListener('dragend', TagEditor.handleDragEnd);
+    card.addEventListener('dragover', TagEditor.handleDragOver);
+    card.addEventListener('drop', TagEditor.handleDrop);
+    card.addEventListener('dragenter', TagEditor.handleDragEnter);
+    card.addEventListener('dragleave', TagEditor.handleDragLeave);
     
     return card;
+  },
+  
+  // Drag and Drop handlers
+  draggedElement: null,
+  draggedIndex: null,
+  draggedContext: null,
+  draggedLang: null,
+  
+  handleDragStart: function(e) {
+    // Only allow dragging from the drag handle
+    if (!e.target.classList.contains('drag-handle') && !e.target.parentElement?.classList.contains('drag-handle')) {
+      e.preventDefault();
+      return false;
+    }
+    
+    TagEditor.draggedElement = this;
+    TagEditor.draggedIndex = parseInt(this.dataset.index);
+    TagEditor.draggedContext = this.dataset.context;
+    TagEditor.draggedLang = this.dataset.lang;
+    
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+    
+    // Add a slight delay before adding the dragging effect for smooth animation
+    setTimeout(() => {
+      if (this.classList.contains('dragging')) {
+        this.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      }
+    }, 10);
+  },
+  
+  handleDragEnd: function(e) {
+    this.classList.remove('dragging');
+    this.style.transition = '';
+    
+    // Remove all drag indicators with smooth animation
+    document.querySelectorAll('.drag-indicator').forEach(indicator => {
+      indicator.classList.remove('show-top', 'show-bottom');
+    });
+    
+    document.querySelectorAll('.tag-card').forEach(card => {
+      card.classList.remove('drag-over');
+      card.style.transition = '';
+    });
+    
+    TagEditor.draggedElement = null;
+    TagEditor.draggedIndex = null;
+    TagEditor.draggedContext = null;
+    TagEditor.draggedLang = null;
+  },
+  
+  handleDragOver: function(e) {
+    if (e.preventDefault) {
+      e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    
+    // Only allow drop in the same context and language
+    if (!TagEditor.draggedElement || 
+        this.dataset.context !== TagEditor.draggedContext || 
+        this.dataset.lang !== TagEditor.draggedLang) {
+      e.dataTransfer.dropEffect = 'none';
+      return false;
+    }
+    
+    // Don't show indicator on the dragged element itself
+    if (this === TagEditor.draggedElement) {
+      return false;
+    }
+    
+    const rect = this.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    
+    // Clear all indicators first
+    document.querySelectorAll('.drag-indicator').forEach(indicator => {
+      indicator.classList.remove('show-top', 'show-bottom');
+    });
+    
+    // Show indicator based on mouse position
+    const indicators = this.querySelectorAll('.drag-indicator');
+    if (e.clientY < midpoint) {
+      indicators[0]?.classList.add('show-top');
+    } else {
+      indicators[1]?.classList.add('show-bottom');
+    }
+    
+    return false;
+  },
+  
+  handleDrop: function(e) {
+    if (e.stopPropagation) {
+      e.stopPropagation();
+    }
+    e.preventDefault();
+    
+    // Only allow drop in the same context and language
+    if (!TagEditor.draggedElement ||
+        this.dataset.context !== TagEditor.draggedContext ||
+        this.dataset.lang !== TagEditor.draggedLang) {
+      return false;
+    }
+    
+    const dropIndex = parseInt(this.dataset.index);
+    
+    if (TagEditor.draggedElement !== this && TagEditor.draggedIndex !== null) {
+      const rect = this.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      const insertBefore = e.clientY < midpoint;
+      
+      // Perform the move with animation
+      if (TagEditor.draggedContext === 'image') {
+        TagEditor.moveImageTag(TagEditor.draggedIndex, dropIndex, insertBefore);
+      } else {
+        TagEditor.moveMainTag(TagEditor.draggedIndex, dropIndex, insertBefore);
+      }
+    }
+    
+    return false;
+  },
+  
+  handleDragEnter: function(e) {
+    if (TagEditor.draggedElement &&
+        this !== TagEditor.draggedElement &&
+        this.dataset.context === TagEditor.draggedContext &&
+        this.dataset.lang === TagEditor.draggedLang) {
+      this.classList.add('drag-over');
+      this.style.transition = 'all 0.2s ease';
+    }
+  },
+  
+  handleDragLeave: function(e) {
+    // Only remove if we're actually leaving the element
+    const relatedTarget = e.relatedTarget;
+    if (!this.contains(relatedTarget)) {
+      this.classList.remove('drag-over');
+      this.querySelectorAll('.drag-indicator').forEach(indicator => {
+        indicator.classList.remove('show-top', 'show-bottom');
+      });
+    }
+  },
+  
+  // Move tag functions for drag and drop with smooth animation
+  moveMainTag: (fromIndex, toIndex, insertBefore) => {
+    const tags = appState.tags;
+    const [movedTag] = tags.splice(fromIndex, 1);
+    
+    let newIndex = toIndex;
+    if (fromIndex < toIndex) {
+      newIndex = insertBefore ? toIndex - 1 : toIndex;
+    } else {
+      newIndex = insertBefore ? toIndex : toIndex + 1;
+    }
+    
+    // Ensure index is within bounds
+    newIndex = Math.max(0, Math.min(tags.length, newIndex));
+    tags.splice(newIndex, 0, movedTag);
+    
+    // Add a small delay for smooth visual transition
+    setTimeout(() => TagEditor.renderTags('main'), 50);
+  },
+  
+  moveImageTag: (fromIndex, toIndex, insertBefore) => {
+    const tags = App.imageState.imageTags;
+    const [movedTag] = tags.splice(fromIndex, 1);
+    
+    let newIndex = toIndex;
+    if (fromIndex < toIndex) {
+      newIndex = insertBefore ? toIndex - 1 : toIndex;
+    } else {
+      newIndex = insertBefore ? toIndex : toIndex + 1;
+    }
+    
+    // Ensure index is within bounds
+    newIndex = Math.max(0, Math.min(tags.length, newIndex));
+    tags.splice(newIndex, 0, movedTag);
+    
+    // Add a small delay for smooth visual transition
+    setTimeout(() => TagEditor.renderTags('image'), 50);
   },
   
   // Update output for both contexts

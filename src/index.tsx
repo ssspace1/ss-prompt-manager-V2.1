@@ -324,10 +324,105 @@ const appHtml = `<!DOCTYPE html>
         .tag-block.dragging {
             opacity: 0.5;
             transform: rotate(2deg);
+            z-index: 1000;
         }
         
         .tag-block.ghost {
             opacity: 0.2;
+        }
+        
+        /* Drag and Drop Styles */
+        .tag-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: grab;
+            position: relative;
+        }
+        
+        .tag-card:active {
+            cursor: grabbing;
+        }
+        
+        .tag-card.dragging {
+            opacity: 0.25;
+            transform: scale(1.03) rotate(2deg);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.25);
+            z-index: 1000;
+            cursor: grabbing !important;
+            background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(219,234,254,0.9));
+        }
+        
+        .tag-card.drag-over {
+            transform: scale(0.97);
+            opacity: 0.7;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .drag-indicator {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #3b82f6 100%);
+            background-size: 200% 100%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+        
+        .drag-indicator.show-top {
+            top: -2px;
+            opacity: 1;
+            animation: slideGradient 2s linear infinite, glowPulse 1s ease-in-out infinite;
+        }
+        
+        .drag-indicator.show-bottom {
+            bottom: -2px;
+            opacity: 1;
+            animation: slideGradient 2s linear infinite, glowPulse 1s ease-in-out infinite;
+        }
+        
+        @keyframes slideGradient {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        
+        @keyframes glowPulse {
+            0%, 100% { 
+                transform: scaleY(1);
+                filter: brightness(1) drop-shadow(0 0 2px rgba(59, 130, 246, 0.4));
+            }
+            50% { 
+                transform: scaleY(1.5);
+                filter: brightness(1.3) drop-shadow(0 0 4px rgba(59, 130, 246, 0.7));
+            }
+        }
+        
+        /* Grab handle icon */
+        .drag-handle {
+            cursor: grab;
+            opacity: 0.3;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .tag-card:hover .drag-handle {
+            opacity: 0.6;
+            transform: translateX(1px);
+            color: #3b82f6;
+        }
+        
+        .tag-card:active .drag-handle,
+        .tag-card.dragging .drag-handle {
+            cursor: grabbing;
+            opacity: 1;
+            color: #8b5cf6;
+            transform: scale(1.1);
+        }
+        
+        /* Prevent text selection during drag */
+        .tag-card.dragging * {
+            user-select: none;
+            pointer-events: none;
         }
         
         /* Split panes */
