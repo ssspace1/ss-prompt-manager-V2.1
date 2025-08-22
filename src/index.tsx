@@ -339,6 +339,12 @@ const appHtml = `<!DOCTYPE html>
             position: relative;
             min-height: auto;
             display: block;
+            margin-bottom: 0;
+        }
+        
+        /* Remove gaps between consecutive cards */
+        .tag-card + .drop-zone + .tag-card {
+            margin-top: -1px;
         }
         
         .tag-card:hover {
@@ -376,21 +382,24 @@ const appHtml = `<!DOCTYPE html>
         
         /* Drop zone styles */
         .drop-zone {
-            height: 2px;
-            margin: 2px 0;
+            height: 0;
+            margin: 0;
+            padding: 0;
             background: transparent;
             transition: all 0.2s ease;
             position: relative;
+            overflow: hidden;
         }
         
         .drop-zone-active {
-            height: 4px;
-            margin: 4px 0;
+            height: 2px;
+            margin: 1px 0;
         }
         
         .drop-zone-hover {
-            height: 20px;
-            margin: 8px 0;
+            height: 16px;
+            margin: 4px 0;
+            padding: 0;
             background: linear-gradient(90deg, 
                 rgba(59, 130, 246, 0.1) 0%, 
                 rgba(139, 92, 246, 0.2) 50%, 

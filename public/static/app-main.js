@@ -184,7 +184,7 @@ const TagEditor = {
   // Create a tag card element with drag and drop
   createTagCard: (tag, index, lang, colorClass, context) => {
     const card = document.createElement('div');
-    card.className = `tag-card ${colorClass} border rounded-md p-2 hover:shadow-md transition-all relative cursor-move mb-1.5`;
+    card.className = `tag-card ${colorClass} border rounded-md p-2 hover:shadow-md transition-all relative cursor-move`;
     card.draggable = true;
     card.dataset.index = index;
     card.dataset.context = context;
