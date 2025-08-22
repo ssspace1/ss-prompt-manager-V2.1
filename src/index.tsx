@@ -581,6 +581,36 @@ const appHtml = `<!DOCTYPE html>
             background: #555;
         }
         
+        /* Image tag containers horizontal scrolling */
+        #image-tags-en, #image-tags-ja {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 0.5rem;
+            min-height: 60px;
+        }
+        
+        #image-tags-en::-webkit-scrollbar,
+        #image-tags-ja::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        /* Make tag cards flex items */
+        #image-tags-en .tag-card,
+        #image-tags-ja .tag-card {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        
+        /* Drop zones in horizontal layout */
+        #image-tags-en .drop-zone,
+        #image-tags-ja .drop-zone {
+            width: 2px;
+            min-height: 40px;
+            flex-shrink: 0;
+        }
+        
         /* Tab animation */
         .tab-button {
             position: relative;
@@ -1082,6 +1112,36 @@ const appHtml = `<!DOCTYPE html>
                                 <div id="image-analysis-result" class="p-3 bg-gray-50 rounded-lg max-h-40 overflow-y-auto custom-scrollbar">
                                     <p class="text-gray-500 text-sm italic">No analysis yet...</p>
                                 </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Generated Prompt Section -->
+                        <div class="mt-4 border-t pt-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-sm font-semibold text-gray-700">
+                                    <i class="fas fa-file-alt mr-1 text-green-500"></i>
+                                    Generated Prompt
+                                </h3>
+                                <button onclick="App.copyImagePrompt()" 
+                                        class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
+                                    <i class="fas fa-copy mr-1"></i>Copy
+                                </button>
+                            </div>
+                            <textarea id="image-generated-prompt" 
+                                      placeholder="Generated prompt will appear here..."
+                                      class="w-full h-20 p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm"
+                                      onchange="App.updateImagePromptOutput()"></textarea>
+                            
+                            <!-- Split to Tags and Clear Buttons -->
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="App.splitImagePrompt()" 
+                                        class="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                    <i class="fas fa-cut mr-2"></i>Split to Tags
+                                </button>
+                                <button onclick="App.clearImageTags()" 
+                                        class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                    <i class="fas fa-trash mr-2"></i>Clear Tags
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -2168,7 +2168,11 @@ Be detailed and specific in your description.`;
 3. Include background and environment tags
 4. Add style, lighting and atmosphere tags
 5. Format: comma-separated tags with optional weights (tag:1.2)
-6. Focus on visual elements that can be recreated`,
+6. Focus on visual elements that can be recreated
+7. Keep each tag concise and specific
+8. Use standard booru-style tags when applicable
+9. Important elements should have higher weights (1.2-1.5)
+10. Output ONLY the tags, no explanations or descriptions`,
       
       flux: `Convert the image analysis into Flux natural language phrases. Rules:
 1. Write flowing, descriptive sentences
@@ -2466,47 +2470,24 @@ Be detailed and specific in your description.`;
       })).filter(tag => tag.text);
     }
     
-    // Categorize tags
-    const categories = App.categorizeImageTags(tags.map(t => t.text));
-    
     // Create tag objects with translations and categories
     tags.forEach((tag, index) => {
       const jaTranslation = translationDict[tag.text.toLowerCase()] || App.simpleTranslate(tag.text);
+      const category = App.categorizeTag(tag.text);  // Use common categorize function
       
       App.imageState.imageTags.push({
         id: `img-tag-${Date.now()}-${index}`,
         en: tag.text,
         ja: jaTranslation,
         weight: tag.weight,
-        category: categories[index] || 'other'
+        category: category
       });
     });
     
     // Update UI
-    App.renderImageTags();
+    TagEditor.renderTags('image')();
   },
   
-  // Categorize image tags
-  categorizeImageTags: (tags) => {
-    const categoryPatterns = {
-      person: /girl|boy|woman|man|person|child|adult|teen|1girl|2girls|1boy/i,
-      appearance: /hair|eyes|face|skin|smile|beautiful|cute|handsome|pretty|tall|short/i,
-      clothes: /dress|shirt|skirt|uniform|jacket|pants|shoes|hat|hoodie|suit|costume/i,
-      pose: /sitting|standing|walking|running|lying|squatting|kneeling|jumping|pose/i,
-      background: /background|forest|city|room|outdoor|indoor|sky|mountain|beach|street/i,
-      quality: /masterpiece|best quality|detailed|8k|4k|highres|professional|sharp|hd/i,
-      style: /anime|realistic|cartoon|painting|digital|watercolor|sketch|artistic|style/i
-    };
-    
-    return tags.map(tag => {
-      for (const [category, pattern] of Object.entries(categoryPatterns)) {
-        if (pattern.test(tag)) {
-          return category;
-        }
-      }
-      return 'other';
-    });
-  },
   
   // Render image tags (use common system)
   renderImageTags: () => {
@@ -2635,7 +2616,7 @@ Be detailed and specific in your description.`;
       const currentWeight = App.imageState.imageTags[index].weight;
       const newWeight = Math.min(2.0, currentWeight + 0.05);
       App.imageState.imageTags[index].weight = Math.round(newWeight * 100) / 100;
-      App.renderImageTags();
+      TagEditor.renderTags('image')();
     }
   },
   
@@ -2645,7 +2626,7 @@ Be detailed and specific in your description.`;
       const currentWeight = App.imageState.imageTags[index].weight;
       const newWeight = Math.max(0.1, currentWeight - 0.05);
       App.imageState.imageTags[index].weight = Math.round(newWeight * 100) / 100;
-      App.renderImageTags();
+      TagEditor.renderTags('image')();
     }
   },
   
@@ -2659,7 +2640,7 @@ Be detailed and specific in your description.`;
       } else {
         App.imageState.imageTags[index].en = App.reverseTranslate(text);
       }
-      App.renderImageTags();
+      TagEditor.renderTags('image')();
     }
   },
   
@@ -2670,14 +2651,14 @@ Be detailed and specific in your description.`;
       const temp = App.imageState.imageTags[index];
       App.imageState.imageTags[index] = App.imageState.imageTags[newIndex];
       App.imageState.imageTags[newIndex] = temp;
-      App.renderImageTags();
+      TagEditor.renderTags('image')();
     }
   },
   
   // Remove image tag
   removeImageTag: (index) => {
     App.imageState.imageTags.splice(index, 1);
-    App.renderImageTags();
+    TagEditor.renderTags('image')();
   },
   
   // Sort image tags
@@ -2876,7 +2857,7 @@ Be detailed and specific in your description.`;
       }
     });
     
-    App.renderImageTags();
+    TagEditor.renderTags('image')();
     showNotification('Translation complete', 'success');
   },
   
@@ -2906,6 +2887,97 @@ Be detailed and specific in your description.`;
   addImageCustomFormat: () => {
     // TODO: Implement custom format addition
     showNotification('Custom format addition coming soon', 'info');
+  },
+  
+  // Split image prompt to tags
+  splitImagePrompt: () => {
+    const promptTextarea = document.getElementById('image-generated-prompt');
+    if (!promptTextarea || !promptTextarea.value) {
+      showNotification('No prompt to split', 'error');
+      return;
+    }
+    
+    const prompt = promptTextarea.value;
+    const format = App.imageState.imageOutputFormat;
+    
+    // Clear existing tags
+    App.imageState.imageTags = [];
+    
+    // Split based on format
+    let segments = [];
+    if (format === 'sdxl' || format === 'imagefx') {
+      // Split by comma
+      segments = prompt.split(/[,、]/);
+    } else if (format === 'flux' || format === 'imagefx-natural') {
+      // Split by sentence
+      segments = prompt.split(/[.!?。！？]/);
+    } else {
+      // Default: split by comma and period
+      segments = prompt.split(/[,、.。]/);
+    }
+    
+    // Process each segment
+    segments.forEach((segment, index) => {
+      const cleaned = segment.trim();
+      if (!cleaned) return;
+      
+      // Extract weight if present (e.g., "tag:1.5")
+      let weight = 1.0;
+      let text = cleaned;
+      
+      const weightMatch = cleaned.match(/^(.+):(\d+\.?\d*)$/);
+      if (weightMatch) {
+        text = weightMatch[1].trim();
+        weight = parseFloat(weightMatch[2]);
+      }
+      
+      // Auto-translate
+      const jaText = translationDict[text.toLowerCase()] || App.simpleTranslate(text);
+      
+      // Categorize using common function
+      const category = App.categorizeTag(text);
+      
+      // Add tag
+      App.imageState.imageTags.push({
+        id: `img-tag-${Date.now()}-${index}`,
+        en: text,
+        ja: jaText,
+        weight: weight,
+        category: category
+      });
+    });
+    
+    // Render tags using TagEditor
+    TagEditor.renderTags('image');
+    showNotification(`Split into ${App.imageState.imageTags.length} tags`, 'success');
+  },
+  
+  // Clear image tags
+  clearImageTags: () => {
+    App.imageState.imageTags = [];
+    TagEditor.renderTags('image');
+    showNotification('Tags cleared', 'info');
+  },
+  
+  // Common categorize tag function
+  categorizeTag: (text) => {
+    const categoryPatterns = {
+      person: /girl|boy|woman|man|person|child|adult|teen|1girl|2girls|1boy/i,
+      appearance: /hair|eyes|face|skin|smile|beautiful|cute|handsome|pretty|tall|short/i,
+      clothes: /dress|shirt|skirt|uniform|jacket|pants|shoes|hat|hoodie|suit|costume/i,
+      clothing: /dress|shirt|skirt|uniform|jacket|pants|shoes|hat|hoodie|suit|costume/i,
+      pose: /sitting|standing|walking|running|lying|squatting|kneeling|jumping|pose/i,
+      background: /background|forest|city|room|outdoor|indoor|sky|mountain|beach|street/i,
+      quality: /masterpiece|best quality|detailed|8k|4k|highres|professional|sharp|hd/i,
+      style: /anime|realistic|cartoon|painting|digital|watercolor|sketch|artistic|style/i
+    };
+    
+    for (const [category, pattern] of Object.entries(categoryPatterns)) {
+      if (pattern.test(text)) {
+        return category;
+      }
+    }
+    return 'other';
   }
 });
 
