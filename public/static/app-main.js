@@ -1333,7 +1333,9 @@ Object.assign(App, {
     imageData: null,
     analysisResult: null,
     visionModel: 'gemini-2.0-flash-exp',
-    imageOutputFormat: 'sdxl'
+    imageOutputFormat: 'sdxl',
+    imageTags: [],  // Separate tags for image tab
+    analysisVisible: false
   },
   
   // Handle image upload
@@ -1350,9 +1352,9 @@ Object.assign(App, {
         App.imageState.imageData = e.target.result;
         App.displayImagePreview(e.target.result);
         
-        // Enable analyze button
-        const analyzeBtn = document.getElementById('analyze-image-btn');
-        if (analyzeBtn) analyzeBtn.disabled = false;
+        // Enable generate button
+        const generateBtn = document.getElementById('image-ai-generate-btn');
+        if (generateBtn) generateBtn.disabled = false;
         
         showNotification('Image uploaded successfully', 'success');
       };
@@ -1409,24 +1411,30 @@ Object.assign(App, {
   clearImage: () => {
     App.imageState.imageData = null;
     App.imageState.analysisResult = null;
+    App.imageState.imageTags = [];
+    App.imageState.analysisVisible = false;
     
     const previewContainer = document.getElementById('image-preview-container');
     const uploadPrompt = document.getElementById('image-upload-prompt');
     const fileInput = document.getElementById('image-file-input');
     const analysisResult = document.getElementById('image-analysis-result');
     const generatedPrompt = document.getElementById('image-generated-prompt');
-    const analyzeBtn = document.getElementById('analyze-image-btn');
-    const generateBtn = document.getElementById('generate-image-prompt-btn');
-    const sendBtn = document.getElementById('send-to-editor-btn');
+    const generateBtn = document.getElementById('image-ai-generate-btn');
+    const analysisContainer = document.getElementById('analysis-result-container');
     
     if (previewContainer) previewContainer.classList.add('hidden');
     if (uploadPrompt) uploadPrompt.classList.remove('hidden');
     if (fileInput) fileInput.value = '';
-    if (analysisResult) analysisResult.innerHTML = '<p class="text-gray-500 text-sm italic">Upload and analyze an image to see results here...</p>';
+    if (analysisResult) analysisResult.innerHTML = '<p class="text-gray-500 text-sm italic">No analysis yet...</p>';
     if (generatedPrompt) generatedPrompt.value = '';
-    if (analyzeBtn) analyzeBtn.disabled = true;
     if (generateBtn) generateBtn.disabled = true;
-    if (sendBtn) sendBtn.disabled = true;
+    if (analysisContainer) analysisContainer.classList.add('hidden');
+    
+    // Clear image tag editor
+    const enTagsContainer = document.getElementById('image-tags-en');
+    const jaTagsContainer = document.getElementById('image-tags-ja');
+    if (enTagsContainer) enTagsContainer.innerHTML = '';
+    if (jaTagsContainer) jaTagsContainer.innerHTML = '';
     
     showNotification('Image cleared', 'info');
   },
@@ -1791,6 +1799,392 @@ Be detailed and specific in your description.`;
       textarea.focus();
       textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+  },
+  
+  // New unified generate function for image
+  generateFromImage: async () => {
+    if (!App.imageState.imageData) {
+      showNotification('Please upload an image first', 'error');
+      return;
+    }
+    
+    if (!appState.apiKey) {
+      showNotification('Please configure your OpenRouter API key in settings', 'error');
+      return;
+    }
+    
+    const generateBtn = document.getElementById('image-ai-generate-btn');
+    const resultDiv = document.getElementById('image-analysis-result');
+    const promptTextarea = document.getElementById('image-generated-prompt');
+    
+    if (generateBtn) {
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+    }
+    
+    try {
+      // Step 1: Analyze image
+      if (resultDiv) {
+        resultDiv.innerHTML = '<div class="flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i>Analyzing image...</div>';
+      }
+      
+      const systemPromptAnalysis = App.getDefaultImageAnalysisPrompt();
+      
+      const analysisResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${appState.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.href,
+          'X-Title': 'SS Prompt Manager'
+        },
+        body: JSON.stringify({
+          model: App.imageState.visionModel,
+          messages: [
+            {
+              role: 'system',
+              content: systemPromptAnalysis
+            },
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Analyze this image and describe what you see.'
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: App.imageState.imageData
+                  }
+                }
+              ]
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      });
+      
+      if (!analysisResponse.ok) {
+        const error = await analysisResponse.json();
+        throw new Error(error.error?.message || 'Failed to analyze image');
+      }
+      
+      const analysisData = await analysisResponse.json();
+      const analysis = analysisData.choices[0].message.content;
+      App.imageState.analysisResult = analysis;
+      
+      if (resultDiv) {
+        resultDiv.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${analysis}</pre>`;
+      }
+      
+      // Step 2: Generate prompt from analysis
+      if (promptTextarea) {
+        promptTextarea.value = 'Generating prompt...';
+      }
+      
+      const formatPrompts = App.getFormatSystemPrompts();
+      const systemPromptGeneration = formatPrompts[App.imageState.imageOutputFormat];
+      
+      const promptResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${appState.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.href,
+          'X-Title': 'SS Prompt Manager'
+        },
+        body: JSON.stringify({
+          model: appState.selectedModel || 'openai/gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: systemPromptGeneration
+            },
+            {
+              role: 'user',
+              content: `Based on this image analysis, generate an optimized prompt:\n\n${analysis}`
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 300
+        })
+      });
+      
+      if (!promptResponse.ok) {
+        const error = await promptResponse.json();
+        throw new Error(error.error?.message || 'Failed to generate prompt');
+      }
+      
+      const promptData = await promptResponse.json();
+      const generatedPrompt = promptData.choices[0].message.content;
+      
+      if (promptTextarea) {
+        promptTextarea.value = generatedPrompt;
+      }
+      
+      // Step 3: Parse and populate tag editor
+      App.parsePromptToImageTags(generatedPrompt);
+      
+      showNotification('Analysis and generation complete', 'success');
+      
+    } catch (error) {
+      console.error('Generation error:', error);
+      showNotification(`Generation failed: ${error.message}`, 'error');
+      
+      if (resultDiv) {
+        resultDiv.innerHTML = `<p class="text-red-500 text-sm">Error: ${error.message}</p>`;
+      }
+    } finally {
+      if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-sparkles mr-2"></i>AI Generate';
+      }
+    }
+  },
+  
+  // Toggle analysis result visibility
+  toggleAnalysisResult: () => {
+    const container = document.getElementById('analysis-result-container');
+    const toggleBtn = document.getElementById('toggle-analysis-btn');
+    const toggleText = document.getElementById('toggle-analysis-text');
+    const toggleIcon = document.getElementById('toggle-analysis-icon');
+    
+    if (container) {
+      App.imageState.analysisVisible = !App.imageState.analysisVisible;
+      
+      if (App.imageState.analysisVisible) {
+        container.classList.remove('hidden');
+        if (toggleText) toggleText.textContent = 'Hide AI Analysis';
+        if (toggleIcon) toggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+        if (toggleBtn) toggleBtn.classList.replace('bg-green-500', 'bg-gray-500');
+        if (toggleBtn) toggleBtn.classList.replace('hover:bg-green-600', 'hover:bg-gray-600');
+      } else {
+        container.classList.add('hidden');
+        if (toggleText) toggleText.textContent = 'Show AI Analysis';
+        if (toggleIcon) toggleIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+        if (toggleBtn) toggleBtn.classList.replace('bg-gray-500', 'bg-green-500');
+        if (toggleBtn) toggleBtn.classList.replace('hover:bg-gray-600', 'hover:bg-green-600');
+      }
+    }
+  },
+  
+  // Parse prompt to image tags
+  parsePromptToImageTags: (prompt) => {
+    // Clear existing tags
+    App.imageState.imageTags = [];
+    
+    // Parse based on format
+    let tags = [];
+    if (App.imageState.imageOutputFormat === 'sdxl' || App.imageState.imageOutputFormat === 'imagefx') {
+      // Split by comma for SDXL and ImageFX
+      tags = prompt.split(',').map(tag => tag.trim()).filter(tag => tag);
+    } else {
+      // For flux and natural, split by sentences or keep as single block
+      tags = prompt.split(/[.!?]/).map(tag => tag.trim()).filter(tag => tag);
+    }
+    
+    // Create tag objects with translations
+    tags.forEach((tag, index) => {
+      const weight = 1.0;
+      const jaTranslation = translationDict[tag.toLowerCase()] || App.simpleTranslate(tag);
+      
+      App.imageState.imageTags.push({
+        id: `img-tag-${Date.now()}-${index}`,
+        en: tag,
+        ja: jaTranslation,
+        weight: weight,
+        category: null
+      });
+    });
+    
+    // Update UI
+    App.renderImageTags();
+  },
+  
+  // Render image tags in the editor
+  renderImageTags: () => {
+    const enContainer = document.getElementById('image-tags-en');
+    const jaContainer = document.getElementById('image-tags-ja');
+    
+    if (!enContainer || !jaContainer) return;
+    
+    enContainer.innerHTML = '';
+    jaContainer.innerHTML = '';
+    
+    App.imageState.imageTags.forEach((tag, index) => {
+      // English tag
+      const enTag = document.createElement('div');
+      enTag.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors';
+      enTag.innerHTML = `
+        <span class="flex-1 text-sm">${tag.en}</span>
+        <input type="number" value="${tag.weight}" min="0.1" max="2.0" step="0.05" 
+               class="w-16 px-1 py-0.5 text-xs border rounded"
+               onchange="App.updateImageTagWeight(${index}, this.value)">
+        <button onclick="App.removeImageTag(${index})" 
+                class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors">
+          <i class="fas fa-times text-xs"></i>
+        </button>
+      `;
+      enContainer.appendChild(enTag);
+      
+      // Japanese tag
+      const jaTag = document.createElement('div');
+      jaTag.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors';
+      jaTag.innerHTML = `
+        <span class="flex-1 text-sm">${tag.ja}</span>
+        <input type="number" value="${tag.weight}" min="0.1" max="2.0" step="0.05" 
+               class="w-16 px-1 py-0.5 text-xs border rounded"
+               onchange="App.updateImageTagWeight(${index}, this.value)">
+        <button onclick="App.removeImageTag(${index})" 
+                class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors">
+          <i class="fas fa-times text-xs"></i>
+        </button>
+      `;
+      jaContainer.appendChild(jaTag);
+    });
+  },
+  
+  // Update image tag weight
+  updateImageTagWeight: (index, weight) => {
+    if (App.imageState.imageTags[index]) {
+      App.imageState.imageTags[index].weight = parseFloat(weight);
+      App.updateImagePromptOutput();
+    }
+  },
+  
+  // Remove image tag
+  removeImageTag: (index) => {
+    App.imageState.imageTags.splice(index, 1);
+    App.renderImageTags();
+    App.updateImagePromptOutput();
+  },
+  
+  // Add new image tag
+  addNewImageTag: (lang) => {
+    const input = document.getElementById(`new-image-tag-${lang}`);
+    if (!input || !input.value.trim()) return;
+    
+    const text = input.value.trim();
+    let enText = text;
+    let jaText = text;
+    
+    if (lang === 'en') {
+      jaText = translationDict[text.toLowerCase()] || App.simpleTranslate(text);
+    } else {
+      enText = App.reverseTranslate(text);
+    }
+    
+    App.imageState.imageTags.push({
+      id: `img-tag-${Date.now()}`,
+      en: enText,
+      ja: jaText,
+      weight: 1.0,
+      category: null
+    });
+    
+    input.value = '';
+    App.renderImageTags();
+    App.updateImagePromptOutput();
+  },
+  
+  // Update image prompt output
+  updateImagePromptOutput: () => {
+    const promptTextarea = document.getElementById('image-generated-prompt');
+    if (!promptTextarea) return;
+    
+    let output = '';
+    
+    if (App.imageState.imageOutputFormat === 'sdxl') {
+      // SDXL format with weights
+      output = App.imageState.imageTags.map(tag => {
+        if (tag.weight !== 1.0) {
+          return `${tag.en}:${tag.weight}`;
+        }
+        return tag.en;
+      }).join(', ');
+    } else if (App.imageState.imageOutputFormat === 'flux' || App.imageState.imageOutputFormat === 'natural') {
+      // Natural language format
+      output = App.imageState.imageTags.map(tag => tag.en).join('. ');
+    } else {
+      // ImageFX or other formats
+      output = App.imageState.imageTags.map(tag => tag.en).join(', ');
+    }
+    
+    promptTextarea.value = output;
+  },
+  
+  // Send image prompt to main editor
+  sendImageToMainEditor: () => {
+    const promptTextarea = document.getElementById('image-generated-prompt');
+    if (!promptTextarea || !promptTextarea.value) {
+      showNotification('No prompt to send', 'error');
+      return;
+    }
+    
+    // Switch to Text tab
+    App.setTab('text');
+    
+    // Put prompt in input textarea
+    const inputTextarea = document.getElementById('input-text');
+    if (inputTextarea) {
+      inputTextarea.value = promptTextarea.value;
+      
+      // Copy tags to main editor
+      appState.tags = App.imageState.imageTags.map(tag => ({...tag}));
+      
+      // Update main tag editor
+      App.updateTagDisplay();
+      App.updateOutput();
+      
+      showNotification('Prompt sent to Main Editor', 'success');
+    }
+  },
+  
+  // Translate image tags
+  translateImageTags: async (direction) => {
+    // Similar to main translateAll but for image tags
+    showNotification('Translating tags...', 'info');
+    
+    App.imageState.imageTags.forEach(tag => {
+      if (direction === 'en-to-ja') {
+        tag.ja = translationDict[tag.en.toLowerCase()] || App.simpleTranslate(tag.en);
+      } else {
+        tag.en = App.reverseTranslate(tag.ja);
+      }
+    });
+    
+    App.renderImageTags();
+    showNotification('Translation complete', 'success');
+  },
+  
+  // Simple translate helper
+  simpleTranslate: (text) => {
+    // Basic translation or return original
+    const translated = translationDict[text.toLowerCase()];
+    return translated || text + ' (翻訳)';
+  },
+  
+  // Reverse translate helper
+  reverseTranslate: (text) => {
+    // Find English equivalent
+    for (const [en, ja] of Object.entries(translationDict)) {
+      if (ja === text) return en;
+    }
+    return text.replace(' (翻訳)', '');
+  },
+  
+  // Show image prompt editor modal
+  showImagePromptEditor: () => {
+    // TODO: Implement modal for editing system prompts
+    showNotification('System prompt editor coming soon', 'info');
+  },
+  
+  // Add custom format for image
+  addImageCustomFormat: () => {
+    // TODO: Implement custom format addition
+    showNotification('Custom format addition coming soon', 'info');
   }
 });
 
