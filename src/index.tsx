@@ -928,84 +928,133 @@ const appHtml = `<!DOCTYPE html>
                         </div>
                     </div>
                     
-                    <!-- Bottom Section: Tag Editor -->
-                    <section class="bg-white rounded-lg shadow-sm p-4 flex-1 overflow-hidden">
-                        <div class="flex items-center justify-between mb-3">
-                            <h2 class="text-lg font-semibold text-gray-700">
-                                <i class="fas fa-tags mr-2 text-green-500"></i>
-                                Tag Editor
-                            </h2>
-                            <div class="flex gap-2">
-                                <button onclick="App.sendImageToMainEditor()" 
-                                        class="px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                                    <i class="fas fa-arrow-right mr-1"></i>Send to Main Editor
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Bilingual Tag Columns for Image Tab -->
-                        <div class="grid grid-cols-2 gap-4 h-full overflow-hidden">
-                            <!-- English Column -->
-                            <div class="flex flex-col">
-                                <div class="flex items-center justify-between mb-2 pb-2 border-b">
-                                    <h3 class="font-medium text-gray-700">
-                                        <i class="fas fa-globe mr-1 text-blue-500"></i>English
-                                    </h3>
-                                    <button onclick="App.translateImageTags('en-to-ja')" 
-                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors">
-                                        Translate All →
+                    <!-- Bottom Section: Tag Editor and Final Output -->
+                    <div class="flex gap-4 flex-1 overflow-hidden">
+                        <!-- Tag Editor Section -->
+                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1 overflow-hidden">
+                            <div class="flex items-center justify-between mb-3">
+                                <h2 class="text-lg font-semibold text-gray-700">
+                                    <i class="fas fa-tags mr-2 text-green-500"></i>
+                                    Tag Editor
+                                </h2>
+                                <div class="flex gap-2">
+                                    <button onclick="App.sortImageTags('category')" 
+                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
+                                            data-tooltip="Sort by Category">
+                                        <i class="fas fa-sort-alpha-down"></i>
                                     </button>
-                                </div>
-                                
-                                <!-- Add New Tag -->
-                                <div class="flex gap-1 mb-3">
-                                    <input type="text" id="new-image-tag-en" 
-                                           placeholder="Add new tag..." 
-                                           class="flex-1 px-2 py-1 text-sm border rounded"
-                                           onkeydown="if(event.key==='Enter') App.addNewImageTag('en')">
-                                    <button onclick="App.addNewImageTag('en')" 
-                                            class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                        <i class="fas fa-plus text-xs"></i>
+                                    <button onclick="App.sortImageTags('weight')" 
+                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
+                                            data-tooltip="Sort by Weight">
+                                        <i class="fas fa-sort-numeric-down"></i>
                                     </button>
-                                </div>
-                                
-                                <!-- Tag List -->
-                                <div id="image-tags-en" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2">
-                                    <!-- Tags will be dynamically inserted here -->
                                 </div>
                             </div>
                             
-                            <!-- Japanese Column -->
-                            <div class="flex flex-col">
-                                <div class="flex items-center justify-between mb-2 pb-2 border-b">
-                                    <h3 class="font-medium text-gray-700">
-                                        <i class="fas fa-torii-gate mr-1 text-red-500"></i>日本語
-                                    </h3>
-                                    <button onclick="App.translateImageTags('ja-to-en')" 
-                                            class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded transition-colors">
-                                        ← Translate All
-                                    </button>
+                            <!-- Bilingual Tag Columns for Image Tab -->
+                            <div class="grid grid-cols-2 gap-4" style="height: calc(100% - 40px);">
+                                <!-- English Column -->
+                                <div class="flex flex-col">
+                                    <div class="flex items-center justify-between mb-2 pb-2 border-b">
+                                        <h3 class="font-medium text-gray-700">
+                                            <i class="fas fa-globe mr-1 text-blue-500"></i>English
+                                        </h3>
+                                        <button onclick="App.translateImageTags('en-to-ja')" 
+                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors">
+                                            Translate All →
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Add New Tag -->
+                                    <div class="flex gap-1 mb-3">
+                                        <input type="text" id="new-image-tag-en" 
+                                               placeholder="Add new tag..." 
+                                               class="flex-1 px-2 py-1 text-sm border rounded"
+                                               onkeydown="if(event.key==='Enter') App.addNewImageTag('en')">
+                                        <button onclick="App.addNewImageTag('en')" 
+                                                class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Tag List -->
+                                    <div id="image-tags-en" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2">
+                                        <!-- Tags will be dynamically inserted here -->
+                                    </div>
                                 </div>
                                 
-                                <!-- Add New Tag -->
-                                <div class="flex gap-1 mb-3">
-                                    <input type="text" id="new-image-tag-ja" 
-                                           placeholder="新しいタグを追加..." 
-                                           class="flex-1 px-2 py-1 text-sm border rounded"
-                                           onkeydown="if(event.key==='Enter') App.addNewImageTag('ja')">
-                                    <button onclick="App.addNewImageTag('ja')" 
-                                            class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                        <i class="fas fa-plus text-xs"></i>
-                                    </button>
-                                </div>
-                                
-                                <!-- Tag List -->
-                                <div id="image-tags-ja" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2">
-                                    <!-- Tags will be dynamically inserted here -->
+                                <!-- Japanese Column -->
+                                <div class="flex flex-col">
+                                    <div class="flex items-center justify-between mb-2 pb-2 border-b">
+                                        <h3 class="font-medium text-gray-700">
+                                            <i class="fas fa-torii-gate mr-1 text-red-500"></i>日本語
+                                        </h3>
+                                        <button onclick="App.translateImageTags('ja-to-en')" 
+                                                class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded transition-colors">
+                                            ← Translate All
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Add New Tag -->
+                                    <div class="flex gap-1 mb-3">
+                                        <input type="text" id="new-image-tag-ja" 
+                                               placeholder="新しいタグを追加..." 
+                                               class="flex-1 px-2 py-1 text-sm border rounded"
+                                               onkeydown="if(event.key==='Enter') App.addNewImageTag('ja')">
+                                        <button onclick="App.addNewImageTag('ja')" 
+                                                class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Tag List -->
+                                    <div id="image-tags-ja" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2">
+                                        <!-- Tags will be dynamically inserted here -->
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </section>
+                        </section>
+                        
+                        <!-- Final Output Section -->
+                        <section class="bg-white rounded-lg shadow-sm p-4 w-96">
+                            <div class="flex items-center justify-between mb-3">
+                                <h2 class="text-lg font-semibold text-gray-700">
+                                    <i class="fas fa-file-export mr-2 text-orange-500"></i>
+                                    Final Output
+                                </h2>
+                                <div class="flex items-center gap-2">
+                                    <label class="text-sm text-gray-600">Format:</label>
+                                    <select id="image-final-output-format" onchange="App.updateImageFinalFormat()" 
+                                            class="px-2 py-1 border rounded text-sm">
+                                        <option value="sdxl">SDXL Tags</option>
+                                        <option value="flux">Flux Phrases</option>
+                                        <option value="imagefx">ImageFX</option>
+                                        <option value="imagefx-natural">ImageFX Natural</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <textarea id="image-final-output" 
+                                      placeholder="Final formatted output will appear here..."
+                                      class="w-full h-32 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
+                                      readonly></textarea>
+                            
+                            <div class="flex gap-2 mt-3">
+                                <button onclick="App.copyImageFinalOutput()" 
+                                        class="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                    <i class="fas fa-copy mr-1"></i>Copy
+                                </button>
+                                <button onclick="App.downloadImageOutput()" 
+                                        class="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                    <i class="fas fa-download mr-1"></i>Download
+                                </button>
+                                <button onclick="App.sendImageToMainEditor()" 
+                                        class="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                    <i class="fas fa-arrow-right mr-1"></i>Send to Main
+                                </button>
+                            </div>
+                        </section>
+                    </div>
                 </div>
             </div>
             

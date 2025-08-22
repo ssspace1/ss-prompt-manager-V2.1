@@ -1334,6 +1334,7 @@ Object.assign(App, {
     analysisResult: null,
     visionModel: 'gemini-2.0-flash-exp',
     imageOutputFormat: 'sdxl',
+    imageFinalFormat: 'sdxl',  // Separate format for final output
     imageTags: [],  // Separate tags for image tab
     analysisVisible: false
   },
@@ -1979,23 +1980,35 @@ Be detailed and specific in your description.`;
     let tags = [];
     if (App.imageState.imageOutputFormat === 'sdxl' || App.imageState.imageOutputFormat === 'imagefx') {
       // Split by comma for SDXL and ImageFX
-      tags = prompt.split(',').map(tag => tag.trim()).filter(tag => tag);
+      tags = prompt.split(',').map(tag => {
+        // Handle weighted tags (e.g., "tag:1.5")
+        const parts = tag.trim().split(':');
+        return {
+          text: parts[0].trim(),
+          weight: parts[1] ? parseFloat(parts[1]) : 1.0
+        };
+      }).filter(tag => tag.text);
     } else {
-      // For flux and natural, split by sentences or keep as single block
-      tags = prompt.split(/[.!?]/).map(tag => tag.trim()).filter(tag => tag);
+      // For flux and natural, split by sentences or periods
+      tags = prompt.split(/[.!?]/).map(tag => ({
+        text: tag.trim(),
+        weight: 1.0
+      })).filter(tag => tag.text);
     }
     
-    // Create tag objects with translations
+    // Categorize tags
+    const categories = App.categorizeImageTags(tags.map(t => t.text));
+    
+    // Create tag objects with translations and categories
     tags.forEach((tag, index) => {
-      const weight = 1.0;
-      const jaTranslation = translationDict[tag.toLowerCase()] || App.simpleTranslate(tag);
+      const jaTranslation = translationDict[tag.text.toLowerCase()] || App.simpleTranslate(tag.text);
       
       App.imageState.imageTags.push({
         id: `img-tag-${Date.now()}-${index}`,
-        en: tag,
+        en: tag.text,
         ja: jaTranslation,
-        weight: weight,
-        category: null
+        weight: tag.weight,
+        category: categories[index] || 'other'
       });
     });
     
@@ -2003,7 +2016,29 @@ Be detailed and specific in your description.`;
     App.renderImageTags();
   },
   
-  // Render image tags in the editor
+  // Categorize image tags
+  categorizeImageTags: (tags) => {
+    const categoryPatterns = {
+      person: /girl|boy|woman|man|person|child|adult|teen|1girl|2girls|1boy/i,
+      appearance: /hair|eyes|face|skin|smile|beautiful|cute|handsome|pretty|tall|short/i,
+      clothes: /dress|shirt|skirt|uniform|jacket|pants|shoes|hat|hoodie|suit|costume/i,
+      pose: /sitting|standing|walking|running|lying|squatting|kneeling|jumping|pose/i,
+      background: /background|forest|city|room|outdoor|indoor|sky|mountain|beach|street/i,
+      quality: /masterpiece|best quality|detailed|8k|4k|highres|professional|sharp|hd/i,
+      style: /anime|realistic|cartoon|painting|digital|watercolor|sketch|artistic|style/i
+    };
+    
+    return tags.map(tag => {
+      for (const [category, pattern] of Object.entries(categoryPatterns)) {
+        if (pattern.test(tag)) {
+          return category;
+        }
+      }
+      return 'other';
+    });
+  },
+  
+  // Render image tags in the editor with color coding
   renderImageTags: () => {
     const enContainer = document.getElementById('image-tags-en');
     const jaContainer = document.getElementById('image-tags-ja');
@@ -2013,37 +2048,104 @@ Be detailed and specific in your description.`;
     enContainer.innerHTML = '';
     jaContainer.innerHTML = '';
     
+    // Category colors (same as main editor)
+    const categoryColors = {
+      person: 'bg-yellow-50 border-yellow-300',
+      appearance: 'bg-pink-50 border-pink-300',
+      clothes: 'bg-purple-50 border-purple-300',
+      pose: 'bg-indigo-50 border-indigo-300',
+      background: 'bg-green-50 border-green-300',
+      quality: 'bg-blue-50 border-blue-300',
+      style: 'bg-orange-50 border-orange-300',
+      other: 'bg-gray-50 border-gray-300'
+    };
+    
     App.imageState.imageTags.forEach((tag, index) => {
-      // English tag
-      const enTag = document.createElement('div');
-      enTag.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors';
-      enTag.innerHTML = `
-        <span class="flex-1 text-sm">${tag.en}</span>
-        <input type="number" value="${tag.weight}" min="0.1" max="2.0" step="0.05" 
-               class="w-16 px-1 py-0.5 text-xs border rounded"
-               onchange="App.updateImageTagWeight(${index}, this.value)">
-        <button onclick="App.removeImageTag(${index})" 
-                class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors">
-          <i class="fas fa-times text-xs"></i>
-        </button>
-      `;
-      enContainer.appendChild(enTag);
+      const colorClass = categoryColors[tag.category] || categoryColors.other;
       
-      // Japanese tag
-      const jaTag = document.createElement('div');
-      jaTag.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors';
-      jaTag.innerHTML = `
-        <span class="flex-1 text-sm">${tag.ja}</span>
-        <input type="number" value="${tag.weight}" min="0.1" max="2.0" step="0.05" 
-               class="w-16 px-1 py-0.5 text-xs border rounded"
-               onchange="App.updateImageTagWeight(${index}, this.value)">
-        <button onclick="App.removeImageTag(${index})" 
-                class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors">
-          <i class="fas fa-times text-xs"></i>
-        </button>
+      // Create tag card for English
+      const enTagCard = document.createElement('div');
+      enTagCard.className = `tag-card ${colorClass} border rounded-lg p-2 hover:shadow-md transition-all`;
+      enTagCard.innerHTML = `
+        <div class="flex items-center gap-2">
+          <button onclick="App.moveImageTag(${index}, -1)" 
+                  class="px-1 py-0.5 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded transition-colors"
+                  title="Move up">
+            <i class="fas fa-chevron-up text-xs"></i>
+          </button>
+          <button onclick="App.moveImageTag(${index}, 1)" 
+                  class="px-1 py-0.5 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded transition-colors"
+                  title="Move down">
+            <i class="fas fa-chevron-down text-xs"></i>
+          </button>
+          <input type="text" value="${tag.en}" 
+                 class="flex-1 px-2 py-1 text-sm bg-white/70 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                 onchange="App.updateImageTagText(${index}, 'en', this.value)"
+                 placeholder="English tag">
+          <div class="flex items-center gap-1">
+            <button onclick="App.decreaseImageWeight(${index})" 
+                    class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors">
+              <i class="fas fa-minus text-xs"></i>
+            </button>
+            <input type="number" value="${tag.weight}" min="0.1" max="2.0" step="0.05" 
+                   class="w-14 px-1 py-0.5 text-xs text-center border rounded"
+                   onchange="App.updateImageTagWeight(${index}, this.value)">
+            <button onclick="App.increaseImageWeight(${index})" 
+                    class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors">
+              <i class="fas fa-plus text-xs"></i>
+            </button>
+          </div>
+          <button onclick="App.removeImageTag(${index})" 
+                  class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors">
+            <i class="fas fa-trash text-xs"></i>
+          </button>
+        </div>
       `;
-      jaContainer.appendChild(jaTag);
+      enContainer.appendChild(enTagCard);
+      
+      // Create tag card for Japanese
+      const jaTagCard = document.createElement('div');
+      jaTagCard.className = `tag-card ${colorClass} border rounded-lg p-2 hover:shadow-md transition-all`;
+      jaTagCard.innerHTML = `
+        <div class="flex items-center gap-2">
+          <button onclick="App.moveImageTag(${index}, -1)" 
+                  class="px-1 py-0.5 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded transition-colors"
+                  title="上へ移動">
+            <i class="fas fa-chevron-up text-xs"></i>
+          </button>
+          <button onclick="App.moveImageTag(${index}, 1)" 
+                  class="px-1 py-0.5 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded transition-colors"
+                  title="下へ移動">
+            <i class="fas fa-chevron-down text-xs"></i>
+          </button>
+          <input type="text" value="${tag.ja}" 
+                 class="flex-1 px-2 py-1 text-sm bg-white/70 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                 onchange="App.updateImageTagText(${index}, 'ja', this.value)"
+                 placeholder="日本語タグ">
+          <div class="flex items-center gap-1">
+            <button onclick="App.decreaseImageWeight(${index})" 
+                    class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors">
+              <i class="fas fa-minus text-xs"></i>
+            </button>
+            <input type="number" value="${tag.weight}" min="0.1" max="2.0" step="0.05" 
+                   class="w-14 px-1 py-0.5 text-xs text-center border rounded"
+                   onchange="App.updateImageTagWeight(${index}, this.value)">
+            <button onclick="App.increaseImageWeight(${index})" 
+                    class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors">
+              <i class="fas fa-plus text-xs"></i>
+            </button>
+          </div>
+          <button onclick="App.removeImageTag(${index})" 
+                  class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors">
+            <i class="fas fa-trash text-xs"></i>
+          </button>
+        </div>
+      `;
+      jaContainer.appendChild(jaTagCard);
     });
+    
+    // Update final output
+    App.updateImageFinalOutput();
   },
   
   // Update image tag weight
@@ -2051,6 +2153,52 @@ Be detailed and specific in your description.`;
     if (App.imageState.imageTags[index]) {
       App.imageState.imageTags[index].weight = parseFloat(weight);
       App.updateImagePromptOutput();
+      App.updateImageFinalOutput();
+    }
+  },
+  
+  // Increase image weight
+  increaseImageWeight: (index) => {
+    if (App.imageState.imageTags[index]) {
+      const currentWeight = App.imageState.imageTags[index].weight;
+      const newWeight = Math.min(2.0, currentWeight + 0.05);
+      App.imageState.imageTags[index].weight = Math.round(newWeight * 100) / 100;
+      App.renderImageTags();
+    }
+  },
+  
+  // Decrease image weight
+  decreaseImageWeight: (index) => {
+    if (App.imageState.imageTags[index]) {
+      const currentWeight = App.imageState.imageTags[index].weight;
+      const newWeight = Math.max(0.1, currentWeight - 0.05);
+      App.imageState.imageTags[index].weight = Math.round(newWeight * 100) / 100;
+      App.renderImageTags();
+    }
+  },
+  
+  // Update image tag text
+  updateImageTagText: (index, lang, text) => {
+    if (App.imageState.imageTags[index]) {
+      App.imageState.imageTags[index][lang] = text;
+      // Auto-translate if needed
+      if (lang === 'en') {
+        App.imageState.imageTags[index].ja = translationDict[text.toLowerCase()] || App.simpleTranslate(text);
+      } else {
+        App.imageState.imageTags[index].en = App.reverseTranslate(text);
+      }
+      App.renderImageTags();
+    }
+  },
+  
+  // Move image tag
+  moveImageTag: (index, direction) => {
+    const newIndex = index + direction;
+    if (newIndex >= 0 && newIndex < App.imageState.imageTags.length) {
+      const temp = App.imageState.imageTags[index];
+      App.imageState.imageTags[index] = App.imageState.imageTags[newIndex];
+      App.imageState.imageTags[newIndex] = temp;
+      App.renderImageTags();
     }
   },
   
@@ -2058,7 +2206,19 @@ Be detailed and specific in your description.`;
   removeImageTag: (index) => {
     App.imageState.imageTags.splice(index, 1);
     App.renderImageTags();
-    App.updateImagePromptOutput();
+  },
+  
+  // Sort image tags
+  sortImageTags: (by) => {
+    if (by === 'category') {
+      App.imageState.imageTags.sort((a, b) => {
+        const categoryOrder = ['person', 'appearance', 'clothes', 'pose', 'background', 'quality', 'style', 'other'];
+        return categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
+      });
+    } else if (by === 'weight') {
+      App.imageState.imageTags.sort((a, b) => b.weight - a.weight);
+    }
+    App.renderImageTags();
   },
   
   // Add new image tag
@@ -2089,7 +2249,7 @@ Be detailed and specific in your description.`;
     App.updateImagePromptOutput();
   },
   
-  // Update image prompt output
+  // Update image prompt output (AI Format Prompt area)
   updateImagePromptOutput: () => {
     const promptTextarea = document.getElementById('image-generated-prompt');
     if (!promptTextarea) return;
@@ -2107,12 +2267,89 @@ Be detailed and specific in your description.`;
     } else if (App.imageState.imageOutputFormat === 'flux' || App.imageState.imageOutputFormat === 'natural') {
       // Natural language format
       output = App.imageState.imageTags.map(tag => tag.en).join('. ');
+      if (output && !output.endsWith('.')) output += '.';
     } else {
       // ImageFX or other formats
       output = App.imageState.imageTags.map(tag => tag.en).join(', ');
     }
     
     promptTextarea.value = output;
+    
+    // Also update final output
+    App.updateImageFinalOutput();
+  },
+  
+  // Update image final output
+  updateImageFinalOutput: () => {
+    const finalTextarea = document.getElementById('image-final-output');
+    if (!finalTextarea) return;
+    
+    const formatSelect = document.getElementById('image-final-output-format');
+    const format = formatSelect ? formatSelect.value : 'sdxl';
+    
+    let output = '';
+    
+    if (format === 'sdxl') {
+      // SDXL format with weights
+      output = App.imageState.imageTags.map(tag => {
+        if (tag.weight !== 1.0) {
+          return `${tag.en}:${tag.weight}`;
+        }
+        return tag.en;
+      }).join(', ');
+    } else if (format === 'flux') {
+      // Flux natural language format
+      output = App.imageState.imageTags.map(tag => {
+        const weightedText = tag.weight > 1.2 ? `highly ${tag.en}` : 
+                            tag.weight < 0.8 ? `slightly ${tag.en}` : tag.en;
+        return weightedText;
+      }).join(', ');
+      output = output.charAt(0).toUpperCase() + output.slice(1) + '.';
+    } else if (format === 'imagefx') {
+      // ImageFX command format
+      output = App.imageState.imageTags.map(tag => tag.en).join(' ');
+    } else if (format === 'imagefx-natural') {
+      // ImageFX natural language
+      output = App.imageState.imageTags.map(tag => tag.en).join(', ');
+      output = `Create an image of ${output}`;
+    }
+    
+    finalTextarea.value = output;
+  },
+  
+  // Update image final format
+  updateImageFinalFormat: () => {
+    App.updateImageFinalOutput();
+  },
+  
+  // Copy image final output
+  copyImageFinalOutput: () => {
+    const textarea = document.getElementById('image-final-output');
+    if (textarea && textarea.value) {
+      navigator.clipboard.writeText(textarea.value);
+      showNotification('Final output copied to clipboard', 'success');
+    }
+  },
+  
+  // Download image output
+  downloadImageOutput: () => {
+    const textarea = document.getElementById('image-final-output');
+    if (!textarea || !textarea.value) {
+      showNotification('No output to download', 'error');
+      return;
+    }
+    
+    const blob = new Blob([textarea.value], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `image-prompt-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showNotification('Output downloaded', 'success');
   },
   
   // Send image prompt to main editor
