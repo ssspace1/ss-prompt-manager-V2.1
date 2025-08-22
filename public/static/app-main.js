@@ -157,7 +157,7 @@ const TagEditor = {
   // Create a tag card element with drag and drop
   createTagCard: (tag, index, lang, colorClass, context) => {
     const card = document.createElement('div');
-    card.className = `tag-card ${colorClass} border rounded-lg p-2 hover:shadow-md transition-all relative cursor-move`;
+    card.className = `tag-card ${colorClass} border rounded-lg p-3 hover:shadow-md transition-all relative cursor-move mb-2`;
     card.draggable = true;
     card.dataset.index = index;
     card.dataset.context = context;
@@ -166,45 +166,39 @@ const TagEditor = {
     const text = lang === 'en' ? tag.en : tag.ja;
     const funcPrefix = context === 'image' ? 'TagEditor.imageTag' : 'TagEditor.mainTag';
     
-    // Add drag indicator elements positioned at the edges
-    const topIndicator = document.createElement('div');
-    topIndicator.className = 'drag-indicator';
-    topIndicator.style.cssText = 'position: absolute; top: -2px; left: 0; right: 0;';
-    card.appendChild(topIndicator);
+    // Escape text for HTML attributes
+    const escapedText = text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     
-    const bottomIndicator = document.createElement('div');
-    bottomIndicator.className = 'drag-indicator';
-    bottomIndicator.style.cssText = 'position: absolute; bottom: -2px; left: 0; right: 0;';
-    card.appendChild(bottomIndicator);
-    
-    // Create content container
-    const content = document.createElement('div');
-    content.className = 'flex items-center gap-2 relative';
-    content.innerHTML = `
-      <i class="fas fa-grip-vertical drag-handle text-gray-400 hover:text-gray-600 transition-colors"></i>
-      <input type="text" value="${text}" 
-             class="flex-1 px-2 py-1 text-sm bg-white/70 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-text"
-             onchange="${funcPrefix}.updateText(${index}, '${lang}', this.value)"
-             placeholder="${lang === 'en' ? 'English tag' : '日本語タグ'}">
-      <div class="flex items-center gap-1">
-        <button onclick="${funcPrefix}.decreaseWeight(${index})" 
-                class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors cursor-pointer">
-          <i class="fas fa-minus text-xs"></i>
-        </button>
-        <input type="number" value="${tag.weight.toFixed(2)}" min="0.1" max="2.0" step="0.05" 
-               class="w-14 px-1 py-0.5 text-xs text-center border rounded cursor-text"
-               onchange="${funcPrefix}.updateWeight(${index}, this.value)">
-        <button onclick="${funcPrefix}.increaseWeight(${index})" 
-                class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors cursor-pointer">
-          <i class="fas fa-plus text-xs"></i>
-        </button>
+    // Create content with multi-line text display
+    card.innerHTML = `
+      <div class="flex items-start gap-2">
+        <i class="fas fa-grip-vertical drag-handle text-gray-400 hover:text-gray-600 transition-colors mt-1" style="cursor: grab;"></i>
+        <div class="flex-1 min-w-0">
+          <div class="tag-text text-sm mb-2 break-words whitespace-pre-wrap" 
+               ondblclick="TagEditor.makeEditable(${index}, '${lang}', '${context}')" 
+               style="cursor: text; line-height: 1.4;">
+            ${text}
+          </div>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <button onclick="${funcPrefix}.decreaseWeight(${index})" 
+                  class="px-2 py-1 text-gray-600 hover:bg-white/50 rounded transition-colors">
+            <i class="fas fa-minus text-xs"></i>
+          </button>
+          <input type="number" value="${tag.weight.toFixed(1)}" min="0.1" max="2.0" step="0.1" 
+                 class="w-12 px-1 py-0.5 text-xs text-center border rounded"
+                 onchange="${funcPrefix}.updateWeight(${index}, this.value)">
+          <button onclick="${funcPrefix}.increaseWeight(${index})" 
+                  class="px-2 py-1 text-gray-600 hover:bg-white/50 rounded transition-colors">
+            <i class="fas fa-plus text-xs"></i>
+          </button>
+          <button onclick="${funcPrefix}.remove(${index})" 
+                  class="px-2 py-1 text-red-600 hover:bg-red-100 rounded transition-colors ml-1">
+            <i class="fas fa-trash text-xs"></i>
+          </button>
+        </div>
       </div>
-      <button onclick="${funcPrefix}.remove(${index})" 
-              class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors cursor-pointer">
-        <i class="fas fa-trash text-xs"></i>
-      </button>
     `;
-    card.appendChild(content);
     
     // Add drag event listeners
     card.addEventListener('dragstart', TagEditor.handleDragStart);
@@ -217,6 +211,66 @@ const TagEditor = {
     return card;
   },
   
+  // Make tag text editable on double-click
+  makeEditable: (index, lang, context) => {
+    const ctx = TagEditor.getContext(context);
+    const card = event.target.closest('.tag-card');
+    const textDiv = event.target;
+    
+    if (!textDiv.classList.contains('tag-text')) return;
+    
+    const tag = ctx.tags[index];
+    if (!tag) return;
+    
+    const currentText = lang === 'en' ? tag.en : tag.ja;
+    
+    // Create textarea for multi-line editing
+    const textarea = document.createElement('textarea');
+    textarea.value = currentText;
+    textarea.className = 'w-full px-2 py-1 text-sm border rounded resize-none focus:outline-none focus:ring-1 focus:ring-blue-400';
+    textarea.style.minHeight = '60px';
+    textarea.rows = Math.max(2, currentText.split('\n').length);
+    
+    // Replace text div with textarea
+    textDiv.style.display = 'none';
+    textDiv.parentElement.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    
+    // Save function
+    const saveEdit = () => {
+      const newText = textarea.value.trim();
+      if (newText && newText !== currentText) {
+        if (context === 'image') {
+          TagEditor.imageTag.updateText(index, lang, newText);
+        } else {
+          TagEditor.mainTag.updateText(index, lang, newText);
+        }
+      }
+      textarea.remove();
+      textDiv.style.display = 'block';
+      TagEditor.renderTags(context);
+    };
+    
+    // Cancel function
+    const cancelEdit = () => {
+      textarea.remove();
+      textDiv.style.display = 'block';
+    };
+    
+    // Event listeners
+    textarea.addEventListener('blur', saveEdit);
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        saveEdit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEdit();
+      }
+    });
+  },
+  
   // Drag and Drop handlers
   draggedElement: null,
   draggedIndex: null,
@@ -224,12 +278,7 @@ const TagEditor = {
   draggedLang: null,
   
   handleDragStart: function(e) {
-    // Only allow dragging from the drag handle
-    if (!e.target.classList.contains('drag-handle') && !e.target.parentElement?.classList.contains('drag-handle')) {
-      e.preventDefault();
-      return false;
-    }
-    
+    // Allow dragging from anywhere on the card
     TagEditor.draggedElement = this;
     TagEditor.draggedIndex = parseInt(this.dataset.index);
     TagEditor.draggedContext = this.dataset.context;
@@ -483,13 +532,13 @@ const TagEditor = {
     },
     increaseWeight: (index) => {
       if (appState.tags[index]) {
-        appState.tags[index].weight = Math.min(2.0, appState.tags[index].weight + 0.05);
+        appState.tags[index].weight = Math.min(2.0, appState.tags[index].weight + 0.1);
         TagEditor.renderTags('main');
       }
     },
     decreaseWeight: (index) => {
       if (appState.tags[index]) {
-        appState.tags[index].weight = Math.max(0.1, appState.tags[index].weight - 0.05);
+        appState.tags[index].weight = Math.max(0.1, appState.tags[index].weight - 0.1);
         TagEditor.renderTags('main');
       }
     },
@@ -526,13 +575,13 @@ const TagEditor = {
     },
     increaseWeight: (index) => {
       if (App.imageState.imageTags[index]) {
-        App.imageState.imageTags[index].weight = Math.min(2.0, App.imageState.imageTags[index].weight + 0.05);
+        App.imageState.imageTags[index].weight = Math.min(2.0, App.imageState.imageTags[index].weight + 0.1);
         TagEditor.renderTags('image');
       }
     },
     decreaseWeight: (index) => {
       if (App.imageState.imageTags[index]) {
-        App.imageState.imageTags[index].weight = Math.max(0.1, App.imageState.imageTags[index].weight - 0.05);
+        App.imageState.imageTags[index].weight = Math.max(0.1, App.imageState.imageTags[index].weight - 0.1);
         TagEditor.renderTags('image');
       }
     },

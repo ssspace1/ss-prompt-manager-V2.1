@@ -336,6 +336,16 @@ const appHtml = `<!DOCTYPE html>
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: grab;
             position: relative;
+            min-height: auto;
+            display: block;
+        }
+        
+        .tag-text {
+            word-break: break-word;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            line-height: 1.5;
+            padding: 2px 0;
         }
         
         .tag-card:active {
