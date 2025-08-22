@@ -273,42 +273,51 @@ const appHtml = `<!DOCTYPE html>
     
     <!-- Custom Styles -->
     <style>
-        /* Category Colors */
+        /* Category Colors - Softer, lighter gradients */
         [data-category="person"] { 
-            background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%); 
-            border-color: #fbbf24;
+            background: linear-gradient(135deg, #fef7ed 0%, #fed7aa 100%); 
+            border-color: #fdba74;
+            color: #9a3412;
         }
         [data-category="appearance"] { 
-            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); 
-            border-color: #60a5fa;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); 
+            border-color: #93c5fd;
+            color: #1e40af;
         }
         [data-category="clothing"] { 
-            background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); 
+            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); 
             border-color: #f9a8d4;
+            color: #be185d;
         }
         [data-category="action"] { 
-            background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%); 
-            border-color: #c084fc;
+            background: linear-gradient(135deg, #f5f3ff 0%, #e9d5ff 100%); 
+            border-color: #d8b4fe;
+            color: #7c3aed;
         }
         [data-category="background"] { 
-            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); 
-            border-color: #34d399;
+            background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%); 
+            border-color: #86efac;
+            color: #166534;
         }
         [data-category="quality"] { 
-            background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%); 
-            border-color: #fb923c;
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); 
+            border-color: #fde68a;
+            color: #a16207;
         }
         [data-category="style"] { 
-            background: linear-gradient(135deg, #fef3c7 0%, #fde047 100%); 
-            border-color: #fde047;
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); 
+            border-color: #fbbf24;
+            color: #92400e;
         }
         [data-category="object"] {
-            background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
-            border-color: #3b82f6;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-color: #7dd3fc;
+            color: #0c4a6e;
         }
         [data-category="other"] { 
-            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); 
-            border-color: #9ca3af;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); 
+            border-color: #d1d5db;
+            color: #374151;
         }
         
         /* Block Styles */
@@ -758,6 +767,11 @@ const appHtml = `<!DOCTYPE html>
                                                 title="Edit System Prompt">
                                             <i class="fas fa-cog"></i>
                                         </button>
+                                        <button onclick="App.aiCategorizeAllTags()" 
+                                                class="px-2 py-2 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-lg transition-colors"
+                                                title="AI Categorize All Tags">
+                                            <i class="fas fa-brain"></i>
+                                        </button>
                                         <button onclick="App.addCustomFormat()" 
                                                 class="px-2 py-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
                                                 title="Add Custom Format">
@@ -1136,6 +1150,11 @@ const appHtml = `<!DOCTYPE html>
                                             class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
                                             data-tooltip="Sort by Weight">
                                         <i class="fas fa-sort-numeric-down"></i>
+                                    </button>
+                                    <button onclick="App.aiCategorizeImageTags()" 
+                                            class="px-3 py-1 text-sm bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors tooltip" 
+                                            data-tooltip="AI Categorize Tags">
+                                        <i class="fas fa-brain text-purple-600"></i>
                                     </button>
                                 </div>
                             </div>

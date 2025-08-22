@@ -1189,6 +1189,68 @@ window.App = {
     });
     
     appState.tags = await Promise.all(tagPromises);
+    
+    // Auto-apply AI categorization if API key is available
+    if (appState.apiKey && appState.tags.length > 0) {
+      try {
+        // Apply AI categorization silently
+        const tagTexts = appState.tags.map(tag => tag.en).join(', ');
+        
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${appState.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+            'X-Title': 'SS Prompt Manager'
+          },
+          body: JSON.stringify({
+            model: appState.selectedModel || 'openai/gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: `Categorize image generation tags into: person, appearance, clothing, action, background, quality, style, object, or other. Respond with JSON only: {"categories": [{"tag": "tag_name", "category": "category_name"}]}`
+              },
+              {
+                role: 'user',
+                content: `Categorize: ${tagTexts}`
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 500
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          let result;
+          
+          try {
+            const content = data.choices[0].message.content.trim();
+            result = JSON.parse(content);
+          } catch (parseError) {
+            const jsonMatch = content.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
+            if (jsonMatch) {
+              result = JSON.parse(jsonMatch[1]);
+            }
+          }
+          
+          // Apply AI categorization
+          if (result?.categories) {
+            result.categories.forEach(item => {
+              const tag = appState.tags.find(t => t.en.toLowerCase() === item.tag.toLowerCase());
+              if (tag && item.category) {
+                tag.category = item.category;
+              }
+            });
+          }
+        }
+      } catch (error) {
+        // Silently fall back to keyword-based categorization
+        console.log('AI categorization failed, using keyword-based fallback');
+      }
+    }
+    
     hideLoading();
     TagEditor.renderTags('main');
   },
@@ -1202,6 +1264,119 @@ window.App = {
     }));
     
     TagEditor.renderTags('main');
+  },
+  
+  // AI-based categorization for all tags
+  aiCategorizeAllTags: async () => {
+    if (appState.tags.length === 0) {
+      showNotification('タグがありません', 'error');
+      return;
+    }
+    
+    if (!appState.apiKey) {
+      showNotification('OpenRouter APIキーを設定してください', 'error');
+      return;
+    }
+    
+    showLoading('AI でタグを分類中...');
+    
+    try {
+      // Prepare tags for AI categorization
+      const tagTexts = appState.tags.map(tag => tag.en).join(', ');
+      
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${appState.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+          'X-Title': 'SS Prompt Manager'
+        },
+        body: JSON.stringify({
+          model: appState.selectedModel || 'openai/gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an AI tag categorizer for image generation prompts. Analyze each tag and categorize it into one of these categories:
+
+- person: Characters, people, gender, age (1girl, boy, woman, etc.)
+- appearance: Physical features, hair, eyes, facial expressions, beauty
+- clothing: Outfits, uniforms, accessories, fashion items
+- action: Poses, movements, activities, gestures
+- background: Environments, scenery, lighting, settings, weather
+- quality: Image quality enhancers, resolution, detail level
+- style: Art styles, techniques, artist names, aesthetic choices
+- object: Items, props, tools, decorative elements
+- other: Anything that doesn't fit the above categories
+
+Respond ONLY with valid JSON format:
+{
+  "categories": [
+    {"tag": "tag_name", "category": "category_name"},
+    ...
+  ]
+}`
+            },
+            {
+              role: 'user',
+              content: `Categorize these tags: ${tagTexts}`
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('AI categorization failed');
+      }
+      
+      const data = await response.json();
+      let result;
+      
+      try {
+        // Try to parse the JSON response
+        const content = data.choices[0].message.content.trim();
+        result = JSON.parse(content);
+      } catch (parseError) {
+        // If JSON parsing fails, try to extract JSON from markdown
+        const content = data.choices[0].message.content.trim();
+        const jsonMatch = content.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[1]);
+        } else {
+          throw new Error('Invalid JSON response from AI');
+        }
+      }
+      
+      // Apply AI categorization to tags
+      if (result.categories && Array.isArray(result.categories)) {
+        result.categories.forEach(item => {
+          const tag = appState.tags.find(t => t.en.toLowerCase() === item.tag.toLowerCase());
+          if (tag && item.category) {
+            tag.category = item.category;
+          }
+        });
+        
+        TagEditor.renderTags('main');
+        showNotification(`${result.categories.length}個のタグを AI で分類しました`, 'success');
+      } else {
+        throw new Error('Invalid response format');
+      }
+      
+    } catch (error) {
+      console.error('AI categorization error:', error);
+      showNotification('AI分類に失敗しました。キーワードベース分類を使用します。', 'warning');
+      
+      // Fallback to keyword-based categorization
+      appState.tags = appState.tags.map(tag => ({
+        ...tag,
+        category: categorizeTag(tag.en)
+      }));
+      TagEditor.renderTags('main');
+    }
+    
+    hideLoading();
   },
   
   generateOptimized: async () => {
@@ -2897,6 +3072,96 @@ Object.assign(App, {
     TagEditor.renderTags('image');
   },
   
+  // AI categorize image tags
+  aiCategorizeImageTags: async () => {
+    if (App.imageState.imageTags.length === 0) {
+      showNotification('イメージタグがありません', 'error');
+      return;
+    }
+    
+    if (!appState.apiKey) {
+      showNotification('OpenRouter APIキーを設定してください', 'error');
+      return;
+    }
+    
+    showLoading('AI でイメージタグを分類中...');
+    
+    try {
+      const tagTexts = App.imageState.imageTags.map(tag => tag.en).join(', ');
+      
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${appState.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+          'X-Title': 'SS Prompt Manager'
+        },
+        body: JSON.stringify({
+          model: appState.selectedModel || 'openai/gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `Categorize image generation tags into: person, appearance, clothing, action, background, quality, style, object, or other. Respond ONLY with valid JSON: {"categories": [{"tag": "tag_name", "category": "category_name"}]}`
+            },
+            {
+              role: 'user',
+              content: `Categorize these tags: ${tagTexts}`
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('AI categorization failed');
+      }
+      
+      const data = await response.json();
+      let result;
+      
+      try {
+        const content = data.choices[0].message.content.trim();
+        result = JSON.parse(content);
+      } catch (parseError) {
+        const jsonMatch = content.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[1]);
+        } else {
+          throw new Error('Invalid JSON response');
+        }
+      }
+      
+      if (result.categories && Array.isArray(result.categories)) {
+        result.categories.forEach(item => {
+          const tag = App.imageState.imageTags.find(t => t.en.toLowerCase() === item.tag.toLowerCase());
+          if (tag && item.category) {
+            tag.category = item.category;
+          }
+        });
+        
+        TagEditor.renderTags('image');
+        showNotification(`${result.categories.length}個のイメージタグを AI で分類しました`, 'success');
+      } else {
+        throw new Error('Invalid response format');
+      }
+      
+    } catch (error) {
+      console.error('AI categorization error:', error);
+      showNotification('AI分類に失敗しました。キーワードベース分類を使用します。', 'warning');
+      
+      // Fallback to keyword-based categorization
+      App.imageState.imageTags = App.imageState.imageTags.map(tag => ({
+        ...tag,
+        category: categorizeTag(tag.en)
+      }));
+      TagEditor.renderTags('image');
+    }
+    
+    hideLoading();
+  },
+  
   // Split image prompt to tags (advanced parsing + AI translation)
   splitImagePrompt: async () => {
     const promptTextarea = document.getElementById('image-generated-prompt');
@@ -2929,9 +3194,68 @@ Object.assign(App, {
     
     App.imageState.imageTags = await Promise.all(tagPromises);
     
+    // Auto-apply AI categorization if API key is available
+    if (appState.apiKey && App.imageState.imageTags.length > 0) {
+      try {
+        const tagTexts = App.imageState.imageTags.map(tag => tag.en).join(', ');
+        
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${appState.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+            'X-Title': 'SS Prompt Manager'
+          },
+          body: JSON.stringify({
+            model: appState.selectedModel || 'openai/gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: `Categorize image generation tags into: person, appearance, clothing, action, background, quality, style, object, or other. Respond with JSON only: {"categories": [{"tag": "tag_name", "category": "category_name"}]}`
+              },
+              {
+                role: 'user',
+                content: `Categorize: ${tagTexts}`
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 500
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          let result;
+          
+          try {
+            const content = data.choices[0].message.content.trim();
+            result = JSON.parse(content);
+          } catch (parseError) {
+            const jsonMatch = content.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
+            if (jsonMatch) {
+              result = JSON.parse(jsonMatch[1]);
+            }
+          }
+          
+          // Apply AI categorization
+          if (result?.categories) {
+            result.categories.forEach(item => {
+              const tag = App.imageState.imageTags.find(t => t.en.toLowerCase() === item.tag.toLowerCase());
+              if (tag && item.category) {
+                tag.category = item.category;
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.log('AI categorization failed for image tags, using keyword-based fallback');
+      }
+    }
+    
     hideLoading();
     TagEditor.renderTags('image');
-    showNotification(`${App.imageState.imageTags.length}個のタグに分割しました`, 'success');
+    showNotification(`${App.imageState.imageTags.length}個のタグに分割しました（AI分類済み）`, 'success');
   },
   
   // Copy functions
