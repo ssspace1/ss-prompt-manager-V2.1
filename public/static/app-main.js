@@ -88,6 +88,266 @@ let appState = {
   editingPrompt: null // Currently editing prompt format
 };
 
+// Common Tag Editor System
+const TagEditor = {
+  // Get context-specific data
+  getContext: (context = 'main') => {
+    if (context === 'image') {
+      return {
+        tags: App.imageState.imageTags,
+        outputFormat: App.imageState.imageOutputFormat,
+        finalFormat: App.imageState.imageFinalFormat,
+        enContainer: 'image-tags-en',
+        jaContainer: 'image-tags-ja',
+        finalOutput: 'image-final-output',
+        generatedOutput: 'image-generated-prompt'
+      };
+    }
+    return {
+      tags: appState.tags,
+      outputFormat: appState.outputFormat,
+      finalFormat: appState.finalOutputFormat,
+      enContainer: 'tags-en',
+      jaContainer: 'tags-ja',
+      finalOutput: 'output-text',
+      generatedOutput: null
+    };
+  },
+  
+  // Category colors
+  categoryColors: {
+    person: 'bg-yellow-50 border-yellow-300',
+    appearance: 'bg-pink-50 border-pink-300',
+    clothes: 'bg-purple-50 border-purple-300',
+    clothing: 'bg-purple-50 border-purple-300',
+    pose: 'bg-indigo-50 border-indigo-300',
+    background: 'bg-green-50 border-green-300',
+    quality: 'bg-blue-50 border-blue-300',
+    style: 'bg-orange-50 border-orange-300',
+    other: 'bg-gray-50 border-gray-300'
+  },
+  
+  // Render tags for both contexts
+  renderTags: (context = 'main') => {
+    const ctx = TagEditor.getContext(context);
+    const enContainer = document.getElementById(ctx.enContainer);
+    const jaContainer = document.getElementById(ctx.jaContainer);
+    
+    if (!enContainer || !jaContainer) return;
+    
+    enContainer.innerHTML = '';
+    jaContainer.innerHTML = '';
+    
+    ctx.tags.forEach((tag, index) => {
+      const colorClass = TagEditor.categoryColors[tag.category] || TagEditor.categoryColors.other;
+      
+      // English tag card
+      const enCard = TagEditor.createTagCard(tag, index, 'en', colorClass, context);
+      enContainer.appendChild(enCard);
+      
+      // Japanese tag card
+      const jaCard = TagEditor.createTagCard(tag, index, 'ja', colorClass, context);
+      jaContainer.appendChild(jaCard);
+    });
+    
+    // Update outputs
+    TagEditor.updateOutput(context);
+  },
+  
+  // Create a tag card element
+  createTagCard: (tag, index, lang, colorClass, context) => {
+    const card = document.createElement('div');
+    card.className = `tag-card ${colorClass} border rounded-lg p-2 hover:shadow-md transition-all`;
+    
+    const text = lang === 'en' ? tag.en : tag.ja;
+    const funcPrefix = context === 'image' ? 'TagEditor.imageTag' : 'TagEditor.mainTag';
+    
+    card.innerHTML = `
+      <div class="flex items-center gap-2">
+        <button onclick="${funcPrefix}.move(${index}, -1)" 
+                class="px-1 py-0.5 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded transition-colors"
+                title="${lang === 'en' ? 'Move up' : '上へ移動'}">
+          <i class="fas fa-chevron-up text-xs"></i>
+        </button>
+        <button onclick="${funcPrefix}.move(${index}, 1)" 
+                class="px-1 py-0.5 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded transition-colors"
+                title="${lang === 'en' ? 'Move down' : '下へ移動'}">
+          <i class="fas fa-chevron-down text-xs"></i>
+        </button>
+        <input type="text" value="${text}" 
+               class="flex-1 px-2 py-1 text-sm bg-white/70 border rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+               onchange="${funcPrefix}.updateText(${index}, '${lang}', this.value)"
+               placeholder="${lang === 'en' ? 'English tag' : '日本語タグ'}">
+        <div class="flex items-center gap-1">
+          <button onclick="${funcPrefix}.decreaseWeight(${index})" 
+                  class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors">
+            <i class="fas fa-minus text-xs"></i>
+          </button>
+          <input type="number" value="${tag.weight}" min="0.1" max="2.0" step="0.05" 
+                 class="w-14 px-1 py-0.5 text-xs text-center border rounded"
+                 onchange="${funcPrefix}.updateWeight(${index}, this.value)">
+          <button onclick="${funcPrefix}.increaseWeight(${index})" 
+                  class="px-1 py-0.5 text-gray-600 hover:bg-white/50 rounded transition-colors">
+            <i class="fas fa-plus text-xs"></i>
+          </button>
+        </div>
+        <button onclick="${funcPrefix}.remove(${index})" 
+                class="px-1.5 py-0.5 text-red-600 hover:bg-red-100 rounded transition-colors">
+          <i class="fas fa-trash text-xs"></i>
+        </button>
+      </div>
+    `;
+    
+    return card;
+  },
+  
+  // Update output for both contexts
+  updateOutput: (context = 'main') => {
+    const ctx = TagEditor.getContext(context);
+    
+    // Update generated output (for image tab)
+    if (ctx.generatedOutput) {
+      const generatedTextarea = document.getElementById(ctx.generatedOutput);
+      if (generatedTextarea) {
+        generatedTextarea.value = TagEditor.formatOutput(ctx.tags, ctx.outputFormat);
+      }
+    }
+    
+    // Update final output
+    const finalTextarea = document.getElementById(ctx.finalOutput);
+    if (finalTextarea) {
+      const output = TagEditor.formatOutput(ctx.tags, ctx.finalFormat);
+      if (context === 'main') {
+        finalTextarea.textContent = output;
+      } else {
+        finalTextarea.value = output;
+      }
+    }
+  },
+  
+  // Format output based on format type
+  formatOutput: (tags, format) => {
+    if (tags.length === 0) return '';
+    
+    let output = '';
+    
+    if (format === 'sdxl') {
+      output = tags.map(tag => {
+        if (tag.weight !== 1.0) {
+          return `${tag.en}:${tag.weight.toFixed(1)}`;
+        }
+        return tag.en;
+      }).join(', ');
+    } else if (format === 'flux') {
+      output = tags.map(tag => {
+        const weightedText = tag.weight > 1.2 ? `highly ${tag.en}` : 
+                            tag.weight < 0.8 ? `slightly ${tag.en}` : tag.en;
+        return weightedText;
+      }).join(', ');
+      if (output) {
+        output = output.charAt(0).toUpperCase() + output.slice(1) + '.';
+      }
+    } else if (format === 'imagefx') {
+      output = tags.map(tag => tag.en).join(' ');
+    } else if (format === 'imagefx-natural') {
+      output = tags.map(tag => tag.en).join(', ');
+      if (output) {
+        output = `Create an image of ${output}`;
+      }
+    } else {
+      // Custom or default format
+      output = tags.map(tag => tag.en).join(', ');
+    }
+    
+    return output;
+  },
+  
+  // Main context tag operations
+  mainTag: {
+    move: (index, direction) => {
+      const newIndex = index + direction;
+      if (newIndex >= 0 && newIndex < appState.tags.length) {
+        [appState.tags[index], appState.tags[newIndex]] = [appState.tags[newIndex], appState.tags[index]];
+        TagEditor.renderTags('main');
+      }
+    },
+    updateText: (index, lang, text) => {
+      if (appState.tags[index]) {
+        appState.tags[index][lang] = text;
+        if (lang === 'en') {
+          appState.tags[index].ja = translationDict[text.toLowerCase()] || text + ' (翻訳)';
+        }
+        TagEditor.renderTags('main');
+      }
+    },
+    updateWeight: (index, weight) => {
+      if (appState.tags[index]) {
+        appState.tags[index].weight = parseFloat(weight);
+        TagEditor.updateOutput('main');
+      }
+    },
+    increaseWeight: (index) => {
+      if (appState.tags[index]) {
+        appState.tags[index].weight = Math.min(2.0, appState.tags[index].weight + 0.05);
+        TagEditor.renderTags('main');
+      }
+    },
+    decreaseWeight: (index) => {
+      if (appState.tags[index]) {
+        appState.tags[index].weight = Math.max(0.1, appState.tags[index].weight - 0.05);
+        TagEditor.renderTags('main');
+      }
+    },
+    remove: (index) => {
+      appState.tags.splice(index, 1);
+      TagEditor.renderTags('main');
+    }
+  },
+  
+  // Image context tag operations
+  imageTag: {
+    move: (index, direction) => {
+      const newIndex = index + direction;
+      if (newIndex >= 0 && newIndex < App.imageState.imageTags.length) {
+        [App.imageState.imageTags[index], App.imageState.imageTags[newIndex]] = 
+        [App.imageState.imageTags[newIndex], App.imageState.imageTags[index]];
+        TagEditor.renderTags('image');
+      }
+    },
+    updateText: (index, lang, text) => {
+      if (App.imageState.imageTags[index]) {
+        App.imageState.imageTags[index][lang] = text;
+        if (lang === 'en') {
+          App.imageState.imageTags[index].ja = translationDict[text.toLowerCase()] || text + ' (翻訳)';
+        }
+        TagEditor.renderTags('image');
+      }
+    },
+    updateWeight: (index, weight) => {
+      if (App.imageState.imageTags[index]) {
+        App.imageState.imageTags[index].weight = parseFloat(weight);
+        TagEditor.updateOutput('image');
+      }
+    },
+    increaseWeight: (index) => {
+      if (App.imageState.imageTags[index]) {
+        App.imageState.imageTags[index].weight = Math.min(2.0, App.imageState.imageTags[index].weight + 0.05);
+        TagEditor.renderTags('image');
+      }
+    },
+    decreaseWeight: (index) => {
+      if (App.imageState.imageTags[index]) {
+        App.imageState.imageTags[index].weight = Math.max(0.1, App.imageState.imageTags[index].weight - 0.05);
+        TagEditor.renderTags('image');
+      }
+    },
+    remove: (index) => {
+      App.imageState.imageTags.splice(index, 1);
+      TagEditor.renderTags('image');
+    }
+  }
+};
+
 // Default system prompts
 const defaultSystemPrompts = {
   sdxl: `You are an expert at generating SDXL image generation tags. Convert the user's prompt into a comprehensive set of comma-separated tags.
@@ -228,62 +488,14 @@ function createTagElement(tag, language) {
   return div;
 }
 
-// Render tags
+// Render tags (redirect to new system)
 function renderTags() {
-  const enContainer = document.getElementById('tags-en');
-  const jaContainer = document.getElementById('tags-ja');
-  
-  if (!enContainer || !jaContainer) return;
-  
-  enContainer.innerHTML = '';
-  jaContainer.innerHTML = '';
-  
-  appState.tags.forEach(tag => {
-    enContainer.appendChild(createTagElement(tag, 'en'));
-    jaContainer.appendChild(createTagElement(tag, 'ja'));
-  });
-  
-  updateOutput();
+  TagEditor.renderTags('main');
 }
 
-// Update output
+// Update output (redirect to new system)
 function updateOutput() {
-  const outputElement = document.getElementById('output-text');
-  if (!outputElement) return;
-  
-  if (appState.tags.length === 0) {
-    outputElement.textContent = 'No output generated yet...';
-    return;
-  }
-  
-  // Use finalOutputFormat for display, not the generation format
-  const format = appState.finalOutputFormat || 'sdxl';
-  let output = '';
-  
-  if (format === 'sdxl') {
-    output = appState.tags.map(tag => {
-      if (tag.weight !== 1.0) {
-        return `(${tag.en}:${tag.weight.toFixed(2)})`;
-      }
-      return tag.en;
-    }).join(', ');
-  } else if (format === 'flux') {
-    output = appState.tags.map(tag => tag.en).join('. ') + '.';
-  } else if (format === 'imagefx' || format === 'imagefx-natural') {
-    // Natural language format
-    output = appState.tags.map(tag => tag.en).join(', ') + '.';
-  } else {
-    // Custom formats - default to comma-separated
-    output = appState.tags.map(tag => tag.en).join(', ');
-  }
-  
-  outputElement.textContent = output;
-  
-  // Update image prompt preview
-  const previewElement = document.getElementById('image-prompt-preview');
-  if (previewElement) {
-    previewElement.textContent = output || 'No prompt available';
-  }
+  TagEditor.updateOutput('main');
 }
 
 // Categorize tag
@@ -372,7 +584,7 @@ window.App = {
     
     appState.tags = await Promise.all(tagPromises);
     hideLoading();
-    renderTags();
+    TagEditor.renderTags('main');
   },
   
   analyzeAndCategorize: async () => {
@@ -386,7 +598,7 @@ window.App = {
       category: categorizeTag(tag.en)
     }));
     
-    renderTags();
+    TagEditor.renderTags('main');
   },
   
   generateOptimized: async () => {
@@ -612,12 +824,12 @@ window.App = {
     } else if (type === 'weight') {
       appState.tags.sort((a, b) => b.weight - a.weight);
     }
-    renderTags();
+    TagEditor.renderTags('main');
   },
   
   translateAll: (direction) => {
     // Already translated
-    renderTags();
+    TagEditor.renderTags('main');
   },
   
   addNewTag: async (lang) => {
@@ -653,7 +865,7 @@ window.App = {
     appState.tags.push(newTag);
     input.value = '';
     hideLoading();
-    renderTags();
+    TagEditor.renderTags('main');
   },
   
   changeWeight: (id, delta) => {
@@ -2038,8 +2250,10 @@ Be detailed and specific in your description.`;
     });
   },
   
-  // Render image tags in the editor with color coding
+  // Render image tags (use common system)
   renderImageTags: () => {
+    TagEditor.renderTags('image');
+    return; // Old code below is replaced by TagEditor system
     const enContainer = document.getElementById('image-tags-en');
     const jaContainer = document.getElementById('image-tags-ja');
     
@@ -2212,41 +2426,49 @@ Be detailed and specific in your description.`;
   sortImageTags: (by) => {
     if (by === 'category') {
       App.imageState.imageTags.sort((a, b) => {
-        const categoryOrder = ['person', 'appearance', 'clothes', 'pose', 'background', 'quality', 'style', 'other'];
+        const categoryOrder = ['person', 'appearance', 'clothes', 'clothing', 'pose', 'background', 'quality', 'style', 'other'];
         return categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
       });
     } else if (by === 'weight') {
       App.imageState.imageTags.sort((a, b) => b.weight - a.weight);
     }
-    App.renderImageTags();
+    TagEditor.renderTags('image');
   },
   
   // Add new image tag
-  addNewImageTag: (lang) => {
+  addNewImageTag: async (lang) => {
     const input = document.getElementById(`new-image-tag-${lang}`);
     if (!input || !input.value.trim()) return;
     
     const text = input.value.trim();
-    let enText = text;
-    let jaText = text;
+    showLoading('Adding and translating tag...');
+    
+    const newTag = {
+      id: `img-tag-${Date.now()}`,
+      en: '',
+      ja: '',
+      weight: 1.0,
+      category: 'other'
+    };
     
     if (lang === 'en') {
-      jaText = translationDict[text.toLowerCase()] || App.simpleTranslate(text);
+      newTag.en = text;
+      newTag.ja = await translateWithAI(text, 'ja');
+      newTag.category = categorizeTag(text);
     } else {
-      enText = App.reverseTranslate(text);
+      newTag.ja = text;
+      if (appState.apiKey) {
+        newTag.en = await translateWithAI(text, 'en');
+      } else {
+        newTag.en = App.reverseTranslate(text);
+      }
+      newTag.category = categorizeTag(newTag.en);
     }
     
-    App.imageState.imageTags.push({
-      id: `img-tag-${Date.now()}`,
-      en: enText,
-      ja: jaText,
-      weight: 1.0,
-      category: null
-    });
-    
+    App.imageState.imageTags.push(newTag);
     input.value = '';
-    App.renderImageTags();
-    App.updateImagePromptOutput();
+    hideLoading();
+    TagEditor.renderTags('image');
   },
   
   // Update image prompt output (AI Format Prompt area)
@@ -2319,7 +2541,11 @@ Be detailed and specific in your description.`;
   
   // Update image final format
   updateImageFinalFormat: () => {
-    App.updateImageFinalOutput();
+    const select = document.getElementById('image-final-output-format');
+    if (select) {
+      App.imageState.imageFinalFormat = select.value;
+      TagEditor.updateOutput('image');
+    }
   },
   
   // Copy image final output
