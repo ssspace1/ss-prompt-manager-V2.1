@@ -975,7 +975,7 @@ const appHtml = `<!DOCTYPE html>
             <div id="content-image" class="h-full p-4 hidden">
                 <div id="image-split-container" class="flex flex-col gap-4 h-full">
                     <!-- Top Section: Image Input and AI Output side by side -->
-                    <div class="flex gap-4" style="height: 40%;">
+                    <div class="flex gap-4">
                         <!-- Left: Image Input -->
                         <section class="bg-white rounded-lg shadow-sm p-4 flex-1">
                             <div class="flex items-center justify-between mb-3">
@@ -991,7 +991,7 @@ const appHtml = `<!DOCTYPE html>
                             
                             <!-- Compact Image Drop Zone -->
                             <div id="image-drop-zone" 
-                                 class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors cursor-pointer h-48 flex items-center justify-center"
+                                 class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors cursor-pointer h-32 flex items-center justify-center"
                                  ondrop="App.handleImageDrop(event)"
                                  ondragover="App.handleDragOver(event)"
                                  ondragleave="App.handleDragLeave(event)"
@@ -1041,11 +1041,11 @@ const appHtml = `<!DOCTYPE html>
                     </div>
                     
                     <!-- Middle Section: Controls and Actions -->
-                    <div class="bg-white rounded-lg shadow-sm p-4">
-                        <div class="flex items-center gap-4">
+                    <div class="bg-white rounded-lg shadow-sm p-3">
+                        <div class="flex items-center gap-3">
                             <!-- AI Analysis Result Toggle -->
                             <button onclick="App.toggleAnalysisResult()" 
-                                    class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+                                    class="px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 text-sm"
                                     id="toggle-analysis-btn">
                                 <i class="fas fa-eye mr-1"></i>
                                 <span id="toggle-analysis-text">Show AI Analysis</span>
@@ -1056,19 +1056,19 @@ const appHtml = `<!DOCTYPE html>
                             <div class="flex items-center gap-2">
                                 <label class="text-sm text-gray-600">AI Format:</label>
                                 <select id="image-output-format" onchange="App.updateImageOutputFormat()" 
-                                        class="px-3 py-2 border rounded-lg text-sm">
+                                        class="px-2 py-1 border rounded-lg text-sm">
                                     <option value="sdxl">SDXL Tags</option>
                                     <option value="flux">Flux Phrases</option>
                                     <option value="imagefx">ImageFX Commands</option>
                                     <option value="natural">Natural Language</option>
                                 </select>
                                 <button onclick="App.showImagePromptEditor()" 
-                                        class="px-2 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                                        class="px-2 py-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                                         title="Edit System Prompt">
                                     <i class="fas fa-cog"></i>
                                 </button>
                                 <button onclick="App.addImageCustomFormat()" 
-                                        class="px-2 py-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+                                        class="px-2 py-1 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
                                         title="Add Custom Format">
                                     <i class="fas fa-plus"></i>
                                 </button>
@@ -1078,7 +1078,7 @@ const appHtml = `<!DOCTYPE html>
                             <div class="flex items-center gap-2">
                                 <label class="text-sm text-gray-600">Model:</label>
                                 <select id="vision-model-select" onchange="App.updateVisionModel()" 
-                                        class="px-3 py-2 border rounded-lg text-sm">
+                                        class="px-2 py-1 border rounded-lg text-sm">
                                     <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash</option>
                                     <option value="google/gemini-flash-1.5-8b">Gemini 1.5 8B (Free)</option>
                                     <option value="google/gemini-flash-1.5">Gemini 1.5</option>
@@ -1091,7 +1091,7 @@ const appHtml = `<!DOCTYPE html>
                             
                             <!-- AI Generate Button -->
                             <button onclick="App.generateFromImage()" 
-                                    class="ml-auto px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    class="ml-auto px-4 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     id="image-ai-generate-btn" disabled>
                                 <i class="fas fa-sparkles mr-2"></i>AI Generate
                             </button>
@@ -1110,7 +1110,7 @@ const appHtml = `<!DOCTYPE html>
                                         <i class="fas fa-copy mr-1"></i>Copy
                                     </button>
                                 </div>
-                                <div id="image-analysis-result" class="p-3 bg-gray-50 rounded-lg max-h-40 overflow-y-auto custom-scrollbar">
+                                <div id="image-analysis-result" class="p-2 bg-gray-50 rounded-lg max-h-32 overflow-y-auto custom-scrollbar text-sm">
                                     <p class="text-gray-500 text-sm italic">No analysis yet...</p>
                                 </div>
                             </div>
@@ -1168,7 +1168,7 @@ const appHtml = `<!DOCTYPE html>
                                     </div>
                                     
                                     <!-- Tag List -->
-                                    <div id="image-tags-en" class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">
+                                    <div id="image-tags-en" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
@@ -1198,7 +1198,7 @@ const appHtml = `<!DOCTYPE html>
                                     </div>
                                     
                                     <!-- Tag List -->
-                                    <div id="image-tags-ja" class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">
+                                    <div id="image-tags-ja" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
@@ -1307,6 +1307,9 @@ const appHtml = `<!DOCTYPE html>
                         <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
                                 data-settings-tab="preferences"
                                 onclick="App.setSettingsTab('preferences')">Preferences</button>
+                        <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
+                                data-settings-tab="image-analysis"
+                                onclick="App.setSettingsTab('image-analysis')">Image Analysis</button>
                     </div>
                 </div>
                 
@@ -1539,6 +1542,99 @@ const appHtml = `<!DOCTYPE html>
                             <option value="light">Light</option>
                             <option value="dark">Dark</option>
                             <option value="auto">Auto (System)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Image Analysis Settings -->
+                <div id="settings-image-analysis" class="space-y-4 hidden">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <h3 class="font-semibold text-blue-900 mb-2">
+                            <i class="fas fa-image mr-2"></i>画像解析設定
+                        </h3>
+                        <p class="text-sm text-blue-700">
+                            Image to Promptタブで使用される画像解析とタグ生成のシステムプロンプトを設定します。
+                        </p>
+                    </div>
+                    
+                    <!-- Image Analysis System Prompt -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-eye mr-1 text-purple-500"></i>
+                            画像解析プロンプト (Image Analysis)
+                        </label>
+                        <p class="text-xs text-gray-500 mb-2">
+                            画像を解析する際の指示を定義します。何を抽出するか、どのように分析するかを指定してください。
+                        </p>
+                        <textarea id="image-analysis-prompt" 
+                                  rows="8"
+                                  class="w-full px-3 py-2 border rounded-lg font-mono text-sm"
+                                  placeholder="画像解析用のシステムプロンプトを入力..."></textarea>
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="App.resetImageAnalysisPrompt()" 
+                                    class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-undo mr-1"></i>デフォルトに戻す
+                            </button>
+                            <button onclick="App.testImageAnalysisPrompt()" 
+                                    class="px-3 py-1 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors">
+                                <i class="fas fa-flask mr-1"></i>テスト実行
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Tag Generation System Prompt -->
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-tags mr-1 text-indigo-500"></i>
+                            タグ生成プロンプト (Tag Generation)
+                        </label>
+                        <p class="text-xs text-gray-500 mb-2">
+                            解析結果からタグを生成する際のルールを定義します。JSON形式での出力ルールを指定してください。
+                        </p>
+                        <div class="flex items-center gap-2 mb-2">
+                            <label class="text-sm text-gray-600">フォーマット:</label>
+                            <select id="image-tag-format-select" 
+                                    onchange="App.loadImageTagPrompt(this.value)"
+                                    class="px-2 py-1 border rounded text-sm">
+                                <option value="sdxl">SDXL Tags</option>
+                                <option value="flux">Flux Phrases</option>
+                                <option value="imagefx">ImageFX Commands</option>
+                                <option value="imagefx-natural">ImageFX Natural</option>
+                            </select>
+                        </div>
+                        <textarea id="image-tag-generation-prompt" 
+                                  rows="10"
+                                  class="w-full px-3 py-2 border rounded-lg font-mono text-sm"
+                                  placeholder="タグ生成用のシステムプロンプトを入力..."></textarea>
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="App.saveImageTagPrompt()" 
+                                    class="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                                <i class="fas fa-save mr-1"></i>保存
+                            </button>
+                            <button onclick="App.resetImageTagPrompt()" 
+                                    class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-undo mr-1"></i>デフォルトに戻す
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Vision Model Selection -->
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-robot mr-1 text-blue-500"></i>
+                            Vision Model
+                        </label>
+                        <p class="text-xs text-gray-500 mb-2">
+                            画像解析に使用するVisionモデルを選択します。
+                        </p>
+                        <select id="settings-vision-model" 
+                                onchange="App.updateVisionModelSetting(this.value)"
+                                class="w-full px-3 py-2 border rounded-lg">
+                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp (推奨)</option>
+                            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                            <option value="openai/gpt-4o">GPT-4o</option>
+                            <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
+                            <option value="anthropic/claude-3-5-sonnet">Claude 3.5 Sonnet</option>
                         </select>
                     </div>
                 </div>

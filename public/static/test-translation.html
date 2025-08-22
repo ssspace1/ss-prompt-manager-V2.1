@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translation Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-2xl font-bold mb-6">Translation Function Test</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">API Key Status</label>
+                <div id="api-status" class="p-2 bg-gray-100 rounded"></div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Selected Model</label>
+                <div id="model-status" class="p-2 bg-gray-100 rounded"></div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Test Translation</label>
+                <input type="text" id="test-input" class="w-full p-2 border rounded" placeholder="Enter text to translate">
+                <div class="flex gap-2 mt-2">
+                    <button onclick="testTranslateToJa()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Translate to Japanese
+                    </button>
+                    <button onclick="testTranslateToEn()" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                        Translate to English
+                    </button>
+                </div>
+                <div id="translation-result" class="mt-2 p-2 bg-gray-100 rounded"></div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Console Log</label>
+                <div id="console-output" class="p-2 bg-black text-green-400 font-mono text-sm rounded h-40 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Check localStorage values
+        const apiKey = localStorage.getItem('openrouter-api-key');
+        const selectedModel = localStorage.getItem('selected-model') || localStorage.getItem('openrouter-model');
+        
+        document.getElementById('api-status').textContent = apiKey ? `✅ API Key found (${apiKey.substring(0, 10)}...)` : '❌ No API Key';
+        document.getElementById('model-status').textContent = selectedModel ? `✅ Model: ${selectedModel}` : '❌ No Model Selected';
+        
+        // Custom console log
+        const consoleOutput = document.getElementById('console-output');
+        function log(message) {
+            const time = new Date().toLocaleTimeString();
+            consoleOutput.innerHTML += `[${time}] ${message}<br>`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        // Test translation functions
+        async function testTranslateToJa() {
+            const text = document.getElementById('test-input').value;
+            if (!text) {
+                alert('Please enter text to translate');
+                return;
+            }
+            
+            log(`Testing translation to Japanese: "${text}"`);
+            
+            if (!apiKey) {
+                log('ERROR: No API key found');
+                document.getElementById('translation-result').textContent = 'Error: No API key';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        targetLang: 'ja',
+                        apiKey: apiKey
+                    })
+                });
+                
+                log(`Response status: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Translation successful: "${data.translated}"`);
+                    document.getElementById('translation-result').textContent = `Japanese: ${data.translated}`;
+                } else {
+                    const error = await response.text();
+                    log(`Translation failed: ${error}`);
+                    document.getElementById('translation-result').textContent = `Error: ${error}`;
+                }
+            } catch (error) {
+                log(`Exception: ${error.message}`);
+                document.getElementById('translation-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function testTranslateToEn() {
+            const text = document.getElementById('test-input').value;
+            if (!text) {
+                alert('Please enter text to translate');
+                return;
+            }
+            
+            log(`Testing translation to English: "${text}"`);
+            
+            if (!apiKey) {
+                log('ERROR: No API key found');
+                document.getElementById('translation-result').textContent = 'Error: No API key';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        targetLang: 'en',
+                        apiKey: apiKey
+                    })
+                });
+                
+                log(`Response status: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Translation successful: "${data.translated}"`);
+                    document.getElementById('translation-result').textContent = `English: ${data.translated}`;
+                } else {
+                    const error = await response.text();
+                    log(`Translation failed: ${error}`);
+                    document.getElementById('translation-result').textContent = `Error: ${error}`;
+                }
+            } catch (error) {
+                log(`Exception: ${error.message}`);
+                document.getElementById('translation-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Initial log
+        log('Translation test page loaded');
+        log(`API Key: ${apiKey ? 'Found' : 'Not found'}`);
+        log(`Model: ${selectedModel || 'Not selected'}`);
+    </script>
+</body>
+</html>

@@ -268,14 +268,16 @@ const TagEditor = {
     input.select();
     
     // Save function
-    const saveEdit = () => {
+    const saveEdit = async () => {
       const newText = input.value.trim();
       if (newText && newText !== currentText) {
+        showLoading('翻訳中...');
         if (context === 'image') {
-          TagEditor.imageTag.updateText(index, lang, newText);
+          await TagEditor.imageTag.updateText(index, lang, newText);
         } else {
-          TagEditor.mainTag.updateText(index, lang, newText);
+          await TagEditor.mainTag.updateText(index, lang, newText);
         }
+        hideLoading();
       }
       input.remove();
       textDiv.style.display = 'block';
@@ -567,7 +569,12 @@ const TagEditor = {
     if (format === 'sdxl') {
       output = tags.map(tag => {
         if (tag.weight !== 1.0) {
-          return `${tag.en}:${tag.weight.toFixed(1)}`;
+          // Use proper SDXL weight notation with parentheses
+          if (tag.weight > 1.0) {
+            return `(${tag.en}:${tag.weight.toFixed(2)})`;
+          } else {
+            return `[${tag.en}:${tag.weight.toFixed(2)}]`;
+          }
         }
         return tag.en;
       }).join(', ');
@@ -604,12 +611,23 @@ const TagEditor = {
         TagEditor.renderTags('main');
       }
     },
-    updateText: (index, lang, text) => {
+    updateText: async (index, lang, text) => {
       if (appState.tags[index]) {
         appState.tags[index][lang] = text;
+        
+        // Translate to the other language
         if (lang === 'en') {
-          appState.tags[index].ja = translationDict[text.toLowerCase()] || text + ' (翻訳)';
+          // Translate English to Japanese
+          appState.tags[index].ja = await translateWithAI(text, 'ja');
+        } else {
+          // Translate Japanese to English
+          if (appState.apiKey) {
+            appState.tags[index].en = await translateWithAI(text, 'en');
+          } else {
+            appState.tags[index].en = translateToEnglish(text);
+          }
         }
+        
         TagEditor.renderTags('main');
       }
     },
@@ -647,12 +665,23 @@ const TagEditor = {
         TagEditor.renderTags('image');
       }
     },
-    updateText: (index, lang, text) => {
+    updateText: async (index, lang, text) => {
       if (App.imageState.imageTags[index]) {
         App.imageState.imageTags[index][lang] = text;
+        
+        // Translate to the other language
         if (lang === 'en') {
-          App.imageState.imageTags[index].ja = translationDict[text.toLowerCase()] || text + ' (翻訳)';
+          // Translate English to Japanese
+          App.imageState.imageTags[index].ja = await translateWithAI(text, 'ja');
+        } else {
+          // Translate Japanese to English
+          if (appState.apiKey) {
+            App.imageState.imageTags[index].en = await translateWithAI(text, 'en');
+          } else {
+            App.imageState.imageTags[index].en = translateToEnglish(text);
+          }
         }
+        
         TagEditor.renderTags('image');
       }
     },
@@ -744,16 +773,19 @@ function translateToJapanese(text) {
 // AI Translation function
 async function translateWithAI(text, targetLang = 'ja') {
   if (!appState.apiKey) {
-    return targetLang === 'ja' ? translateToJapanese(text) : text;
+    return targetLang === 'ja' ? translateToJapanese(text) : translateToEnglish(text);
   }
   
   try {
+    const sourceLang = targetLang === 'ja' ? 'English' : 'Japanese';
     const response = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text,
+        sourceLang,
         targetLang,
+        model: appState.selectedModel || 'openai/gpt-4o-mini',
         apiKey: appState.apiKey
       })
     });
@@ -831,26 +863,67 @@ function updateOutput() {
   TagEditor.updateOutput('main');
 }
 
-// Categorize tag
+// Enhanced categorize tag with comprehensive keywords
 function categorizeTag(text) {
+  const lower = text.toLowerCase();
+  
+  // Artist category - highest priority
+  if (lower.includes('artist:') || lower.includes('artist') || 
+      ['makoto shinkai', 'mazjojo', 'pigeon666', 'zawar379', 'remsrar', 'yoneyama mai', 
+       'chimmyming', 'konya karasue', 'yomu', 'dino', 'quasarcake', 'wlop', 'ebifurya', 
+       'as109', 'krekkov', 'mossacannibalis', 'tianliang duohe fangdongye', 'z-ton', 
+       'pontsuka', 'sakimichan', 'nanfe', 'loish'].some(artist => lower.includes(artist))) {
+    return 'style';
+  }
+  
   const categoryKeywords = {
-    person: ['girl', 'boy', 'woman', 'man', 'person', 'child', 'adult', 'teen'],
-    appearance: ['hair', 'eyes', 'skin', 'beautiful', 'cute', 'handsome', 'pretty', 'smile'],
-    clothing: ['dress', 'shirt', 'pants', 'skirt', 'uniform', 'clothes', 'hoodie'],
-    pose: ['sitting', 'standing', 'walking', 'running', 'squatting', 'dipping'],
-    background: ['background', 'scenery', 'forest', 'city', 'sky', 'room', 'spring', 'water'],
-    quality: ['masterpiece', 'quality', 'resolution', 'detailed', 'realistic', 'hd', '4k', '8k'],
-    style: ['anime', 'realistic', 'cartoon', 'painting', 'illustration', 'digital', 'art']
+    quality: [
+      'masterpiece', 'best quality', 'amazing quality', 'newest', 'very aesthetic', 
+      'absurdres', '8k', '4k', 'hd', 'ultra detailed', 'refined details', 'high resolution', 
+      'masterwork', 'good anatomy', 'good shading', 'detailed', 'sharp focus', 'photorealistic'
+    ],
+    person: [
+      'girl', 'boy', 'woman', 'man', 'person', 'child', 'adult', 'teen', '1girl', '1boy',
+      'expressionless', 'tsundere', 'cute', 'expression'
+    ],
+    appearance: [
+      'hair', 'eyes', 'skin', 'beautiful', 'handsome', 'pretty', 'smile', 'wavy hair',
+      'disheveled hair', 'messy hair', 'detailed beautiful eyes', 'gaze', 'glancing', 'sideways'
+    ],
+    clothing: [
+      'dress', 'shirt', 'pants', 'skirt', 'uniform', 'clothes', 'hoodie', 'outfit'
+    ],
+    pose: [
+      'sitting', 'standing', 'walking', 'running', 'squatting', 'dipping', 'holds', 'holding'
+    ],
+    background: [
+      'background', 'scenery', 'forest', 'city', 'sky', 'room', 'spring', 'water', 
+      'sunlight', 'soft lighting', 'lighting'
+    ],
+    style: [
+      'anime', 'realistic', 'cartoon', 'painting', 'illustration', 'digital', 'art',
+      'photorealistic', 'fate/grand order'
+    ],
+    other: [
+      'signboard', 'handheld', 'reading', 'legible', 'nami', 'one piece', '@_@'
+    ]
   };
   
-  const lower = text.toLowerCase();
+  // Check categories in order of priority
   for (const [category, keywords] of Object.entries(categoryKeywords)) {
     for (const keyword of keywords) {
-      if (lower.includes(keyword)) {
+      if (lower.includes(keyword.toLowerCase())) {
         return category;
       }
     }
   }
+  
+  // Special character/franchise detection
+  if (lower.includes('_\\') || lower.includes('\\(') || lower.includes('fate/') || 
+      lower.includes('one_piece') || lower.includes('nami')) {
+    return 'other';
+  }
+  
   return 'other';
 }
 
@@ -893,25 +966,117 @@ function showNotification(message, type = 'success') {
 
 // Global App object
 window.App = {
+  // Advanced tag parsing with weight notation and escape character support
+  parseComplexTags: (text) => {
+    const tags = [];
+    let current = '';
+    let depth = 0;
+    let inParens = false;
+    
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = i < text.length - 1 ? text[i + 1] : '';
+      const prevChar = i > 0 ? text[i - 1] : '';
+      
+      // Handle escaped characters (backslash followed by parenthesis)
+      if (char === '\\' && (nextChar === '(' || nextChar === ')')) {
+        current += char + nextChar; // Add both \ and the parenthesis
+        i++; // Skip next character since we processed it
+        continue;
+      }
+      
+      // Check if this is a real parenthesis (not escaped)
+      const isEscapedParen = prevChar === '\\';
+      
+      if (char === '(' && !isEscapedParen && !inParens) {
+        // Start of weighted tag (only if not escaped)
+        if (current.trim()) {
+          // Add previous simple tag
+          tags.push({ text: current.trim(), weight: 1.0 });
+          current = '';
+        }
+        inParens = true;
+        depth = 1;
+      } else if (char === '(' && !isEscapedParen && inParens) {
+        depth++;
+        current += char;
+      } else if (char === ')' && !isEscapedParen && inParens) {
+        depth--;
+        if (depth === 0) {
+          // End of weighted tag
+          const weightedTag = App.parseWeightedTag(current.trim());
+          if (weightedTag) {
+            tags.push(weightedTag);
+          }
+          current = '';
+          inParens = false;
+        } else {
+          current += char;
+        }
+      } else if ((char === ',' || char === '，' || char === '.' || char === '。' || char === '、') && !inParens) {
+        // Tag separator (only when not inside parentheses)
+        if (current.trim()) {
+          tags.push({ text: current.trim(), weight: 1.0 });
+          current = '';
+        }
+      } else {
+        current += char;
+      }
+    }
+    
+    // Add final tag
+    if (current.trim()) {
+      if (inParens) {
+        // Unclosed parenthesis - treat as simple tag
+        tags.push({ text: current.trim(), weight: 1.0 });
+      } else {
+        tags.push({ text: current.trim(), weight: 1.0 });
+      }
+    }
+    
+    return tags.filter(tag => tag.text.length > 0);
+  },
+  
+  // Parse weighted tag notation like "tag:1.2" or just "tag"
+  parseWeightedTag: (content) => {
+    const colonIndex = content.lastIndexOf(':');
+    
+    if (colonIndex === -1) {
+      // No weight specified
+      return { text: content, weight: 1.2 }; // Default weight for parentheses
+    }
+    
+    const tagPart = content.substring(0, colonIndex).trim();
+    const weightPart = content.substring(colonIndex + 1).trim();
+    
+    const weight = parseFloat(weightPart);
+    if (isNaN(weight)) {
+      // Invalid weight, treat as part of tag name
+      return { text: content, weight: 1.2 };
+    }
+    
+    return { text: tagPart, weight: Math.max(0.1, Math.min(2.0, weight)) };
+  },
+
   splitText: async () => {
     const input = document.getElementById('input-text');
     if (!input || !input.value.trim()) return;
     
-    const parts = input.value.split(/[,，.。、]/).filter(p => p.trim());
-    
     showLoading('Splitting and translating tags...');
     
+    // Advanced tag parsing with weight support
+    const parsedTags = App.parseComplexTags(input.value.trim());
+    
     // Create tags with AI translation if available
-    const tagPromises = parts.map(async (part, i) => {
-      const trimmedPart = part.trim();
-      const ja = await translateWithAI(trimmedPart, 'ja');
+    const tagPromises = parsedTags.map(async (parsedTag, i) => {
+      const ja = await translateWithAI(parsedTag.text, 'ja');
       
       return {
         id: Date.now() + i,
-        en: trimmedPart,
+        en: parsedTag.text,
         ja: ja,
-        weight: 1.0,
-        category: categorizeTag(trimmedPart)
+        weight: parsedTag.weight,
+        category: categorizeTag(parsedTag.text)
       };
     });
     
@@ -1366,6 +1531,16 @@ window.App = {
       }
       // Populate custom formats list
       App.updateCustomFormatsList();
+      
+      // Load Image Analysis prompts
+      App.loadImageAnalysisPrompt();
+      App.loadImageTagPrompt('sdxl'); // Load default format
+      
+      // Set current vision model
+      const visionModelSelect = document.getElementById('settings-vision-model');
+      if (visionModelSelect) {
+        visionModelSelect.value = App.imageState.visionModel || 'gemini-2.0-flash-exp';
+      }
     }
   },
   
@@ -1631,7 +1806,7 @@ window.App = {
   
   setSettingsTab: (tab) => {
     // Hide all tabs
-    ['api', 'formats', 'preferences'].forEach(t => {
+    ['api', 'formats', 'preferences', 'image-analysis'].forEach(t => {
       const content = document.getElementById(`settings-${t}`);
       const tabBtn = document.querySelector(`[data-settings-tab="${t}"]`);
       if (content) {
@@ -1695,6 +1870,7 @@ window.App = {
         
         // Save the key
         localStorage.setItem('openrouter-api-key', keyInput.value);
+        appState.apiKey = keyInput.value; // Update app state
         
         // Load models into dropdown
         if (data.data) {
@@ -1832,7 +2008,9 @@ window.App = {
   },
   
   updateOpenRouterModel: (model) => {
+    appState.selectedModel = model;
     localStorage.setItem('openrouter-model', model);
+    localStorage.setItem('selected-model', model);
     
     // Update model indicator
     const modelIndicator = document.getElementById('current-model-indicator');
@@ -1907,6 +2085,117 @@ window.App = {
     }
   },
   
+  // Image Analysis Prompt Management
+  loadImageAnalysisPrompt: () => {
+    const textarea = document.getElementById('image-analysis-prompt');
+    if (!textarea) return;
+    
+    const savedPrompt = localStorage.getItem('image-analysis-prompt');
+    if (savedPrompt) {
+      textarea.value = savedPrompt;
+    } else {
+      textarea.value = App.getImageAnalysisSystemPrompt();
+    }
+  },
+  
+  resetImageAnalysisPrompt: () => {
+    const textarea = document.getElementById('image-analysis-prompt');
+    if (!textarea) return;
+    
+    const defaultPrompt = `あなたは画像分析の専門家です。提供された画像を詳細に分析し、以下の要素を抽出してください：
+
+1. 主要な被写体（人物、動物、オブジェクト）
+   - 外見的特徴（髪色、目の色、表情など）
+   - 服装やアクセサリー
+   - ポーズや動作
+
+2. 背景と環境
+   - 場所（屋内/屋外、具体的な場所）
+   - 時間帯や天候
+   - 雰囲気や照明
+
+3. 構図とスタイル
+   - カメラアングル
+   - 色彩やトーン
+   - アートスタイル（写実的、アニメ調など）
+
+4. 品質関連の特徴
+   - 画像の精細さ
+   - 特筆すべき技術的要素
+
+各要素を具体的かつ簡潔に記述してください。`;
+    
+    textarea.value = defaultPrompt;
+    localStorage.setItem('image-analysis-prompt', defaultPrompt);
+    showNotification('画像解析プロンプトをデフォルトに戻しました', 'success');
+  },
+  
+  testImageAnalysisPrompt: async () => {
+    showNotification('テスト実行機能は準備中です', 'info');
+  },
+  
+  // Tag Generation Prompt Management
+  loadImageTagPrompt: (format) => {
+    const textarea = document.getElementById('image-tag-generation-prompt');
+    if (!textarea) return;
+    
+    const savedPrompt = localStorage.getItem(`image-tag-prompt-${format}`);
+    if (savedPrompt) {
+      textarea.value = savedPrompt;
+    } else {
+      // Get default prompt for the format
+      const defaultPrompts = {
+        sdxl: App.getTagGenerationSystemPrompt(),
+        flux: `あなたはFlux形式のプロンプト生成の専門家です。
+画像分析から自然な英語フレーズと日本語訳を生成してください。
+
+JSON形式で出力:
+{"pairs": [{"en": "phrase", "ja": "フレーズ", "weight": 1.0, "category": "type"}]}`,
+        imagefx: `あなたはImageFX形式のコマンド生成の専門家です。
+画像分析から命令形の英語コマンドと日本語訳を生成してください。
+
+JSON形式で出力:
+{"pairs": [{"en": "command", "ja": "コマンド", "weight": 1.0, "category": "type"}]}`,
+        'imagefx-natural': `あなたはImageFX Natural形式のプロンプト生成の専門家です。
+画像分析から詳細な説明文と日本語訳を生成してください。
+
+JSON形式で出力:
+{"pairs": [{"en": "description", "ja": "説明", "weight": 1.0, "category": "type"}]}`
+      };
+      textarea.value = defaultPrompts[format] || defaultPrompts.sdxl;
+    }
+  },
+  
+  saveImageTagPrompt: () => {
+    const formatSelect = document.getElementById('image-tag-format-select');
+    const textarea = document.getElementById('image-tag-generation-prompt');
+    
+    if (!formatSelect || !textarea) return;
+    
+    const format = formatSelect.value;
+    const prompt = textarea.value;
+    
+    localStorage.setItem(`image-tag-prompt-${format}`, prompt);
+    localStorage.setItem(`sp-image-format-${format}`, prompt); // Also save for runtime use
+    
+    showNotification(`${format.toUpperCase()}形式のタグ生成プロンプトを保存しました`, 'success');
+  },
+  
+  resetImageTagPrompt: () => {
+    const formatSelect = document.getElementById('image-tag-format-select');
+    if (!formatSelect) return;
+    
+    const format = formatSelect.value;
+    App.loadImageTagPrompt(format);
+    showNotification(`${format.toUpperCase()}形式をデフォルトに戻しました`, 'success');
+  },
+  
+  updateVisionModelSetting: (model) => {
+    App.imageState.visionModel = model;
+    localStorage.setItem('vision-model', model);
+    showNotification(`Vision Modelを${model}に変更しました`, 'success');
+  },
+  
   resetSettings: () => {
     if (confirm('Reset all settings to defaults?')) {
       localStorage.clear();
@@ -1915,7 +2204,22 @@ window.App = {
   },
   
   saveSettings: () => {
-    alert('Settings saved');
+    // Save Image Analysis Prompt
+    const imageAnalysisTextarea = document.getElementById('image-analysis-prompt');
+    if (imageAnalysisTextarea) {
+      localStorage.setItem('image-analysis-prompt', imageAnalysisTextarea.value);
+    }
+    
+    // Save Tag Generation Prompt
+    const formatSelect = document.getElementById('image-tag-format-select');
+    const tagGenTextarea = document.getElementById('image-tag-generation-prompt');
+    if (formatSelect && tagGenTextarea) {
+      const format = formatSelect.value;
+      localStorage.setItem(`image-tag-prompt-${format}`, tagGenTextarea.value);
+      localStorage.setItem(`sp-image-format-${format}`, tagGenTextarea.value);
+    }
+    
+    showNotification('設定を保存しました', 'success');
     App.closeSettings();
   }
 };
@@ -1987,6 +2291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load saved API key
   const savedKey = localStorage.getItem('openrouter-api-key');
   if (savedKey) {
+    appState.apiKey = savedKey; // Ensure apiKey is set in appState
     const keyInput = document.getElementById('openrouter-api-key');
     if (keyInput) {
       keyInput.value = savedKey;
@@ -2007,9 +2312,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (data.data) {
           App.updateModelList(data.data);
           
-          // Load saved model selection
-          const savedModel = localStorage.getItem('openrouter-model');
+          // Load saved model selection (check both keys for compatibility)
+          const savedModel = localStorage.getItem('selected-model') || localStorage.getItem('openrouter-model');
           if (savedModel) {
+            appState.selectedModel = savedModel; // Update appState
             const modelSelect = document.getElementById('openrouter-model');
             if (modelSelect) {
               modelSelect.value = savedModel;
@@ -2367,6 +2673,162 @@ Object.assign(App, {
     }
   },
   
+  // Generate from image - main entry point for AI Generate button
+  generateFromImage: async () => {
+    // Call the comprehensive tag generation function
+    await App.generateImageTagsFromAI();
+  },
+  
+  // Toggle AI Analysis Result visibility
+  toggleAnalysisResult: () => {
+    const container = document.getElementById('analysis-result-container');
+    const toggleText = document.getElementById('toggle-analysis-text');
+    const toggleIcon = document.getElementById('toggle-analysis-icon');
+    
+    if (!container) return;
+    
+    if (container.classList.contains('hidden')) {
+      container.classList.remove('hidden');
+      if (toggleText) toggleText.textContent = 'Hide AI Analysis';
+      if (toggleIcon) {
+        toggleIcon.classList.remove('fa-chevron-down');
+        toggleIcon.classList.add('fa-chevron-up');
+      }
+    } else {
+      container.classList.add('hidden');
+      if (toggleText) toggleText.textContent = 'Show AI Analysis';
+      if (toggleIcon) {
+        toggleIcon.classList.remove('fa-chevron-up');
+        toggleIcon.classList.add('fa-chevron-down');
+      }
+    }
+  },
+  
+  // Translate all image tags
+  translateImageTags: async (direction) => {
+    if (App.imageState.imageTags.length === 0) {
+      showNotification('翻訳するタグがありません', 'error');
+      return;
+    }
+    
+    showLoading('タグを翻訳中...');
+    
+    try {
+      const promises = App.imageState.imageTags.map(async (tag) => {
+        if (direction === 'en-to-ja') {
+          // Translate English to Japanese
+          if (tag.en && !tag.ja) {
+            tag.ja = await translateWithAI(tag.en, 'ja');
+          }
+        } else if (direction === 'ja-to-en') {
+          // Translate Japanese to English
+          if (tag.ja && !tag.en) {
+            if (appState.apiKey) {
+              tag.en = await translateWithAI(tag.ja, 'en');
+            } else {
+              tag.en = translateToEnglish(tag.ja);
+            }
+          }
+        }
+        return tag;
+      });
+      
+      await Promise.all(promises);
+      TagEditor.renderTags('image');
+      App.updateImagePromptOutput();
+      hideLoading();
+      showNotification('タグを翻訳しました', 'success');
+    } catch (error) {
+      hideLoading();
+      showNotification('翻訳に失敗しました', 'error');
+    }
+  },
+  
+  // Add new tag for image editor
+  addNewImageTag: async (lang) => {
+    const input = document.getElementById(`image-new-tag-${lang}`);
+    if (!input || !input.value.trim()) return;
+    
+    const text = input.value.trim();
+    showLoading('タグを追加しています...');
+    
+    const newTag = {
+      id: `manual-tag-${Date.now()}`,
+      en: '',
+      ja: '',
+      weight: 1.0,
+      category: 'other'
+    };
+    
+    if (lang === 'en') {
+      newTag.en = text;
+      newTag.ja = await translateWithAI(text, 'ja');
+      newTag.category = categorizeTag(text);
+    } else {
+      newTag.ja = text;
+      // Try AI translation from Japanese to English
+      if (appState.apiKey) {
+        newTag.en = await translateWithAI(text, 'en');
+      } else {
+        newTag.en = translateToEnglish(text);
+      }
+      newTag.category = categorizeTag(newTag.en);
+    }
+    
+    App.imageState.imageTags.push(newTag);
+    input.value = '';
+    hideLoading();
+    TagEditor.renderTags('image');
+    App.updateImagePromptOutput();
+  },
+  
+  // Sort image tags
+  sortImageTags: (type) => {
+    if (type === 'category') {
+      App.imageState.imageTags.sort((a, b) => a.category.localeCompare(b.category));
+    } else if (type === 'weight') {
+      App.imageState.imageTags.sort((a, b) => b.weight - a.weight);
+    }
+    TagEditor.renderTags('image');
+  },
+  
+  // Split image prompt to tags (advanced parsing + AI translation)
+  splitImagePrompt: async () => {
+    const promptTextarea = document.getElementById('image-generated-prompt');
+    if (!promptTextarea || !promptTextarea.value.trim()) {
+      showNotification('生成されたプロンプトがありません', 'error');
+      return;
+    }
+    
+    const text = promptTextarea.value.trim();
+    
+    showLoading('Splitting and translating tags...');
+    
+    // Clear existing tags
+    App.imageState.imageTags = [];
+    
+    // Advanced tag parsing with weight support
+    const parsedTags = App.parseComplexTags(text);
+    
+    // Create tags with AI translation if available
+    const tagPromises = parsedTags.map(async (parsedTag, index) => {
+      const ja = await translateWithAI(parsedTag.text, 'ja');
+      return {
+        id: `split-tag-${Date.now()}-${index}`,
+        en: parsedTag.text,
+        ja: ja,
+        weight: parsedTag.weight,
+        category: categorizeTag(parsedTag.text)
+      };
+    });
+    
+    App.imageState.imageTags = await Promise.all(tagPromises);
+    
+    hideLoading();
+    TagEditor.renderTags('image');
+    showNotification(`${App.imageState.imageTags.length}個のタグに分割しました`, 'success');
+  },
+  
   // Copy functions
   copyAnalysisResult: () => {
     if (App.imageState.analysisResult) {
@@ -2383,12 +2845,35 @@ Object.assign(App, {
     }
   },
   
+  // Copy image final output
+  copyImageFinalOutput: () => {
+    const finalOutput = document.getElementById('image-final-output');
+    if (finalOutput && finalOutput.value) {
+      navigator.clipboard.writeText(finalOutput.value);
+      showNotification('ファイナル出力をコピーしました', 'success');
+    } else {
+      showNotification('コピーするコンテンツがありません', 'error');
+    }
+  },
+  
   // Update output format
   updateImageOutputFormat: () => {
     const select = document.getElementById('image-output-format');
     if (select) {
       App.imageState.imageOutputFormat = select.value;
       localStorage.setItem('image-output-format', select.value);
+    }
+  },
+  
+  // Update final output format for image tab
+  updateImageFinalFormat: () => {
+    const select = document.getElementById('image-final-output-format');
+    if (select) {
+      App.imageState.imageFinalFormat = select.value;
+      localStorage.setItem('image-final-output-format', select.value);
+      // Update the output display
+      TagEditor.updateOutput('image');
+      App.updateImagePromptOutput();
     }
   },
   
@@ -2837,15 +3322,16 @@ Rules:
     TagEditor.renderTags('image');
   },
 
-  // AI Generate tags with JSON schema
+  // AI Generate tags with JSON schema - Complete flow for Image to Prompt
   generateImageTagsFromAI: async () => {
-    if (!App.imageState.analysisResult) {
-      showNotification('Please analyze the image first', 'error');
+    // 画像がアップロードされているか確認
+    if (!App.imageState.imageData) {
+      showNotification('画像をアップロードしてください', 'error');
       return;
     }
     
     if (!appState.apiKey) {
-      showNotification('Please configure your OpenRouter API key in settings', 'error');
+      showNotification('OpenRouter APIキーを設定してください', 'error');
       return;
     }
 
@@ -2853,40 +3339,88 @@ Rules:
     
     if (generateBtn) {
       generateBtn.disabled = true;
-      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating Tags...';
+      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>画像解析中...';
     }
 
     try {
-      // Enhanced system prompt for JSON tag generation
-      const systemPrompt = `You are a tag normalizer & bilingual mapper for image prompts.
-
-Input: Image analysis text
-Output ONLY JSON in this exact format:
-{
-  "pairs": [
-    {
-      "en": "...",
-      "ja": "...",
-      "weight": number,
-      "category": "person|appearance|clothes|pose|background|quality|style|other"
-    }
-  ]
-}
-
-Rules:
-- Produce short, natural Japanese tags that creators actually write
-- Keep one-to-one meaning with the English tag; avoid free paraphrasing
-- Weight: 1.0 for normal, 1.2-1.5 for important elements, 0.8-0.9 for less important
-- Category mapping:
-  * person: 1girl, woman, child, etc.
-  * appearance: eyes, hair, smile, beautiful, etc.
-  * clothes: dress, uniform, hoodie, etc.
-  * pose: sitting, standing, running, etc.
-  * background: forest, city, outdoor, etc.
-  * quality: masterpiece, detailed, 8k, etc.
-  * style: anime, realistic, painting, etc.
-  * other: everything else
-- No markdown, no explanations, ONLY the JSON object`;
+      // Step 1: 画像解析（画像がまだ解析されていない場合）
+      if (!App.imageState.analysisResult) {
+        showLoading('画像を解析しています...');
+        
+        // 画像解析用のシステムプロンプト
+        const imageAnalysisPrompt = App.getImageAnalysisSystemPrompt();
+        
+        const analysisMessages = [
+          {
+            role: 'system',
+            content: imageAnalysisPrompt
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'この画像を詳細に分析して、画像生成プロンプトのための要素を抽出してください。'
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: App.imageState.imageData
+                }
+              }
+            ]
+          }
+        ];
+        
+        // Vision APIで画像解析
+        const analysisResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${appState.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.href,
+            'X-Title': 'SS Prompt Manager'
+          },
+          body: JSON.stringify({
+            model: App.imageState.visionModel || 'gemini-2.0-flash-exp',
+            messages: analysisMessages,
+            temperature: 0.7,
+            max_tokens: 800
+          })
+        });
+        
+        if (!analysisResponse.ok) {
+          const error = await analysisResponse.json();
+          throw new Error(error.error?.message || '画像解析に失敗しました');
+        }
+        
+        const analysisData = await analysisResponse.json();
+        App.imageState.analysisResult = analysisData.choices[0].message.content;
+        
+        // 解析結果を表示
+        const resultDiv = document.getElementById('image-analysis-result');
+        if (resultDiv) {
+          resultDiv.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${App.imageState.analysisResult}</pre>`;
+        }
+        
+        // 解析結果コンテナを表示
+        const analysisContainer = document.getElementById('analysis-result-container');
+        if (analysisContainer) {
+          analysisContainer.classList.remove('hidden');
+        }
+        
+        hideLoading();
+      }
+      
+      // Step 2: タグ生成
+      if (generateBtn) {
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>タグ生成中...';
+      }
+      
+      showLoading('AIタグを生成しています...');
+      
+      // タグ生成用のシステムプロンプト（AI Format Promptを使用）
+      const tagGenerationPrompt = App.getTagGenerationSystemPrompt();
 
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -2901,69 +3435,91 @@ Rules:
           messages: [
             {
               role: 'system',
-              content: systemPrompt
+              content: tagGenerationPrompt
             },
             {
               role: 'user',
-              content: `Based on this image analysis, generate optimized English tags with natural Japanese translations:\n\n${App.imageState.analysisResult}`
+              content: `以下の画像解析結果から、画像生成用の英語タグとわかりやすい日本語タグを生成してください：\n\n${App.imageState.analysisResult}`
             }
           ],
           temperature: 0.3,
-          max_tokens: 800
+          max_tokens: 1000
         })
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to generate tags');
+        throw new Error(error.error?.message || 'タグ生成に失敗しました');
       }
 
       const data = await response.json();
       let responseText = data.choices[0].message.content.trim();
       
-      // Remove markdown code blocks if present
+      // マークダウンコードブロックを削除
       responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
       
-      // Parse JSON response
+      // JSON解析
       let tagsData;
       try {
+        console.log('AI Response (before parsing):', responseText);
         tagsData = JSON.parse(responseText);
+        console.log('Parsed tags data:', tagsData);
       } catch (parseError) {
         console.error('JSON parse error:', parseError, 'Response:', responseText);
-        throw new Error('Invalid JSON response from AI. Please try again.');
+        throw new Error('AIからの応答が正しいJSON形式ではありません。再度お試しください。');
       }
 
-      // Validate schema
+      // スキーマ検証
       if (!tagsData.pairs || !Array.isArray(tagsData.pairs)) {
-        throw new Error('Invalid response format - missing pairs array');
+        throw new Error('応答フォーマットが正しくありません - pairs配列が見つかりません');
       }
 
-      // Clear existing tags and populate with AI-generated ones
+      // 既存のタグをクリアして、AI生成タグを設定
       App.imageState.imageTags = [];
       
-      tagsData.pairs.forEach((pair, index) => {
-        if (pair.en && pair.ja) {
-          App.imageState.imageTags.push({
+      // タグ処理とフォールバック翻訳
+      const tagPromises = tagsData.pairs.map(async (pair, index) => {
+        console.log(`Processing pair ${index}:`, pair);
+        if (pair.en) {
+          let jaText = pair.ja;
+          
+          // 日本語がない場合はフォールバック翻訳
+          if (!jaText || jaText.trim() === '') {
+            console.log(`Missing Japanese for "${pair.en}", using fallback translation`);
+            jaText = await translateWithAI(pair.en, 'ja');
+          }
+          
+          const newTag = {
             id: `ai-tag-${Date.now()}-${index}`,
             en: pair.en,
-            ja: pair.ja,
+            ja: jaText,
             weight: pair.weight || 1.0,
-            category: pair.category || 'other'
-          });
+            category: pair.category || categorizeTag(pair.en)
+          };
+          console.log('Adding tag:', newTag);
+          return newTag;
+        } else {
+          console.warn('Skipping invalid pair (no English):', pair);
+          return null;
         }
       });
+      
+      const processedTags = await Promise.all(tagPromises);
+      App.imageState.imageTags = processedTags.filter(tag => tag !== null);
 
-      // Update UI
+      // UIを更新
       TagEditor.renderTags('image');
       
-      // Update generated prompt textarea
+      // 生成されたプロンプトを更新
       App.updateImagePromptOutput();
       
-      showNotification(`Generated ${App.imageState.imageTags.length} AI tags with translations`, 'success');
+      hideLoading();
+      showNotification(`${App.imageState.imageTags.length}個のタグを生成しました`, 'success');
       
     } catch (error) {
       console.error('Tag generation error:', error);
-      showNotification(`Tag generation failed: ${error.message}`, 'error');
+      hideLoading();
+      showNotification(`処理に失敗しました: ${error.message}`, 'error');
     } finally {
       if (generateBtn) {
         generateBtn.disabled = false;
@@ -2972,6 +3528,138 @@ Rules:
     }
   },
   
+  // 画像解析用システムプロンプトを取得
+  getImageAnalysisSystemPrompt: () => {
+    // ローカルストレージから取得するか、デフォルトを使用
+    const savedPrompt = localStorage.getItem('image-analysis-prompt');
+    if (savedPrompt) return savedPrompt;
+    
+    return `あなたは画像分析の専門家です。提供された画像を詳細に分析し、以下の要素を抽出してください：
+
+1. 主要な被写体（人物、動物、オブジェクト）
+   - 外見的特徴（髪色、目の色、表情など）
+   - 服装やアクセサリー
+   - ポーズや動作
+
+2. 背景と環境
+   - 場所（屋内/屋外、具体的な場所）
+   - 時間帯や天候
+   - 雰囲気や照明
+
+3. 構図とスタイル
+   - カメラアングル
+   - 色彩やトーン
+   - アートスタイル（写実的、アニメ調など）
+
+4. 品質関連の特徴
+   - 画像の精細さ
+   - 特筆すべき技術的要素
+
+各要素を具体的かつ簡潔に記述してください。`;
+  },
+  
+  // タグ生成用システムプロンプトを取得
+  getTagGenerationSystemPrompt: () => {
+    // AI Format用のシステムプロンプトを取得（カスタマイズ可能）
+    const formatName = App.imageState.imageOutputFormat || 'sdxl';
+    const savedPrompt = localStorage.getItem(`sp-image-format-${formatName}`);
+    
+    if (savedPrompt) return savedPrompt;
+    
+    // デフォルトのタグ生成プロンプト
+    return `あなたはタグ正規化と日英対訳の専門家です。
+
+入力: 画像分析のテキスト
+出力: 以下の正確なJSON形式のみ返してください。必ず英語タグと日本語タグの両方を含めてください：
+
+{
+  "pairs": [
+    {
+      "en": "masterpiece",
+      "ja": "傑作",
+      "weight": 1.2,
+      "category": "quality"
+    },
+    {
+      "en": "1girl",
+      "ja": "1人の女の子",
+      "weight": 1.0,
+      "category": "person"
+    },
+    {
+      "en": "long hair",
+      "ja": "長い髪",
+      "weight": 1.0,
+      "category": "appearance"
+    }
+  ]
+}
+
+重要：
+- 必ずenとjaの両方のフィールドを含めること
+- 日本語タグは自然でわかりやすい表現にすること
+- weightは0.1-2.0の範囲で設定
+- categoryは person, appearance, clothing, pose, background, quality, style, other から選択
+- JSON形式以外は一切出力しないこと
+
+ルール:
+- 英語タグ: snake_case または単語の組み合わせ
+- 日本語タグ: クリエイターが実際に使う自然な表現
+- 英日は1対1の意味対応を保つ（自由な意訳は避ける）
+- weight: 通常1.0、重要な要素1.2-1.5、補助的要素0.8-0.9
+- カテゴリマッピング:
+  * person: 1girl, woman, child など人物
+  * appearance: eyes, hair, smile など外見
+  * clothes: dress, uniform, hoodie など服装
+  * pose: sitting, standing, running などポーズ
+  * background: forest, city, outdoor など背景
+  * quality: masterpiece, detailed, 8k など品質
+  * style: anime, realistic, painting などスタイル
+  * other: その他
+- マークダウンや説明文は含めない、JSONオブジェクトのみ出力`;
+  },
+
+  // Update image prompt output based on current tags
+  updateImagePromptOutput: () => {
+    const promptTextarea = document.getElementById('image-generated-prompt');
+    const finalOutput = document.getElementById('image-final-output');
+    
+    if (!promptTextarea && !finalOutput) return;
+    
+    // Format tags based on current format selection
+    const format = App.imageState.imageFinalFormat || 'sdxl';
+    let output = '';
+    
+    if (App.imageState.imageTags.length > 0) {
+      if (format === 'sdxl') {
+        output = App.imageState.imageTags.map(tag => {
+          if (tag.weight !== 1.0) {
+            return `${tag.en}:${tag.weight.toFixed(1)}`;
+          }
+          return tag.en;
+        }).join(', ');
+      } else if (format === 'flux') {
+        output = App.imageState.imageTags.map(tag => {
+          const weightedText = tag.weight > 1.2 ? `highly ${tag.en}` : 
+                              tag.weight < 0.8 ? `slightly ${tag.en}` : tag.en;
+          return weightedText;
+        }).join(', ');
+        if (output) {
+          output = output.charAt(0).toUpperCase() + output.slice(1) + '.';
+        }
+      } else {
+        // Custom or other formats
+        output = App.imageState.imageTags.map(tag => tag.en).join(', ');
+      }
+    }
+    
+    if (promptTextarea) {
+      promptTextarea.value = output;
+    }
+    if (finalOutput) {
+      finalOutput.value = output;
+    }
+  },
   
   // Render image tags (use common system)
   renderImageTags: () => {

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape Character Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-2xl font-bold mb-6">Escape Character Test</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <h2 class="text-lg font-semibold mb-2">Test Cases</h2>
+                <button onclick="testCase1()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2">
+                    Test: nami_\(one_piece\)
+                </button>
+                <button onclick="testCase2()" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 mr-2">
+                    Test: Complex Mix
+                </button>
+                <button onclick="testCase3()" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 mr-2">
+                    Test: Multiple Escapes
+                </button>
+                <button onclick="testCase4()" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                    Test: Long Sentence with Period
+                </button>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Input</label>
+                <textarea id="test-input" class="w-full p-3 border rounded h-20" placeholder="Test input will appear here..."></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Parsing Results</label>
+                <div id="results" class="p-3 bg-gray-50 border rounded min-h-32"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/app-main.js"></script>
+    <script>
+        function testCase1() {
+            const input = 'masterpiece, nami_\\(one_piece\\), best quality';
+            document.getElementById('test-input').value = input;
+            testParsing(input);
+        }
+        
+        function testCase2() {
+            const input = 'masterpiece, (scenery:1.4), nami_\\(one_piece\\), (artist:wlop:0.8), @_@';
+            document.getElementById('test-input').value = input;
+            testParsing(input);
+        }
+        
+        function testCase3() {
+            const input = 'character_\\(series\\), another_\\(franchise\\), (normal_tag:1.2), escaped_\\(test\\)';
+            document.getElementById('test-input').value = input;
+            testParsing(input);
+        }
+        
+        function testCase4() {
+            const input = 'She holds a handheld signboard reading "Wan2.2-T2V-A14B-HighNoise-Q8_O.gguf/Instagirlv2.3_high" clearly legible. In the background, a smiling man stands near shattered windows. Natural cinematic lighting filtering through broken roof beams, (believable shadowing:1.3), nami_\\(one_piece\\)';
+            document.getElementById('test-input').value = input;
+            testParsing(input);
+        }
+        
+        function testParsing(input) {
+            if (!App || !App.parseComplexTags) {
+                document.getElementById('results').innerHTML = '<div class="text-red-600">Error: App.parseComplexTags not found</div>';
+                return;
+            }
+            
+            try {
+                const parsedTags = App.parseComplexTags(input);
+                
+                let html = '<div class="space-y-2">';
+                html += `<div class="font-medium mb-2">Found ${parsedTags.length} tags:</div>`;
+                
+                parsedTags.forEach((tag, index) => {
+                    html += `
+                        <div class="p-2 border rounded bg-blue-50">
+                            <div class="flex justify-between items-center">
+                                <span class="font-mono">${tag.text}</span>
+                                <span class="text-sm bg-white px-2 py-1 rounded">Weight: ${tag.weight}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                document.getElementById('results').innerHTML = html;
+                
+            } catch (error) {
+                document.getElementById('results').innerHTML = `<div class="text-red-600">Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

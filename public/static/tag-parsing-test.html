@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tag Parsing Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-2xl font-bold mb-6">Advanced Tag Parsing Test</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Test Input</label>
+                <textarea id="test-input" class="w-full p-3 border rounded h-32" placeholder="Enter complex tags to test parsing...">Masterpiece, best quality, amazing quality, newest, very aesthetic, absurdres, (scenery:1.4), 8k, good anatomy, good shading, ultra detailed, refined details, high resolution, HD, masterwork, XUER guangying, CRYOS2, Expression: cute tsundere, glancing sideways with a slightly annoyed but soft gaze. She holds a handheld signboard reading "Wan2.2-T2V-A14B-HighNoise-Q8_O.gguf/Instagirlv2.3_high" clearly legible. In the background,fate/grand_order,   @_@, nami_\(one_piece\), 
+
+(artist:makoto-shinkai:0.65), (artist:mazjojo:0.83), (artist:pigeon666:0.67), (artist:zawar379:0.77), (artist:remsrar:0.65), (artist:yoneyama mai:0.74), (artist:chimmyming:0.72), (artist:konya karasue:0.55), (artist:remsrar:0.65), nub1mo, (artist:Yomu:0.3),(dino_(dinoartforame):0.5),(artist:quasarcake:0.47),(artist:wlop:0.4), (artist:ebifurya:0.52), (artist:as109:0.82), (artist:krekkov:0.68), (artist:mossacannibalis:0.56), (artist:tianliang duohe fangdongye:0.79), (artist:z-ton:1.04), (artist:pontsuka:0.55), (artist:sakimichan:0.4), (artist:nanFe:0.4), (artist:loish:0.35), (photorealistic:1.2), (illustration:1.3), high resolution, sharp focus, soft lighting, sunlight, (detailed beautiful eyes:1.30), 1girl, expressionless, ((wavy hair)), (disheveled hair:1.30), messy hair,</textarea>
+            </div>
+            
+            <div class="flex gap-2">
+                <button onclick="testParsing()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Test Tag Parsing
+                </button>
+                <button onclick="clearResults()" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                    Clear Results
+                </button>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Parsing Results</label>
+                <div id="parsing-results" class="p-3 bg-gray-50 border rounded min-h-96 overflow-y-auto"></div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium mb-1">Statistics</label>
+                <div id="statistics" class="p-3 bg-blue-50 border rounded"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Advanced tag parsing with escape character support
+        function parseComplexTags(text) {
+            const tags = [];
+            let current = '';
+            let depth = 0;
+            let inParens = false;
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = i < text.length - 1 ? text[i + 1] : '';
+                const prevChar = i > 0 ? text[i - 1] : '';
+                
+                // Handle escaped characters (backslash followed by parenthesis)
+                if (char === '\\' && (nextChar === '(' || nextChar === ')')) {
+                    current += char + nextChar; // Add both \ and the parenthesis
+                    i++; // Skip next character since we processed it
+                    continue;
+                }
+                
+                // Check if this is a real parenthesis (not escaped)
+                const isEscapedParen = prevChar === '\\';
+                
+                if (char === '(' && !isEscapedParen && !inParens) {
+                    // Start of weighted tag (only if not escaped)
+                    if (current.trim()) {
+                        // Add previous simple tag
+                        tags.push({ text: current.trim(), weight: 1.0 });
+                        current = '';
+                    }
+                    inParens = true;
+                    depth = 1;
+                } else if (char === '(' && !isEscapedParen && inParens) {
+                    depth++;
+                    current += char;
+                } else if (char === ')' && !isEscapedParen && inParens) {
+                    depth--;
+                    if (depth === 0) {
+                        // End of weighted tag
+                        const weightedTag = parseWeightedTag(current.trim());
+                        if (weightedTag) {
+                            tags.push(weightedTag);
+                        }
+                        current = '';
+                        inParens = false;
+                    } else {
+                        current += char;
+                    }
+                } else if ((char === ',' || char === '，' || char === '.' || char === '。' || char === '、') && !inParens) {
+                    // Tag separator (only when not inside parentheses)
+                    if (current.trim()) {
+                        tags.push({ text: current.trim(), weight: 1.0 });
+                        current = '';
+                    }
+                } else {
+                    current += char;
+                }
+            }
+            
+            // Add final tag
+            if (current.trim()) {
+                if (inParens) {
+                    // Unclosed parenthesis - treat as simple tag
+                    tags.push({ text: current.trim(), weight: 1.0 });
+                } else {
+                    tags.push({ text: current.trim(), weight: 1.0 });
+                }
+            }
+            
+            return tags.filter(tag => tag.text.length > 0);
+        }
+        
+        function parseWeightedTag(content) {
+            const colonIndex = content.lastIndexOf(':');
+            
+            if (colonIndex === -1) {
+                // No weight specified
+                return { text: content, weight: 1.2 }; // Default weight for parentheses
+            }
+            
+            const tagPart = content.substring(0, colonIndex).trim();
+            const weightPart = content.substring(colonIndex + 1).trim();
+            
+            const weight = parseFloat(weightPart);
+            if (isNaN(weight)) {
+                // Invalid weight, treat as part of tag name
+                return { text: content, weight: 1.2 };
+            }
+            
+            return { text: tagPart, weight: Math.max(0.1, Math.min(2.0, weight)) };
+        }
+        
+        function categorizeTag(text) {
+            const lower = text.toLowerCase();
+            
+            // Artist category - highest priority
+            if (lower.includes('artist:') || lower.includes('artist') || 
+                ['makoto shinkai', 'mazjojo', 'pigeon666', 'zawar379', 'remsrar', 'yoneyama mai', 
+                 'chimmyming', 'konya karasue', 'yomu', 'dino', 'quasarcake', 'wlop', 'ebifurya', 
+                 'as109', 'krekkov', 'mossacannibalis', 'tianliang duohe fangdongye', 'z-ton', 
+                 'pontsuka', 'sakimichan', 'nanfe', 'loish'].some(artist => lower.includes(artist))) {
+                return 'style';
+            }
+            
+            const categoryKeywords = {
+                quality: [
+                    'masterpiece', 'best quality', 'amazing quality', 'newest', 'very aesthetic', 
+                    'absurdres', '8k', '4k', 'hd', 'ultra detailed', 'refined details', 'high resolution', 
+                    'masterwork', 'good anatomy', 'good shading', 'detailed', 'sharp focus', 'photorealistic'
+                ],
+                person: [
+                    'girl', 'boy', 'woman', 'man', 'person', 'child', 'adult', 'teen', '1girl', '1boy',
+                    'expressionless', 'tsundere', 'cute', 'expression'
+                ],
+                appearance: [
+                    'hair', 'eyes', 'skin', 'beautiful', 'handsome', 'pretty', 'smile', 'wavy hair',
+                    'disheveled hair', 'messy hair', 'detailed beautiful eyes', 'gaze', 'glancing', 'sideways'
+                ],
+                clothing: [
+                    'dress', 'shirt', 'pants', 'skirt', 'uniform', 'clothes', 'hoodie', 'outfit'
+                ],
+                pose: [
+                    'sitting', 'standing', 'walking', 'running', 'squatting', 'dipping', 'holds', 'holding'
+                ],
+                background: [
+                    'background', 'scenery', 'forest', 'city', 'sky', 'room', 'spring', 'water', 
+                    'sunlight', 'soft lighting', 'lighting'
+                ],
+                style: [
+                    'anime', 'realistic', 'cartoon', 'painting', 'illustration', 'digital', 'art',
+                    'photorealistic', 'fate/grand order'
+                ],
+                other: [
+                    'signboard', 'handheld', 'reading', 'legible', 'nami', 'one piece', '@_@'
+                ]
+            };
+            
+            // Check categories in order of priority
+            for (const [category, keywords] of Object.entries(categoryKeywords)) {
+                for (const keyword of keywords) {
+                    if (lower.includes(keyword.toLowerCase())) {
+                        return category;
+                    }
+                }
+            }
+            
+            // Special character/franchise detection
+            if (lower.includes('_\\') || lower.includes('\\(') || lower.includes('fate/') || 
+                lower.includes('one_piece') || lower.includes('nami')) {
+                return 'other';
+            }
+            
+            return 'other';
+        }
+        
+        function testParsing() {
+            const input = document.getElementById('test-input');
+            const resultsDiv = document.getElementById('parsing-results');
+            const statsDiv = document.getElementById('statistics');
+            
+            if (!input.value.trim()) {
+                alert('Please enter text to parse');
+                return;
+            }
+            
+            const startTime = Date.now();
+            const parsedTags = parseComplexTags(input.value.trim());
+            const endTime = Date.now();
+            
+            // Create results HTML
+            let html = '<div class="space-y-2">';
+            
+            const categoryColors = {
+                person: 'bg-yellow-100 border-yellow-400 text-yellow-800',
+                appearance: 'bg-blue-100 border-blue-400 text-blue-800',
+                clothing: 'bg-pink-100 border-pink-400 text-pink-800',
+                pose: 'bg-purple-100 border-purple-400 text-purple-800',
+                background: 'bg-green-100 border-green-400 text-green-800',
+                quality: 'bg-orange-100 border-orange-400 text-orange-800',
+                style: 'bg-red-100 border-red-400 text-red-800',
+                other: 'bg-gray-100 border-gray-400 text-gray-800'
+            };
+            
+            parsedTags.forEach((tag, index) => {
+                const category = categorizeTag(tag.text);
+                const colorClass = categoryColors[category] || categoryColors.other;
+                
+                html += `
+                    <div class="p-3 border-2 rounded-lg ${colorClass}">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="font-mono font-medium">${tag.text}</span>
+                                <span class="text-xs ml-2 bg-white px-2 py-1 rounded">${category}</span>
+                            </div>
+                            <div class="text-sm font-bold">
+                                Weight: ${tag.weight.toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+            
+            // Statistics
+            const categoryStats = {};
+            const weightStats = {};
+            
+            parsedTags.forEach(tag => {
+                const category = categorizeTag(tag.text);
+                categoryStats[category] = (categoryStats[category] || 0) + 1;
+                
+                const weightRange = tag.weight < 1 ? 'low' : tag.weight > 1 ? 'high' : 'normal';
+                weightStats[weightRange] = (weightStats[weightRange] || 0) + 1;
+            });
+            
+            statsDiv.innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="font-semibold mb-2">Parsing Stats</h3>
+                        <p>Total tags: ${parsedTags.length}</p>
+                        <p>Parse time: ${endTime - startTime}ms</p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-2">Categories</h3>
+                        ${Object.entries(categoryStats).map(([cat, count]) => 
+                            `<p>${cat}: ${count}</p>`
+                        ).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function clearResults() {
+            document.getElementById('parsing-results').innerHTML = '';
+            document.getElementById('statistics').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
