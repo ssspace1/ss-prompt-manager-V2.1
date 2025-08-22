@@ -736,12 +736,7 @@ const appHtml = `<!DOCTYPE html>
                             <div class="flex gap-2 mt-3 flex-wrap items-center">
                                 <button onclick="App.splitText()" 
                                         class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                                    <i class="fas fa-cut mr-2"></i>Split to Tags
-                                </button>
-                                
-                                <button onclick="App.analyzeAndCategorize()" 
-                                        class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
-                                    <i class="fas fa-brain mr-2"></i>AI Analyze
+                                    <i class="fas fa-cut mr-2"></i>Split to Tags (Auto Color-Coded)
                                 </button>
                                 
                                 <div class="ml-auto flex items-center gap-2">
@@ -1034,7 +1029,7 @@ const appHtml = `<!DOCTYPE html>
                             <div class="mt-3">
                                 <button onclick="App.splitImagePrompt()" 
                                         class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                                    <i class="fas fa-cut mr-2"></i>Split to Tags
+                                    <i class="fas fa-cut mr-2"></i>Split to Tags (Auto Color-Coded)
                                 </button>
                             </div>
                         </section>

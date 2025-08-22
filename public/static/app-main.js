@@ -710,39 +710,70 @@ const TagEditor = {
   }
 };
 
-// Default system prompts
+// Default system prompts - Enhanced with automatic categorization
 const defaultSystemPrompts = {
-  sdxl: `You are an expert at generating SDXL image generation tags. Convert the user's prompt into a comprehensive set of comma-separated tags.
+  sdxl: `You are an AI tag generator for SDXL image generation with automatic categorization.
+
 Rules:
-1. Start with quality tags: masterpiece, best quality, ultra-detailed
-2. Add subject description tags
-3. Include style and composition tags
-4. Add lighting and atmosphere tags
-5. Output format: tag1, tag2, tag3:weight, tag4
-6. Use weights (0.5-2.0) for important elements
-7. Output only tags, no explanations`,
-  flux: `You are an expert at generating Flux image generation prompts. Convert the user's input into natural, descriptive phrases.
-Rules:
-1. Use natural language descriptions
-2. Be specific and detailed
-3. Include artistic style if relevant
-4. Describe composition and lighting
-5. Output format: Natural sentences that flow well
-6. Output only the prompt, no explanations`,
-  imagefx: `You are an expert at generating ImageFX prompts. Convert the user's input into clear instructions.
-Rules:
-1. Use clear, direct language
-2. Specify artistic style explicitly
-3. Include mood and atmosphere
-4. Be concise but comprehensive
-5. Output only the prompt, no explanations`,
-  'imagefx-natural': `You are an expert at generating ImageFX Natural Language prompts. Convert the user's input into flowing, descriptive prose.
-Rules:
-1. Write in natural, flowing sentences
-2. Focus on visual storytelling
-3. Include sensory details
-4. Maintain coherent narrative
-5. Output only the descriptive text, no explanations`
+1. Generate comprehensive, high-quality tags in proper format
+2. Start with quality enhancers: masterpiece, best quality, ultra-detailed
+3. Include subject description with proper categorization
+4. Add composition, lighting, and style elements
+5. Use weights (0.5-2.0) for emphasis: tag:1.2
+6. Output ONLY JSON format as shown below
+
+Output MUST be valid JSON:
+{
+  "pairs": [
+    {"en": "masterpiece", "ja": "傑作", "weight": 1.0, "category": "quality"},
+    {"en": "1girl", "ja": "1人の女の子", "weight": 1.1, "category": "person"},
+    {"en": "beautiful face", "ja": "美しい顔", "weight": 1.0, "category": "appearance"}
+  ]
+}
+
+Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
+  
+  flux: `You are an AI tag generator for Flux image generation with automatic categorization.
+
+Generate natural language descriptions with proper Japanese translations.
+
+Output MUST be valid JSON:
+{
+  "pairs": [
+    {"en": "A beautiful young woman with flowing hair", "ja": "流れるような髪の美しい若い女性", "weight": 1.0, "category": "person"},
+    {"en": "soft natural lighting", "ja": "柔らかな自然光", "weight": 1.0, "category": "background"}
+  ]
+}
+
+Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
+  
+  imagefx: `You are an AI tag generator for ImageFX with automatic categorization.
+
+Generate clear, direct prompts with proper Japanese translations.
+
+Output MUST be valid JSON:
+{
+  "pairs": [
+    {"en": "portrait of young woman", "ja": "若い女性のポートレート", "weight": 1.0, "category": "person"},
+    {"en": "professional photography", "ja": "プロフェッショナル写真", "weight": 1.0, "category": "quality"}
+  ]
+}
+
+Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
+  
+  'imagefx-natural': `You are an AI tag generator for ImageFX Natural Language with automatic categorization.
+
+Generate flowing, descriptive prose with proper Japanese translations.
+
+Output MUST be valid JSON:
+{
+  "pairs": [
+    {"en": "A serene moment captured in golden light", "ja": "金色の光の中で捉えられた静寂の瞬間", "weight": 1.0, "category": "background"},
+    {"en": "gentle expression with thoughtful eyes", "ja": "思慮深い眼差しの優しい表情", "weight": 1.0, "category": "appearance"}
+  ]
+}
+
+Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`
 };
 
 // Initialize system prompts with defaults if not set
@@ -863,53 +894,129 @@ function updateOutput() {
   TagEditor.updateOutput('main');
 }
 
-// Enhanced categorize tag with comprehensive keywords
+// Enhanced categorize tag with comprehensive keywords - Updated for better color coding
 function categorizeTag(text) {
   const lower = text.toLowerCase();
   
-  // Artist category - highest priority
-  if (lower.includes('artist:') || lower.includes('artist') || 
-      ['makoto shinkai', 'mazjojo', 'pigeon666', 'zawar379', 'remsrar', 'yoneyama mai', 
-       'chimmyming', 'konya karasue', 'yomu', 'dino', 'quasarcake', 'wlop', 'ebifurya', 
-       'as109', 'krekkov', 'mossacannibalis', 'tianliang duohe fangdongye', 'z-ton', 
-       'pontsuka', 'sakimichan', 'nanfe', 'loish'].some(artist => lower.includes(artist))) {
-    return 'style';
-  }
-  
+  // Priority order for categorization
   const categoryKeywords = {
+    // Quality and enhancement tags
     quality: [
-      'masterpiece', 'best quality', 'amazing quality', 'newest', 'very aesthetic', 
-      'absurdres', '8k', '4k', 'hd', 'ultra detailed', 'refined details', 'high resolution', 
-      'masterwork', 'good anatomy', 'good shading', 'detailed', 'sharp focus', 'photorealistic'
+      'masterpiece', 'best quality', 'amazing quality', 'high quality', 'ultra detailed',
+      'detailed', 'sharp focus', 'professional', 'high resolution', '8k', '4k', 'hd',
+      'absurdres', 'newest', 'very aesthetic', 'refined details', 'masterwork',
+      'good anatomy', 'good shading', 'photorealistic', 'realistic', 'intricate',
+      'fine details', 'crisp', 'clear', 'vivid', 'stunning'
     ],
+    
+    // Male person/character tags
     person: [
-      'girl', 'boy', 'woman', 'man', 'person', 'child', 'adult', 'teen', '1girl', '1boy',
-      'expressionless', 'tsundere', 'cute', 'expression'
+      // General person identifiers
+      'person', 'people', 'human', 'character', 'figure',
+      // Male specific
+      '1boy', 'boy', 'man', 'male', 'guy', 'gentleman', 'youth', 'teen boy',
+      'young man', 'adult male', 'masculine', 'handsome man',
+      // Female specific  
+      '1girl', 'girl', 'woman', 'female', 'lady', 'maiden', 'teen girl',
+      'young woman', 'adult female', 'feminine', 'beautiful woman',
+      // Age-related
+      'child', 'kid', 'adult', 'teen', 'teenager', 'young', 'elderly', 'old',
+      // General descriptors
+      'cute', 'beautiful', 'handsome', 'pretty', 'attractive', 'charming'
     ],
-    appearance: [
-      'hair', 'eyes', 'skin', 'beautiful', 'handsome', 'pretty', 'smile', 'wavy hair',
-      'disheveled hair', 'messy hair', 'detailed beautiful eyes', 'gaze', 'glancing', 'sideways'
-    ],
+    
+    // Female-specific clothing/accessories
     clothing: [
-      'dress', 'shirt', 'pants', 'skirt', 'uniform', 'clothes', 'hoodie', 'outfit'
+      // Female clothing
+      'dress', 'skirt', 'blouse', 'kimono', 'gown', 'sundress', 'mini skirt',
+      'long dress', 'short dress', 'evening dress', 'wedding dress',
+      'school uniform', 'maid outfit', 'swimsuit', 'bikini', 'lingerie',
+      // Male clothing  
+      'suit', 'tuxedo', 'shirt', 'tie', 'pants', 'trousers', 'jacket',
+      'blazer', 'vest', 'formal wear',
+      // Unisex clothing
+      'hoodie', 'sweater', 'coat', 'uniform', 'costume', 'outfit',
+      'clothes', 'clothing', 'garment', 'attire', 'fabric',
+      'wearing', 'dressed', 'fashion'
     ],
-    pose: [
-      'sitting', 'standing', 'walking', 'running', 'squatting', 'dipping', 'holds', 'holding'
+    
+    // Appearance and physical features
+    appearance: [
+      // Hair
+      'hair', 'long hair', 'short hair', 'blonde hair', 'black hair', 'brown hair',
+      'red hair', 'blue hair', 'silver hair', 'white hair', 'curly hair',
+      'straight hair', 'wavy hair', 'braided hair', 'ponytail', 'twintails',
+      'bangs', 'hair ornament', 'hair clip', 'headband',
+      // Eyes and face
+      'eyes', 'blue eyes', 'green eyes', 'brown eyes', 'red eyes', 'golden eyes',
+      'heterochromia', 'detailed eyes', 'beautiful eyes', 'expressive eyes',
+      'face', 'smile', 'smiling', 'expression', 'facial features',
+      'beautiful face', 'cute face', 'serious expression', 'happy expression',
+      // Body features
+      'skin', 'pale skin', 'tan skin', 'fair skin', 'smooth skin',
+      'body', 'figure', 'physique', 'build'
     ],
+    
+    // Situations and environments
     background: [
-      'background', 'scenery', 'forest', 'city', 'sky', 'room', 'spring', 'water', 
-      'sunlight', 'soft lighting', 'lighting'
+      // Natural environments
+      'forest', 'mountain', 'beach', 'ocean', 'lake', 'river', 'field',
+      'meadow', 'garden', 'park', 'nature', 'outdoor', 'landscape',
+      'hot spring', 'onsen', 'natural hot spring', 'water', 'steam',
+      'rocks', 'stones', 'moss', 'trees', 'flowers', 'grass',
+      // Urban environments
+      'city', 'street', 'building', 'room', 'house', 'school', 'classroom',
+      'library', 'cafe', 'restaurant', 'shop', 'office', 'indoor',
+      // Atmospheric elements
+      'sky', 'clouds', 'sunset', 'sunrise', 'night', 'moon', 'stars',
+      'lighting', 'sunlight', 'moonlight', 'soft light', 'dramatic lighting',
+      'background', 'scenery', 'environment', 'setting', 'atmosphere'
     ],
+    
+    // Actions and poses
+    action: [
+      // Basic poses
+      'sitting', 'standing', 'lying', 'kneeling', 'crouching', 'squatting',
+      'walking', 'running', 'dancing', 'jumping', 'flying', 'floating',
+      // Interactive actions
+      'holding', 'carrying', 'touching', 'reaching', 'pointing', 'waving',
+      'reading', 'writing', 'eating', 'drinking', 'sleeping', 'resting',
+      'looking', 'gazing', 'staring', 'glancing', 'watching', 'observing',
+      // Specific actions
+      'dipping', 'bathing', 'swimming', 'relaxing', 'meditating',
+      'pose', 'posing', 'action', 'movement', 'gesture', 'activity'
+    ],
+    
+    // Art style and technique
     style: [
-      'anime', 'realistic', 'cartoon', 'painting', 'illustration', 'digital', 'art',
-      'photorealistic', 'fate/grand order'
+      // Art styles
+      'anime', 'manga', 'cartoon', 'digital art', 'painting', 'illustration',
+      'sketch', 'watercolor', 'oil painting', 'pencil drawing', 'ink drawing',
+      'concept art', 'fantasy art', 'sci-fi art', 'portrait', 'landscape art',
+      // Artists (moved from person to style)
+      'artist:', 'by artist', 'makoto shinkai', 'miyazaki', 'studio ghibli',
+      'pixiv', 'artstation', 'deviantart',
+      // Techniques
+      'cell shading', 'soft shading', 'hard shading', 'gradient',
+      'photorealistic', 'stylized', 'minimalist', 'detailed', 'artistic',
+      'style', 'art style', 'rendering', 'technique'
     ],
-    other: [
-      'signboard', 'handheld', 'reading', 'legible', 'nami', 'one piece', '@_@'
+    
+    // Objects and items
+    object: [
+      // Accessories
+      'jewelry', 'necklace', 'earrings', 'bracelet', 'ring', 'watch',
+      'glasses', 'sunglasses', 'hat', 'cap', 'bow', 'ribbon',
+      // Items
+      'bag', 'backpack', 'purse', 'book', 'phone', 'camera', 'umbrella',
+      'flower', 'rose', 'cherry blossom', 'weapon', 'sword', 'staff',
+      'food', 'drink', 'cup', 'bottle', 'plate', 'table', 'chair',
+      'signboard', 'sign', 'text', 'logo', 'symbol', 'emblem',
+      'object', 'item', 'prop', 'accessory', 'decoration', 'ornament'
     ]
   };
   
-  // Check categories in order of priority
+  // Check categories in priority order
   for (const [category, keywords] of Object.entries(categoryKeywords)) {
     for (const keyword of keywords) {
       if (lower.includes(keyword.toLowerCase())) {
@@ -920,7 +1027,7 @@ function categorizeTag(text) {
   
   // Special character/franchise detection
   if (lower.includes('_\\') || lower.includes('\\(') || lower.includes('fate/') || 
-      lower.includes('one_piece') || lower.includes('nami')) {
+      lower.includes('one_piece') || lower.includes('\(') || lower.includes('\)')) {
     return 'other';
   }
   
@@ -1085,15 +1192,12 @@ window.App = {
     TagEditor.renderTags('main');
   },
   
-  analyzeAndCategorize: async () => {
-    if (appState.tags.length === 0) {
-      App.splitText();
-    }
-    
-    // Categorize existing tags
+  // Auto-categorize function (called automatically after split or generate)
+  autoCategorizeTags: () => {
+    // Categorize existing tags automatically
     appState.tags = appState.tags.map(tag => ({
       ...tag,
-      category: categorizeTag(tag.en)
+      category: tag.category || categorizeTag(tag.en) // Preserve manual category if exists
     }));
     
     TagEditor.renderTags('main');
