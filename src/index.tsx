@@ -367,41 +367,36 @@ const appHtml = `<!DOCTYPE html>
         }
         
         .tag-card.dragging {
-            opacity: 0.4;
+            opacity: 0.3;
             transform: scale(1.02) rotate(1deg);
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
             z-index: 1000;
             cursor: grabbing !important;
-            pointer-events: none;
         }
         
         /* Drop zone styles */
         .drop-zone {
             height: 2px;
-            margin: 0;
-            padding: 6px 0;
+            margin: 2px 0;
             background: transparent;
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
             position: relative;
-            cursor: pointer;
         }
         
         .drop-zone-active {
-            padding: 10px 0;
-            margin: -8px 0;
+            height: 4px;
+            margin: 4px 0;
         }
         
         .drop-zone-hover {
-            height: 24px;
-            padding: 0;
-            margin: 4px 0;
+            height: 20px;
+            margin: 8px 0;
             background: linear-gradient(90deg, 
-                rgba(59, 130, 246, 0.15) 0%, 
-                rgba(139, 92, 246, 0.25) 50%, 
-                rgba(59, 130, 246, 0.15) 100%);
-            border-radius: 6px;
-            animation: dropZonePulse 0.8s ease-in-out infinite;
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+                rgba(59, 130, 246, 0.1) 0%, 
+                rgba(139, 92, 246, 0.2) 50%, 
+                rgba(59, 130, 246, 0.1) 100%);
+            border-radius: 4px;
+            animation: dropZonePulse 1s ease-in-out infinite;
         }
         
         .drop-zone-hover::before {
@@ -423,12 +418,12 @@ const appHtml = `<!DOCTYPE html>
         
         @keyframes dropZonePulse {
             0%, 100% { 
-                opacity: 0.7;
-                transform: scaleY(1) scaleX(1);
+                opacity: 0.6;
+                transform: scaleY(1);
             }
             50% { 
                 opacity: 1;
-                transform: scaleY(1.1) scaleX(1.02);
+                transform: scaleY(1.1);
             }
         }
         
