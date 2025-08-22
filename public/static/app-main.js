@@ -175,6 +175,7 @@ const TagEditor = {
     dropZone.dataset.lang = lang;
     
     dropZone.addEventListener('dragover', TagEditor.handleDropZoneDragOver);
+    dropZone.addEventListener('dragenter', TagEditor.handleDropZoneDragEnter);
     dropZone.addEventListener('drop', TagEditor.handleDropZoneDrop);
     dropZone.addEventListener('dragleave', TagEditor.handleDropZoneDragLeave);
     
@@ -350,20 +351,71 @@ const TagEditor = {
   },
   
   handleDragOver: function(e) {
-    // Prevent default for tag cards but don't show indicators
-    // Drop zones will handle the visual feedback
     if (e.preventDefault) {
       e.preventDefault();
     }
+    
+    // Allow drop on cards too for better UX
+    if (!TagEditor.draggedElement || 
+        this === TagEditor.draggedElement ||
+        this.dataset.context !== TagEditor.draggedContext || 
+        this.dataset.lang !== TagEditor.draggedLang) {
+      return false;
+    }
+    
+    e.dataTransfer.dropEffect = 'move';
+    
+    // Find the nearest drop zone and highlight it
+    const rect = this.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    const isAbove = e.clientY < midpoint;
+    
+    // Find and highlight the appropriate drop zone
+    const allDropZones = this.parentElement.querySelectorAll('.drop-zone');
+    const myIndex = parseInt(this.dataset.index);
+    
+    allDropZones.forEach(zone => {
+      zone.classList.remove('drop-zone-hover');
+      const zoneIndex = parseInt(zone.dataset.index);
+      if ((isAbove && zoneIndex === myIndex - 1) || 
+          (!isAbove && zoneIndex === myIndex)) {
+        zone.classList.add('drop-zone-hover');
+      }
+    });
+    
     return false;
   },
   
   handleDrop: function(e) {
-    // Prevent drop on cards, only allow on drop zones
     if (e.stopPropagation) {
       e.stopPropagation();
     }
     e.preventDefault();
+    
+    // Allow drop on cards and redirect to appropriate drop zone
+    if (!TagEditor.draggedElement ||
+        this === TagEditor.draggedElement ||
+        this.dataset.context !== TagEditor.draggedContext ||
+        this.dataset.lang !== TagEditor.draggedLang) {
+      return false;
+    }
+    
+    const rect = this.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    const dropIndex = parseInt(this.dataset.index);
+    const isAbove = e.clientY < midpoint;
+    
+    if (TagEditor.draggedIndex !== null) {
+      const targetPosition = isAbove ? dropIndex - 1 : dropIndex;
+      
+      // Perform the move
+      if (TagEditor.draggedContext === 'image') {
+        TagEditor.moveImageTagToPosition(TagEditor.draggedIndex, targetPosition);
+      } else {
+        TagEditor.moveMainTagToPosition(TagEditor.draggedIndex, targetPosition);
+      }
+    }
+    
     return false;
   },
   
@@ -389,8 +441,27 @@ const TagEditor = {
     }
     
     e.dataTransfer.dropEffect = 'move';
-    this.classList.add('drop-zone-hover');
     return false;
+  },
+  
+  handleDropZoneDragEnter: function(e) {
+    // Check if this is a valid drop target
+    if (!TagEditor.draggedElement ||
+        this.dataset.context !== TagEditor.draggedContext ||
+        this.dataset.lang !== TagEditor.draggedLang) {
+      return;
+    }
+    
+    // Clear all other hover states first
+    document.querySelectorAll('.drop-zone').forEach(zone => {
+      if (zone !== this && 
+          zone.dataset.context === this.dataset.context && 
+          zone.dataset.lang === this.dataset.lang) {
+        zone.classList.remove('drop-zone-hover');
+      }
+    });
+    
+    this.classList.add('drop-zone-hover');
   },
   
   handleDropZoneDrop: function(e) {
@@ -421,7 +492,17 @@ const TagEditor = {
   },
   
   handleDropZoneDragLeave: function(e) {
-    this.classList.remove('drop-zone-hover');
+    // Only remove hover if we're really leaving the zone
+    const rect = this.getBoundingClientRect();
+    const isReallyLeaving = 
+      e.clientX < rect.left - 5 || 
+      e.clientX > rect.right + 5 || 
+      e.clientY < rect.top - 5 || 
+      e.clientY > rect.bottom + 5;
+    
+    if (isReallyLeaving) {
+      this.classList.remove('drop-zone-hover');
+    }
   },
   
   // Move tag to specific position for drop zones
