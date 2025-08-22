@@ -273,51 +273,66 @@ const appHtml = `<!DOCTYPE html>
     
     <!-- Custom Styles -->
     <style>
-        /* Category Colors - Softer, lighter gradients */
+        /* Category Colors - Very light backgrounds with white text and normal borders */
         [data-category="person"] { 
-            background: linear-gradient(135deg, #fef7ed 0%, #fed7aa 100%); 
-            border-color: #fdba74;
-            color: #9a3412;
+            background: rgba(251, 146, 60, 0.15); 
+            border: 2px solid #fb923c;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
         [data-category="appearance"] { 
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); 
-            border-color: #93c5fd;
-            color: #1e40af;
+            background: rgba(59, 130, 246, 0.15); 
+            border: 2px solid #3b82f6;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
         [data-category="clothing"] { 
-            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); 
-            border-color: #f9a8d4;
-            color: #be185d;
+            background: rgba(236, 72, 153, 0.15); 
+            border: 2px solid #ec4899;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
         [data-category="action"] { 
-            background: linear-gradient(135deg, #f5f3ff 0%, #e9d5ff 100%); 
-            border-color: #d8b4fe;
-            color: #7c3aed;
+            background: rgba(139, 92, 246, 0.15); 
+            border: 2px solid #8b5cf6;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
         [data-category="background"] { 
-            background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%); 
-            border-color: #86efac;
-            color: #166534;
+            background: rgba(34, 197, 94, 0.15); 
+            border: 2px solid #22c55e;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
         [data-category="quality"] { 
-            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); 
-            border-color: #fde68a;
-            color: #a16207;
+            background: rgba(245, 158, 11, 0.15); 
+            border: 2px solid #f59e0b;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
         [data-category="style"] { 
-            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); 
-            border-color: #fbbf24;
-            color: #92400e;
+            background: rgba(168, 85, 247, 0.15); 
+            border: 2px solid #a855f7;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        [data-category="composition"] {
+            background: rgba(75, 85, 99, 0.25);
+            border: 2px solid #4b5563;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
         }
         [data-category="object"] {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border-color: #7dd3fc;
-            color: #0c4a6e;
+            background: rgba(6, 182, 212, 0.15);
+            border: 2px solid #06b6d4;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
         [data-category="other"] { 
-            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); 
-            border-color: #d1d5db;
-            color: #374151;
+            background: rgba(156, 163, 175, 0.15); 
+            border: 2px solid #9ca3af;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
         
         /* Block Styles */
@@ -327,6 +342,7 @@ const appHtml = `<!DOCTYPE html>
             user-select: none;
             position: relative;
             overflow: hidden;
+            font-weight: 500;
         }
         
         .tag-block:hover {

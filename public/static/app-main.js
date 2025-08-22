@@ -123,6 +123,7 @@ const TagEditor = {
     background: 'border-2',
     quality: 'border-2',
     style: 'border-2',
+    composition: 'border-2',
     object: 'border-2',
     other: 'border-2'
   },
@@ -901,6 +902,21 @@ function categorizeTag(text) {
   
   // Priority order for categorization
   const categoryKeywords = {
+    // Composition and camera angles - FIRST PRIORITY
+    composition: [
+      'angle', 'view', 'shot', 'camera', 'perspective', 'composition', 'framing',
+      'full body', 'half body', 'upper body', 'close-up', 'closeup', 'portrait',
+      'wide shot', 'medium shot', 'long shot', 'extreme close-up',
+      'bird\'s eye view', 'worm\'s eye view', 'overhead view', 'top view',
+      'side view', 'front view', 'back view', 'three-quarter view',
+      'low angle', 'high angle', 'dutch angle', 'tilted angle',
+      'diagonal', 'from above', 'from below', 'from side', 'from behind',
+      'panoramic', 'wide angle', 'telephoto', 'macro', 'fisheye',
+      'depth of field', 'bokeh', 'focus', 'blur', 'shallow focus',
+      'rule of thirds', 'symmetry', 'asymmetry', 'leading lines',
+      'viewpoint', 'vantage point', 'looking up', 'looking down'
+    ],
+    
     // Quality and enhancement tags
     quality: [
       'masterpiece', 'best quality', 'amazing quality', 'high quality', 'ultra detailed',
@@ -1209,7 +1225,7 @@ window.App = {
             messages: [
               {
                 role: 'system',
-                content: `Categorize image generation tags into: person, appearance, clothing, action, background, quality, style, object, or other. Respond with JSON only: {"categories": [{"tag": "tag_name", "category": "category_name"}]}`
+                content: `Categorize image generation tags into: person, appearance, clothing, action, background, quality, style, composition, object, or other. Respond with JSON only: {"categories": [{"tag": "tag_name", "category": "category_name"}]}`
               },
               {
                 role: 'user',
@@ -1306,6 +1322,7 @@ window.App = {
 - background: Environments, scenery, lighting, settings, weather
 - quality: Image quality enhancers, resolution, detail level
 - style: Art styles, techniques, artist names, aesthetic choices
+- composition: Camera angles, views, shots, framing, perspectives (full body, close-up, low angle, etc.)
 - object: Items, props, tools, decorative elements
 - other: Anything that doesn't fit the above categories
 
@@ -3102,7 +3119,7 @@ Object.assign(App, {
           messages: [
             {
               role: 'system',
-              content: `Categorize image generation tags into: person, appearance, clothing, action, background, quality, style, object, or other. Respond ONLY with valid JSON: {"categories": [{"tag": "tag_name", "category": "category_name"}]}`
+              content: `Categorize image generation tags into: person, appearance, clothing, action, background, quality, style, composition, object, or other. Respond ONLY with valid JSON: {"categories": [{"tag": "tag_name", "category": "category_name"}]}`
             },
             {
               role: 'user',
@@ -3212,7 +3229,7 @@ Object.assign(App, {
             messages: [
               {
                 role: 'system',
-                content: `Categorize image generation tags into: person, appearance, clothing, action, background, quality, style, object, or other. Respond with JSON only: {"categories": [{"tag": "tag_name", "category": "category_name"}]}`
+                content: `Categorize image generation tags into: person, appearance, clothing, action, background, quality, style, composition, object, or other. Respond with JSON only: {"categories": [{"tag": "tag_name", "category": "category_name"}]}`
               },
               {
                 role: 'user',
