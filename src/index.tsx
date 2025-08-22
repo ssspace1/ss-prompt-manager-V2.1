@@ -238,6 +238,108 @@ Rules:
   }
 });
 
+// NEW API: AI Generate Bilingual Tags based on English input
+app.post('/api/generate-bilingual-tags', async (c) => {
+  const { englishTags, model = 'openai/gpt-4o-mini', apiKey, systemPrompt } = await c.req.json();
+  
+  if (!englishTags || !Array.isArray(englishTags) || englishTags.length === 0) {
+    return c.json({ error: 'English tags array is required' }, 400);
+  }
+  
+  const key = apiKey || c.env?.AI_API_KEY;
+  
+  if (!key) {
+    return c.json({ error: 'API key is required' }, 400);
+  }
+  
+  const defaultSystemPrompt = `You are a tag normalizer & bilingual mapper for image prompts.
+Input: a JSON array of English tags (canonically snake_case).
+Output ONLY JSON:
+{
+  "pairs": [
+    {
+      "en": "...",
+      "ja": "...", 
+      "weight": number,
+      "category": "person|appearance|clothes|pose|background|quality|style|other"
+    }
+  ]
+}
+Rules:
+- Produce short, natural Japanese tags that creators actually write.
+- Keep one-to-one meaning with the English tag; avoid free paraphrasing.  
+- If weight is not provided, set 1.0. Guess category reasonably.
+- No markdown, no explanations.`;
+  
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+        'X-Title': 'SS Prompt Manager'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt || defaultSystemPrompt
+          },
+          {
+            role: 'user',
+            content: JSON.stringify(englishTags)
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Generation API failed');
+    }
+    
+    const data = await response.json();
+    const resultText = data.choices[0].message.content.trim();
+    
+    try {
+      // Parse JSON response
+      const result = JSON.parse(resultText);
+      
+      if (!result.pairs || !Array.isArray(result.pairs)) {
+        throw new Error('Invalid JSON structure');
+      }
+      
+      // Add IDs to tags
+      const pairs = result.pairs.map((pair, i) => ({
+        id: Date.now() + i,
+        en: pair.en,
+        ja: pair.ja,
+        weight: pair.weight || 1.0,
+        category: pair.category || 'other'
+      }));
+      
+      return c.json({
+        pairs: pairs,
+        model,
+        raw: resultText
+      });
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return c.json({ 
+        error: 'AI returned invalid JSON format',
+        raw: resultText 
+      }, 500);
+    }
+    
+  } catch (error) {
+    console.error('Generation error:', error);
+    return c.json({ error: 'Failed to generate bilingual tags' }, 500);
+  }
+});
+
 // Helper function to categorize tags
 function categorizeTag(text: string): string {
   const categoryKeywords = {
@@ -375,18 +477,38 @@ const appHtml = `<!DOCTYPE html>
             margin-top: -1px !important;
         }
         
-        /* Ensure no space between elements */
-        #tags-en, #tags-ja, #image-tags-en, #image-tags-ja {
+        /* Ensure no space between elements for main tabs */
+        #tags-en, #tags-ja {
             line-height: 0;
         }
         
-        #tags-en > *, #tags-ja > *, #image-tags-ja > * {
+        #tags-en > *, #tags-ja > * {
+            line-height: normal;
+        }
+        
+        /* Image tab tags should have proper spacing */
+        #image-tags-en, #image-tags-ja {
             line-height: normal;
         }
         
         /* Only slight hover effect, no movement */
         .tag-card:hover {
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        /* Enhanced scrollbar for tag lists */
+        #image-tags-en, #image-tags-ja {
+            overflow-y: auto !important;
+            max-height: 100% !important;
+        }
+        
+        /* Ensure proper spacing for image tab tags */
+        #image-tags-en > *, #image-tags-ja > * {
+            margin-bottom: 4px;
+        }
+        
+        #image-tags-en > *:last-child, #image-tags-ja > *:last-child {
+            margin-bottom: 0;
         }
         
         /* Compact arrow buttons */
@@ -768,7 +890,7 @@ const appHtml = `<!DOCTYPE html>
                                     <!-- Split Button -->
                                     <button onclick="App.splitText()" 
                                             class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors border-2 border-blue-600">
-                                        <i class="fas fa-cut mr-2"></i>Split
+                                        <i class="fas fa-cut mr-2"></i>Split to Tags
                                     </button>
                                     
                                     <!-- AI Generate Button -->
@@ -1020,53 +1142,52 @@ const appHtml = `<!DOCTYPE html>
             
             <!-- Image Tab Content -->
             <div id="content-image" class="h-full p-4 hidden">
-                <div id="image-split-container" class="flex flex-col gap-4 h-full">
-                    <!-- Top Section: Image Input and AI Output side by side -->
-                    <div class="flex gap-4">
-                        <!-- Left: Image Input -->
-                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1">
-                            <div class="flex items-center justify-between mb-3">
-                                <h2 class="text-lg font-semibold text-gray-700">
-                                    <i class="fas fa-image mr-2 text-purple-500"></i>
+                <div id="image-split-container" class="flex flex-col gap-2 h-full">
+                    <!-- Top Section: Image Input and AI Output side by side - Compressed -->
+                    <div class="flex gap-2 h-[160px] flex-shrink-0">
+                        <!-- Left: Image Input - Compact -->
+                        <section class="bg-white rounded-lg shadow-sm p-2 flex-1">
+                            <div class="flex items-center justify-between mb-2">
+                                <h2 class="text-sm font-semibold text-gray-700">
+                                    <i class="fas fa-image mr-1 text-purple-500"></i>
                                     Input
                                 </h2>
                                 <button onclick="App.clearImage()" 
-                                        class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                        class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
                                     <i class="fas fa-trash mr-1"></i>Clear
                                 </button>
                             </div>
                             
                             <!-- Compact Image Drop Zone -->
                             <div id="image-drop-zone" 
-                                 class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors cursor-pointer h-32 flex items-center justify-center"
+                                 class="border-2 border-dashed border-gray-300 rounded p-2 text-center hover:border-blue-400 transition-colors cursor-pointer h-[100px] flex items-center justify-center"
                                  ondrop="App.handleImageDrop(event)"
                                  ondragover="App.handleDragOver(event)"
                                  ondragleave="App.handleDragLeave(event)"
                                  onclick="document.getElementById('image-file-input').click()">
                                 
                                 <div id="image-preview-container" class="hidden w-full h-full">
-                                    <img id="image-preview" class="max-w-full max-h-full object-contain rounded-lg" />
+                                    <img id="image-preview" class="max-w-full max-h-full object-contain rounded" />
                                 </div>
                                 
                                 <div id="image-upload-prompt">
-                                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
-                                    <p class="text-sm text-gray-600">Drop image or click</p>
-                                    <p class="text-xs text-gray-500">Max 10MB</p>
+                                    <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-1"></i>
+                                    <p class="text-xs text-gray-600">Drop image or click</p>
                                 </div>
                             </div>
                             
                             <input type="file" id="image-file-input" accept="image/*" class="hidden" onchange="App.handleImageUpload(event)">
                         </section>
                         
-                        <!-- Right: AI Format Output -->
-                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1">
-                            <div class="flex items-center justify-between mb-3">
-                                <h2 class="text-lg font-semibold text-gray-700">
-                                    <i class="fas fa-sparkles mr-2 text-cyan-500"></i>
+                        <!-- Right: AI Format Output - Compact -->
+                        <section class="bg-white rounded-lg shadow-sm p-2 flex-1">
+                            <div class="flex items-center justify-between mb-2">
+                                <h2 class="text-sm font-semibold text-gray-700">
+                                    <i class="fas fa-sparkles mr-1 text-cyan-500"></i>
                                     AI Format Prompt
                                 </h2>
                                 <button onclick="App.copyImagePrompt()" 
-                                        class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                        class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
                                     <i class="fas fa-copy mr-1"></i>Copy
                                 </button>
                             </div>
@@ -1074,36 +1195,36 @@ const appHtml = `<!DOCTYPE html>
                             <!-- AI Generated Prompt Display -->
                             <textarea id="image-generated-prompt" 
                                       placeholder="AI formatted prompt will appear here..."
-                                      class="w-full h-32 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-sm"
+                                      class="w-full h-[80px] p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
                                       onchange="App.updateImagePromptOutput()"></textarea>
                             
                             <!-- Split to Tags Button -->
-                            <div class="mt-3">
+                            <div class="mt-2">
                                 <button onclick="App.splitImagePrompt()" 
-                                        class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors border-2 border-blue-600">
-                                    <i class="fas fa-cut mr-2"></i>Split
+                                        class="w-full px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors border border-blue-600">
+                                    <i class="fas fa-cut mr-1"></i>Split
                                 </button>
                             </div>
                         </section>
                     </div>
                     
-                    <!-- Middle Section: Controls and Actions - Redesigned -->
-                    <div class="bg-white rounded-lg shadow-sm p-3">
-                        <div class="flex items-center gap-3 flex-wrap">
+                    <!-- Middle Section: Controls and Actions - Compact -->
+                    <div class="bg-white rounded-lg shadow-sm p-2 flex-shrink-0">
+                        <div class="flex items-center gap-2 flex-wrap text-sm">
                             <!-- AI Analysis Toggle -->
                             <button onclick="App.toggleAnalysisResult()" 
-                                    class="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+                                    class="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors flex items-center gap-1"
                                     id="toggle-analysis-btn">
-                                <i class="fas fa-eye"></i>
-                                <span id="toggle-analysis-text">Analysis</span>
-                                <i class="fas fa-chevron-down" id="toggle-analysis-icon"></i>
+                                <i class="fas fa-eye text-xs"></i>
+                                <span id="toggle-analysis-text" class="text-xs">Analysis</span>
+                                <i class="fas fa-chevron-down text-xs" id="toggle-analysis-icon"></i>
                             </button>
                             
                             <!-- Format Selection -->
-                            <div class="flex items-center gap-2">
-                                <label class="text-sm text-gray-600 font-medium">Format:</label>
+                            <div class="flex items-center gap-1">
+                                <label class="text-xs text-gray-600">Format:</label>
                                 <select id="image-output-format" onchange="App.updateImageOutputFormat()" 
-                                        class="px-3 py-2 border rounded-lg text-sm min-w-[120px]">
+                                        class="px-2 py-1 border rounded text-xs min-w-[100px]">
                                     <option value="sdxl">SDXL Tags</option>
                                     <option value="flux">Flux Phrases</option>
                                     <option value="imagefx">ImageFX Commands</option>
@@ -1114,22 +1235,22 @@ const appHtml = `<!DOCTYPE html>
                             <!-- Tool Buttons -->
                             <div class="flex items-center gap-1">
                                 <button onclick="App.showImagePromptEditor()" 
-                                        class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                                        class="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
                                         title="Edit System Prompt">
-                                    <i class="fas fa-cog"></i>
+                                    <i class="fas fa-cog text-xs"></i>
                                 </button>
                                 <button onclick="App.addImageCustomFormat()" 
-                                        class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+                                        class="p-1 text-green-600 hover:text-green-800 hover:bg-green-100 rounded transition-colors"
                                         title="Add Custom Format">
-                                    <i class="fas fa-plus"></i>
+                                    <i class="fas fa-plus text-xs"></i>
                                 </button>
                             </div>
                             
                             <!-- Model Selection -->
-                            <div class="flex items-center gap-2">
-                                <label class="text-sm text-gray-600 font-medium">Model:</label>
+                            <div class="flex items-center gap-1">
+                                <label class="text-xs text-gray-600">Model:</label>
                                 <select id="vision-model-select" onchange="App.updateVisionModel()" 
-                                        class="px-3 py-2 border rounded-lg text-sm min-w-[140px]">
+                                        class="px-2 py-1 border rounded text-xs min-w-[120px]">
                                     <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash</option>
                                     <option value="google/gemini-flash-1.5-8b">Gemini 1.5 8B (Free)</option>
                                     <option value="google/gemini-flash-1.5">Gemini 1.5</option>
@@ -1142,80 +1263,80 @@ const appHtml = `<!DOCTYPE html>
                             
                             <!-- AI Generate Button -->
                             <button onclick="App.generateFromImage()" 
-                                    class="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 border-purple-600 shadow-md"
+                                    class="px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-purple-600 shadow-sm"
                                     id="image-ai-generate-btn" disabled>
-                                <i class="fas fa-magic mr-2"></i>AI Generate
+                                <i class="fas fa-magic mr-1 text-xs"></i><span class="text-xs">AI Generate</span>
                             </button>
                         </div>
                         
                         <!-- Collapsible AI Analysis Result -->
-                        <div id="analysis-result-container" class="mt-4 hidden">
-                            <div class="border-t pt-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h3 class="text-sm font-semibold text-gray-700">
+                        <div id="analysis-result-container" class="mt-2 hidden">
+                            <div class="border-t pt-2">
+                                <div class="flex items-center justify-between mb-1">
+                                    <h3 class="text-xs font-semibold text-gray-700">
                                         <i class="fas fa-brain mr-1 text-blue-500"></i>
                                         AI Analysis Result
                                     </h3>
                                     <button onclick="App.copyAnalysisResult()" 
-                                            class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
+                                            class="px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
                                         <i class="fas fa-copy mr-1"></i>Copy
                                     </button>
                                 </div>
-                                <div id="image-analysis-result" class="p-2 bg-gray-50 rounded-lg max-h-32 overflow-y-auto custom-scrollbar text-sm">
-                                    <p class="text-gray-500 text-sm italic">No analysis yet...</p>
+                                <div id="image-analysis-result" class="p-2 bg-gray-50 rounded max-h-20 overflow-y-auto custom-scrollbar text-xs">
+                                    <p class="text-gray-500 text-xs italic">No analysis yet...</p>
                                 </div>
                             </div>
                         </div>
 
                     </div>
                     
-                    <!-- Bottom Section: Tag Editor and Final Output -->
-                    <div class="flex gap-4 flex-1">
-                        <!-- Tag Editor Section -->
-                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1">
-                            <div class="flex items-center justify-between mb-3">
-                                <h2 class="text-lg font-semibold text-gray-700">
-                                    <i class="fas fa-tags mr-2 text-green-500"></i>
+                    <!-- Bottom Section: Tag Editor and Final Output - Enhanced -->
+                    <div class="flex gap-2 flex-1 min-h-0">
+                        <!-- Tag Editor Section - Expanded with better scrolling -->
+                        <section class="bg-white rounded-lg shadow-sm p-3 flex-1 flex flex-col min-h-0">
+                            <div class="flex items-center justify-between mb-2 flex-shrink-0">
+                                <h2 class="text-base font-semibold text-gray-700">
+                                    <i class="fas fa-tags mr-1 text-green-500"></i>
                                     Tag Editor
                                 </h2>
-                                <div class="flex gap-2">
+                                <div class="flex gap-1">
                                     <button onclick="App.sortImageTags('category')" 
-                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
+                                            class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors tooltip" 
                                             data-tooltip="Sort by Category">
                                         <i class="fas fa-sort-alpha-down"></i>
                                     </button>
                                     <button onclick="App.sortImageTags('weight')" 
-                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
+                                            class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors tooltip" 
                                             data-tooltip="Sort by Weight">
                                         <i class="fas fa-sort-numeric-down"></i>
                                     </button>
                                     <button onclick="App.aiCategorizeImageTags()" 
-                                            class="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-lg transition-colors tooltip" 
+                                            class="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded transition-colors tooltip" 
                                             data-tooltip="AI Categorize Tags">
-                                        <i class="fas fa-brain"></i>
+                                        <i class="fas fa-brain text-xs"></i>
                                     </button>
                                 </div>
                             </div>
                             
                             <!-- Bilingual Tag Columns for Image Tab -->
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-2 gap-3 flex-1 min-h-0">
                                 <!-- English Column -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-2 pb-2 border-b">
-                                        <h3 class="font-medium text-gray-700">
+                                <div class="flex flex-col min-h-0">
+                                    <div class="flex items-center justify-between mb-2 pb-1 border-b flex-shrink-0">
+                                        <h3 class="text-sm font-medium text-gray-700">
                                             <i class="fas fa-globe mr-1 text-blue-500"></i>English
                                         </h3>
                                         <button onclick="App.translateImageTags('en-to-ja')" 
-                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors">
+                                                class="text-xs px-2 py-0.5 bg-blue-100 hover:bg-blue-200 rounded transition-colors">
                                             Translate All →
                                         </button>
                                     </div>
                                     
                                     <!-- Add New Tag -->
-                                    <div class="flex gap-1 mb-3">
+                                    <div class="flex gap-1 mb-2 flex-shrink-0">
                                         <input type="text" id="new-image-tag-en" 
                                                placeholder="Add new tag..." 
-                                               class="flex-1 px-2 py-1 text-sm border rounded"
+                                               class="flex-1 px-2 py-1 text-xs border rounded"
                                                onkeydown="if(event.key==='Enter') App.addNewImageTag('en')">
                                         <button onclick="App.addNewImageTag('en')" 
                                                 class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
@@ -1223,29 +1344,29 @@ const appHtml = `<!DOCTYPE html>
                                         </button>
                                     </div>
                                     
-                                    <!-- Tag List -->
-                                    <div id="image-tags-en" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+                                    <!-- Tag List with proper scrolling -->
+                                    <div id="image-tags-en" class="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0" style="max-height: 100%;">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
                                 
                                 <!-- Japanese Column -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-2 pb-2 border-b">
-                                        <h3 class="font-medium text-gray-700">
+                                <div class="flex flex-col min-h-0">
+                                    <div class="flex items-center justify-between mb-2 pb-1 border-b flex-shrink-0">
+                                        <h3 class="text-sm font-medium text-gray-700">
                                             <i class="fas fa-torii-gate mr-1 text-red-500"></i>日本語
                                         </h3>
                                         <button onclick="App.translateImageTags('ja-to-en')" 
-                                                class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded transition-colors">
+                                                class="text-xs px-2 py-0.5 bg-red-100 hover:bg-red-200 rounded transition-colors">
                                             ← Translate All
                                         </button>
                                     </div>
                                     
                                     <!-- Add New Tag -->
-                                    <div class="flex gap-1 mb-3">
+                                    <div class="flex gap-1 mb-2 flex-shrink-0">
                                         <input type="text" id="new-image-tag-ja" 
                                                placeholder="新しいタグを追加..." 
-                                               class="flex-1 px-2 py-1 text-sm border rounded"
+                                               class="flex-1 px-2 py-1 text-xs border rounded"
                                                onkeydown="if(event.key==='Enter') App.addNewImageTag('ja')">
                                         <button onclick="App.addNewImageTag('ja')" 
                                                 class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
@@ -1253,25 +1374,25 @@ const appHtml = `<!DOCTYPE html>
                                         </button>
                                     </div>
                                     
-                                    <!-- Tag List -->
-                                    <div id="image-tags-ja" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+                                    <!-- Tag List with proper scrolling -->
+                                    <div id="image-tags-ja" class="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0" style="max-height: 100%;">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
                             </div>
                         </section>
                         
-                        <!-- Final Output Section -->
-                        <section class="bg-white rounded-lg shadow-sm p-4 w-96">
-                            <div class="flex items-center justify-between mb-3">
-                                <h2 class="text-lg font-semibold text-gray-700">
-                                    <i class="fas fa-file-export mr-2 text-orange-500"></i>
+                        <!-- Final Output Section - Compact -->
+                        <section class="bg-white rounded-lg shadow-sm p-3 w-80 flex flex-col">
+                            <div class="flex items-center justify-between mb-2">
+                                <h2 class="text-base font-semibold text-gray-700">
+                                    <i class="fas fa-file-export mr-1 text-orange-500"></i>
                                     Final Output
                                 </h2>
-                                <div class="flex items-center gap-2">
-                                    <label class="text-sm text-gray-600">Format:</label>
+                                <div class="flex items-center gap-1">
+                                    <label class="text-xs text-gray-600">Format:</label>
                                     <select id="image-final-output-format" onchange="App.updateImageFinalFormat()" 
-                                            class="px-2 py-1 border rounded text-sm">
+                                            class="px-2 py-1 border rounded text-xs">
                                         <option value="sdxl">SDXL Tags</option>
                                         <option value="flux">Flux Phrases</option>
                                         <option value="imagefx">ImageFX</option>
@@ -1282,21 +1403,21 @@ const appHtml = `<!DOCTYPE html>
                             
                             <textarea id="image-final-output" 
                                       placeholder="Final formatted output will appear here..."
-                                      class="w-full h-32 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
+                                      class="w-full h-24 p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-xs"
                                       readonly></textarea>
                             
-                            <div class="flex gap-2 mt-3">
+                            <div class="flex gap-1 mt-2">
                                 <button onclick="App.copyImageFinalOutput()" 
-                                        class="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                        class="flex-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
                                     <i class="fas fa-copy mr-1"></i>Copy
                                 </button>
                                 <button onclick="App.downloadImageOutput()" 
-                                        class="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                        class="flex-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
                                     <i class="fas fa-download mr-1"></i>Download
                                 </button>
                                 <button onclick="App.sendImageToMainEditor()" 
-                                        class="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                                    <i class="fas fa-arrow-right mr-1"></i>Send to Main
+                                        class="flex-1 px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                    <i class="fas fa-arrow-right mr-1"></i>Send
                                 </button>
                             </div>
                         </section>

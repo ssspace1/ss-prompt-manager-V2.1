@@ -1397,47 +1397,89 @@ Respond ONLY with valid JSON format:
   },
   
   generateOptimized: async () => {
-    const input = document.getElementById('input-text');
-    if (!input || !input.value.trim()) return;
-    
+    // NEW SPEC: AI Generate should work with existing English tags or split text first
     if (!appState.apiKey) {
       alert('Please set your OpenRouter API key in Settings first');
       return;
     }
     
-    showLoading('Generating optimized tags with AI...');
+    let englishTags = [];
+    
+    // Check if we have existing tags with English content
+    if (appState.tags && appState.tags.length > 0) {
+      // Use existing English tags
+      englishTags = appState.tags.map(tag => tag.en).filter(en => en && en.trim());
+    } else {
+      // Split input text first if no existing tags
+      const input = document.getElementById('input-text');
+      if (!input || !input.value.trim()) {
+        alert('Please enter some text or split it into tags first');
+        return;
+      }
+      
+      // Parse text into tags using existing split logic
+      const parsedTags = App.parseComplexTags(input.value.trim());
+      englishTags = parsedTags.map(tag => tag.text);
+    }
+    
+    if (englishTags.length === 0) {
+      alert('No English tags found to process');
+      return;
+    }
+    
+    showLoading('Generating わかりやすい日本語タグ with AI...');
     
     try {
       // Get custom system prompt if available
-      const systemPrompt = appState.systemPrompts[appState.outputFormat] || null;
+      const systemPrompt = appState.systemPrompts['bilingual-tags'] || null;
       
-      const response = await fetch('/api/generate-tags', {
+      const response = await fetch('/api/generate-bilingual-tags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: input.value.trim(),
-          format: appState.outputFormat,
+          englishTags: englishTags,
+          model: appState.selectedModel || 'openai/gpt-4o-mini',
           apiKey: appState.apiKey,
-          systemPrompt: systemPrompt // Send custom prompt if available
+          systemPrompt: systemPrompt
         })
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate tags');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate bilingual tags');
       }
       
       const data = await response.json();
       
-      if (data.tags && data.tags.length > 0) {
-        appState.tags = data.tags;
-        renderTags();
+      if (data.pairs && data.pairs.length > 0) {
+        // Update existing tags or create new ones
+        if (appState.tags && appState.tags.length > 0) {
+          // Diff update: preserve existing Japanese if user has edited it
+          appState.tags.forEach((existingTag, index) => {
+            const matchedPair = data.pairs.find(pair => pair.en === existingTag.en);
+            if (matchedPair) {
+              // Only update if Japanese is empty or same as English (not user-edited)
+              if (!existingTag.ja || existingTag.ja === existingTag.en) {
+                existingTag.ja = matchedPair.ja;
+              }
+              // Always update weight and category from AI
+              existingTag.weight = matchedPair.weight;
+              existingTag.category = matchedPair.category;
+            }
+          });
+        } else {
+          // Create new tags from AI pairs
+          appState.tags = data.pairs;
+        }
+        
+        TagEditor.renderTags('main');
         
         // Show notification
-        showNotification(`Generated ${data.tags.length} tags with AI`);
+        showNotification(`Generated ${data.pairs.length} わかりやすい日本語タグ with AI`, 'success');
       }
     } catch (error) {
       console.error('Generation error:', error);
-      alert('Failed to generate tags with AI. Please check your API key and try again.');
+      alert(`Failed to generate bilingual tags: ${error.message}`);
     } finally {
       hideLoading();
     }
@@ -4920,6 +4962,292 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+
+// Translation Functions
+async function translateWithAI(text, targetLang = 'ja', sourceLang = 'en') {
+  if (!appState.apiKey) {
+    return translationDict[text.toLowerCase()] || text;
+  }
+  
+  try {
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text,
+        sourceLang: sourceLang,
+        targetLang: targetLang,
+        model: appState.selectedModel || 'openai/gpt-4o-mini',
+        apiKey: appState.apiKey
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Translation failed');
+    }
+    
+    const data = await response.json();
+    return data.translated || text;
+  } catch (error) {
+    console.error('Translation error:', error);
+    return translationDict[text.toLowerCase()] || text;
+  }
+}
+
+// Enhanced Tag Editor Methods for Bilingual Sync
+TagEditor.mainTag = {
+  // Update text with translation sync
+  updateText: async (index, lang, newText) => {
+    const tag = appState.tags[index];
+    if (!tag) return;
+    
+    // Update the edited side
+    tag[lang] = newText;
+    
+    // Translate to other language
+    const otherLang = lang === 'en' ? 'ja' : 'en';
+    const sourceLang = lang;
+    const targetLang = otherLang;
+    
+    showLoading('翻訳中...');
+    try {
+      const translated = await translateWithAI(newText, targetLang, sourceLang);
+      tag[otherLang] = translated;
+      
+      // Re-categorize if English was changed
+      if (lang === 'en') {
+        tag.category = App.categorizeTag(newText);
+      }
+      
+      TagEditor.renderTags('main');
+      showNotification('翻訳が完了しました', 'success');
+    } catch (error) {
+      showNotification('翻訳に失敗しました', 'error');
+    } finally {
+      hideLoading();
+    }
+  },
+  
+  // Increase weight
+  increaseWeight: (index) => {
+    const tag = appState.tags[index];
+    if (tag) {
+      tag.weight = Math.min(2.0, tag.weight + 0.1);
+      TagEditor.renderTags('main');
+    }
+  },
+  
+  // Decrease weight
+  decreaseWeight: (index) => {
+    const tag = appState.tags[index];
+    if (tag) {
+      tag.weight = Math.max(0.1, tag.weight - 0.1);
+      TagEditor.renderTags('main');
+    }
+  },
+  
+  // Remove tag
+  remove: (index) => {
+    appState.tags.splice(index, 1);
+    TagEditor.renderTags('main');
+  }
+};
+
+TagEditor.imageTag = {
+  // Update text with translation sync
+  updateText: async (index, lang, newText) => {
+    const tag = App.imageState.imageTags[index];
+    if (!tag) return;
+    
+    // Update the edited side
+    tag[lang] = newText;
+    
+    // Translate to other language
+    const otherLang = lang === 'en' ? 'ja' : 'en';
+    const sourceLang = lang;
+    const targetLang = otherLang;
+    
+    showLoading('翻訳中...');
+    try {
+      const translated = await translateWithAI(newText, targetLang, sourceLang);
+      tag[otherLang] = translated;
+      
+      // Re-categorize if English was changed
+      if (lang === 'en') {
+        tag.category = App.categorizeTag(newText);
+      }
+      
+      TagEditor.renderTags('image');
+      showNotification('翻訳が完了しました', 'success');
+    } catch (error) {
+      showNotification('翻訳に失敗しました', 'error');
+    } finally {
+      hideLoading();
+    }
+  },
+  
+  // Increase weight
+  increaseWeight: (index) => {
+    const tag = App.imageState.imageTags[index];
+    if (tag) {
+      tag.weight = Math.min(2.0, tag.weight + 0.1);
+      TagEditor.renderTags('image');
+    }
+  },
+  
+  // Decrease weight
+  decreaseWeight: (index) => {
+    const tag = App.imageState.imageTags[index];
+    if (tag) {
+      tag.weight = Math.max(0.1, tag.weight - 0.1);
+      TagEditor.renderTags('image');
+    }
+  },
+  
+  // Remove tag
+  remove: (index) => {
+    App.imageState.imageTags.splice(index, 1);
+    TagEditor.renderTags('image');
+  }
+};
+
+// Translate All Functions
+App.translateAll = async (direction) => {
+  const isImageTab = appState.currentTab === 'image';
+  const tags = isImageTab ? App.imageState.imageTags : appState.tags;
+  
+  if (tags.length === 0) {
+    showNotification('翻訳するタグがありません', 'info');
+    return;
+  }
+  
+  const isEnToJa = direction === 'en-to-ja';
+  const sourceLang = isEnToJa ? 'en' : 'ja';
+  const targetLang = isEnToJa ? 'ja' : 'en';
+  
+  showLoading(`${tags.length}個のタグを翻訳中...`);
+  
+  try {
+    for (let i = 0; i < tags.length; i++) {
+      const tag = tags[i];
+      const sourceText = tag[sourceLang];
+      
+      if (sourceText && sourceText.trim()) {
+        const translated = await translateWithAI(sourceText, targetLang, sourceLang);
+        tag[targetLang] = translated;
+        
+        // Progress update
+        if (i % 5 === 0) {
+          showLoading(`翻訳中... ${i + 1}/${tags.length}`);
+        }
+      }
+    }
+    
+    TagEditor.renderTags(isImageTab ? 'image' : 'main');
+    showNotification(`${tags.length}個のタグの翻訳が完了しました`, 'success');
+  } catch (error) {
+    console.error('Translate all error:', error);
+    showNotification('一括翻訳に失敗しました', 'error');
+  } finally {
+    hideLoading();
+  }
+};
+
+// For Image Tab
+App.translateImageTags = App.translateAll;
+
+// Add New Tag Functions
+App.addNewTag = async (lang) => {
+  const inputId = `new-tag-${lang}`;
+  const input = document.getElementById(inputId);
+  
+  if (!input || !input.value.trim()) return;
+  
+  const newText = input.value.trim();
+  const otherLang = lang === 'en' ? 'ja' : 'en';
+  
+  showLoading('タグを追加中...');
+  
+  try {
+    // Translate to other language
+    const translated = await translateWithAI(newText, otherLang, lang);
+    
+    // Create new tag
+    const newTag = {
+      id: Date.now(),
+      weight: 1.0,
+      category: lang === 'en' ? App.categorizeTag(newText) : 'other'
+    };
+    
+    newTag[lang] = newText;
+    newTag[otherLang] = translated;
+    
+    // Add to tags array
+    appState.tags.push(newTag);
+    
+    // Clear input
+    input.value = '';
+    
+    // Re-render
+    TagEditor.renderTags('main');
+    
+    showNotification('新しいタグを追加しました', 'success');
+  } catch (error) {
+    console.error('Add tag error:', error);
+    showNotification('タグの追加に失敗しました', 'error');
+  } finally {
+    hideLoading();
+  }
+};
+
+App.addNewImageTag = async (lang) => {
+  const inputId = `new-image-tag-${lang}`;
+  const input = document.getElementById(inputId);
+  
+  if (!input || !input.value.trim()) return;
+  
+  const newText = input.value.trim();
+  const otherLang = lang === 'en' ? 'ja' : 'en';
+  
+  showLoading('タグを追加中...');
+  
+  try {
+    // Translate to other language
+    const translated = await translateWithAI(newText, otherLang, lang);
+    
+    // Create new tag
+    const newTag = {
+      id: `img-tag-${Date.now()}`,
+      weight: 1.0,
+      category: lang === 'en' ? App.categorizeTag(newText) : 'other'
+    };
+    
+    newTag[lang] = newText;
+    newTag[otherLang] = translated;
+    
+    // Add to image tags array
+    App.imageState.imageTags.push(newTag);
+    
+    // Clear input
+    input.value = '';
+    
+    // Re-render
+    TagEditor.renderTags('image');
+    
+    showNotification('新しいタグを追加しました', 'success');
+  } catch (error) {
+    console.error('Add image tag error:', error);
+    showNotification('タグの追加に失敗しました', 'error');
+  } finally {
+    hideLoading();
+  }
+};
+
+// Final Output Update Functions (using existing TagEditor.formatOutput)
+function updateOutput() {
+  TagEditor.updateOutput('main');
+  TagEditor.updateOutput('image');
+}
 
 // Make App global
 window.App = App;
