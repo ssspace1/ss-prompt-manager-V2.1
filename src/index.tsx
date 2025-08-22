@@ -339,12 +339,21 @@ const appHtml = `<!DOCTYPE html>
             position: relative;
             min-height: auto;
             display: block;
-            margin-bottom: 0;
+            margin: 0 !important;
         }
         
-        /* Remove gaps between consecutive cards */
-        .tag-card + .drop-zone + .tag-card {
-            margin-top: -1px;
+        /* Stack cards directly with border overlap */
+        .tag-card:not(:first-child) {
+            margin-top: -1px !important;
+        }
+        
+        /* Ensure no space between elements */
+        #tags-en, #tags-ja, #image-tags-en, #image-tags-ja {
+            line-height: 0;
+        }
+        
+        #tags-en > *, #tags-ja > *, #image-tags-en > *, #image-tags-ja > * {
+            line-height: normal;
         }
         
         .tag-card:hover {
@@ -389,16 +398,19 @@ const appHtml = `<!DOCTYPE html>
             transition: all 0.2s ease;
             position: relative;
             overflow: hidden;
+            display: block;
+            line-height: 0;
         }
         
         .drop-zone-active {
-            height: 2px;
-            margin: 1px 0;
+            height: 0;
+            margin: 0;
+            padding: 0;
         }
         
         .drop-zone-hover {
             height: 16px;
-            margin: 4px 0;
+            margin: 2px 0;
             padding: 0;
             background: linear-gradient(90deg, 
                 rgba(59, 130, 246, 0.1) 0%, 
