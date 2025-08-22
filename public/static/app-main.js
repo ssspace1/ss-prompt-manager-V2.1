@@ -1325,3 +1325,528 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 });
+
+// Image to Prompt functionality extensions
+Object.assign(App, {
+  // Image handling state
+  imageState: {
+    imageData: null,
+    analysisResult: null,
+    visionModel: 'gemini-2.0-flash-exp',
+    imageOutputFormat: 'sdxl'
+  },
+  
+  // Handle image upload
+  handleImageUpload: (event) => {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      if (file.size > 10 * 1024 * 1024) {
+        showNotification('Image size must be less than 10MB', 'error');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        App.imageState.imageData = e.target.result;
+        App.displayImagePreview(e.target.result);
+        
+        // Enable analyze button
+        const analyzeBtn = document.getElementById('analyze-image-btn');
+        if (analyzeBtn) analyzeBtn.disabled = false;
+        
+        showNotification('Image uploaded successfully', 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+  },
+  
+  // Handle drag and drop
+  handleImageDrop: (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const dropZone = document.getElementById('image-drop-zone');
+    if (dropZone) dropZone.classList.remove('border-blue-400');
+    
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/')) {
+        const fileInput = document.getElementById('image-file-input');
+        fileInput.files = files;
+        App.handleImageUpload({ target: fileInput });
+      }
+    }
+  },
+  
+  handleDragOver: (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const dropZone = document.getElementById('image-drop-zone');
+    if (dropZone) dropZone.classList.add('border-blue-400');
+  },
+  
+  handleDragLeave: (event) => {
+    event.preventDefault();
+    const dropZone = document.getElementById('image-drop-zone');
+    if (dropZone) dropZone.classList.remove('border-blue-400');
+  },
+  
+  // Display image preview
+  displayImagePreview: (imageSrc) => {
+    const previewContainer = document.getElementById('image-preview-container');
+    const uploadPrompt = document.getElementById('image-upload-prompt');
+    const preview = document.getElementById('image-preview');
+    
+    if (previewContainer && uploadPrompt && preview) {
+      preview.src = imageSrc;
+      previewContainer.classList.remove('hidden');
+      uploadPrompt.classList.add('hidden');
+    }
+  },
+  
+  // Clear image
+  clearImage: () => {
+    App.imageState.imageData = null;
+    App.imageState.analysisResult = null;
+    
+    const previewContainer = document.getElementById('image-preview-container');
+    const uploadPrompt = document.getElementById('image-upload-prompt');
+    const fileInput = document.getElementById('image-file-input');
+    const analysisResult = document.getElementById('image-analysis-result');
+    const generatedPrompt = document.getElementById('image-generated-prompt');
+    const analyzeBtn = document.getElementById('analyze-image-btn');
+    const generateBtn = document.getElementById('generate-image-prompt-btn');
+    const sendBtn = document.getElementById('send-to-editor-btn');
+    
+    if (previewContainer) previewContainer.classList.add('hidden');
+    if (uploadPrompt) uploadPrompt.classList.remove('hidden');
+    if (fileInput) fileInput.value = '';
+    if (analysisResult) analysisResult.innerHTML = '<p class="text-gray-500 text-sm italic">Upload and analyze an image to see results here...</p>';
+    if (generatedPrompt) generatedPrompt.value = '';
+    if (analyzeBtn) analyzeBtn.disabled = true;
+    if (generateBtn) generateBtn.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
+    
+    showNotification('Image cleared', 'info');
+  },
+  
+  // Update vision model
+  updateVisionModel: () => {
+    const select = document.getElementById('vision-model-select');
+    if (select) {
+      App.imageState.visionModel = select.value;
+      localStorage.setItem('vision-model', select.value);
+    }
+  },
+  
+  // Analyze image using selected vision model
+  analyzeImage: async () => {
+    if (!App.imageState.imageData) {
+      showNotification('Please upload an image first', 'error');
+      return;
+    }
+    
+    if (!appState.apiKey) {
+      showNotification('Please configure your OpenRouter API key in settings', 'error');
+      return;
+    }
+    
+    const analyzeBtn = document.getElementById('analyze-image-btn');
+    const resultDiv = document.getElementById('image-analysis-result');
+    
+    if (analyzeBtn) {
+      analyzeBtn.disabled = true;
+      analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Analyzing...';
+    }
+    
+    if (resultDiv) {
+      resultDiv.innerHTML = '<div class="flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i>Analyzing image...</div>';
+    }
+    
+    try {
+      // Get system prompt
+      const systemPromptTextarea = document.getElementById('sp-image-analysis');
+      const systemPrompt = systemPromptTextarea?.value || App.getDefaultImageAnalysisPrompt();
+      
+      // Prepare the message with image
+      const messages = [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Analyze this image and describe what you see.'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: App.imageState.imageData
+              }
+            }
+          ]
+        }
+      ];
+      
+      // Call OpenRouter API with vision model
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${appState.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.href,
+          'X-Title': 'SS Prompt Manager'
+        },
+        body: JSON.stringify({
+          model: App.imageState.visionModel,
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to analyze image');
+      }
+      
+      const data = await response.json();
+      const analysis = data.choices[0].message.content;
+      
+      App.imageState.analysisResult = analysis;
+      
+      if (resultDiv) {
+        resultDiv.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${analysis}</pre>`;
+      }
+      
+      // Enable generation button
+      const generateBtn = document.getElementById('generate-image-prompt-btn');
+      if (generateBtn) generateBtn.disabled = false;
+      
+      showNotification('Image analyzed successfully', 'success');
+      
+    } catch (error) {
+      console.error('Image analysis error:', error);
+      showNotification(`Analysis failed: ${error.message}`, 'error');
+      
+      if (resultDiv) {
+        resultDiv.innerHTML = `<p class="text-red-500 text-sm">Error: ${error.message}</p>`;
+      }
+    } finally {
+      if (analyzeBtn) {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-2"></i>Analyze Image';
+      }
+    }
+  },
+  
+  // Generate optimized prompt from analysis
+  generateImagePrompt: async () => {
+    if (!App.imageState.analysisResult) {
+      showNotification('Please analyze the image first', 'error');
+      return;
+    }
+    
+    const generateBtn = document.getElementById('generate-image-prompt-btn');
+    const promptTextarea = document.getElementById('image-generated-prompt');
+    
+    if (generateBtn) {
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+    }
+    
+    try {
+      // Get system prompt for generation
+      const systemPromptTextarea = document.getElementById('sp-image-to-prompt');
+      const formatPrompts = App.getFormatSystemPrompts();
+      const systemPrompt = systemPromptTextarea?.value || formatPrompts[App.imageState.imageOutputFormat];
+      
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${appState.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.href,
+          'X-Title': 'SS Prompt Manager'
+        },
+        body: JSON.stringify({
+          model: appState.selectedModel || 'openai/gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: `Based on this image analysis, generate an optimized prompt:\n\n${App.imageState.analysisResult}`
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 300
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to generate prompt');
+      }
+      
+      const data = await response.json();
+      const generatedPrompt = data.choices[0].message.content;
+      
+      if (promptTextarea) {
+        promptTextarea.value = generatedPrompt;
+      }
+      
+      // Enable send button
+      const sendBtn = document.getElementById('send-to-editor-btn');
+      if (sendBtn) sendBtn.disabled = false;
+      
+      showNotification('Prompt generated successfully', 'success');
+      
+    } catch (error) {
+      console.error('Prompt generation error:', error);
+      showNotification(`Generation failed: ${error.message}`, 'error');
+    } finally {
+      if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-sparkles mr-2"></i>Generate Optimized Prompt';
+      }
+    }
+  },
+  
+  // Send generated prompt to tag editor
+  sendToTagEditor: () => {
+    const promptTextarea = document.getElementById('image-generated-prompt');
+    if (!promptTextarea || !promptTextarea.value) {
+      showNotification('No prompt to send', 'error');
+      return;
+    }
+    
+    // Switch to Text tab
+    App.setTab('text');
+    
+    // Put prompt in input textarea
+    const inputTextarea = document.getElementById('input-text');
+    if (inputTextarea) {
+      inputTextarea.value = promptTextarea.value;
+      
+      // Automatically split to tags
+      setTimeout(() => {
+        App.splitText();
+        showNotification('Prompt sent to Tag Editor', 'success');
+      }, 100);
+    }
+  },
+  
+  // Copy functions
+  copyAnalysisResult: () => {
+    if (App.imageState.analysisResult) {
+      navigator.clipboard.writeText(App.imageState.analysisResult);
+      showNotification('Analysis copied to clipboard', 'success');
+    }
+  },
+  
+  copyImagePrompt: () => {
+    const promptTextarea = document.getElementById('image-generated-prompt');
+    if (promptTextarea && promptTextarea.value) {
+      navigator.clipboard.writeText(promptTextarea.value);
+      showNotification('Prompt copied to clipboard', 'success');
+    }
+  },
+  
+  // Update output format
+  updateImageOutputFormat: () => {
+    const select = document.getElementById('image-output-format');
+    if (select) {
+      App.imageState.imageOutputFormat = select.value;
+      localStorage.setItem('image-output-format', select.value);
+    }
+  },
+  
+  // System prompt management
+  getDefaultImageAnalysisPrompt: () => {
+    return `You are an expert image analyst. Analyze the provided image and describe:
+1. Main subjects and their appearance
+2. Background and environment details
+3. Colors, lighting, and atmosphere
+4. Composition and style
+5. Any text or symbols visible
+6. Overall mood and artistic qualities
+
+Be detailed and specific in your description.`;
+  },
+  
+  getFormatSystemPrompts: () => {
+    return {
+      sdxl: `Convert the image analysis into SDXL format tags. Rules:
+1. Start with quality tags: masterpiece, best quality, ultra-detailed
+2. List subject tags with descriptive attributes
+3. Include background and environment tags
+4. Add style, lighting and atmosphere tags
+5. Format: comma-separated tags with optional weights (tag:1.2)
+6. Focus on visual elements that can be recreated`,
+      
+      flux: `Convert the image analysis into Flux natural language phrases. Rules:
+1. Write flowing, descriptive sentences
+2. Focus on the overall scene and atmosphere
+3. Include artistic style and mood descriptions
+4. Use natural, coherent language
+5. Avoid technical jargon or tags`,
+      
+      imagefx: `Convert the image analysis into ImageFX command format. Rules:
+1. Use clear, imperative commands
+2. Start with the main subject
+3. Add style and atmosphere commands
+4. Include technical parameters
+5. Format: Short command phrases`,
+      
+      natural: `Convert the image analysis into a natural language description suitable for image generation. Be descriptive but concise, focusing on the key visual elements that should be recreated.`
+    };
+  },
+  
+  resetImageAnalysisPrompt: () => {
+    const textarea = document.getElementById('sp-image-analysis');
+    if (textarea) {
+      textarea.value = App.getDefaultImageAnalysisPrompt();
+      showNotification('Reset to default analysis prompt', 'info');
+    }
+  },
+  
+  resetImageToPromptSystem: () => {
+    const textarea = document.getElementById('sp-image-to-prompt');
+    const format = App.imageState.imageOutputFormat;
+    const prompts = App.getFormatSystemPrompts();
+    
+    if (textarea) {
+      textarea.value = prompts[format];
+      showNotification('Reset to default generation prompt', 'info');
+    }
+  },
+  
+  saveImageSystemPrompts: () => {
+    const analysisPrompt = document.getElementById('sp-image-analysis');
+    const generationPrompt = document.getElementById('sp-image-to-prompt');
+    
+    const imagePrompts = {
+      analysis: analysisPrompt?.value || App.getDefaultImageAnalysisPrompt(),
+      generation: generationPrompt?.value || App.getFormatSystemPrompts()[App.imageState.imageOutputFormat]
+    };
+    
+    localStorage.setItem('image-system-prompts', JSON.stringify(imagePrompts));
+    showNotification('System prompts saved', 'success');
+  },
+  
+  // Apply templates
+  applyImageTemplate: (template) => {
+    const templates = {
+      artistic: `Analyze this image with focus on artistic elements:
+- Art style and technique
+- Color palette and harmony
+- Composition and balance
+- Emotional impact and mood
+- Artistic influences or movements
+- Visual metaphors or symbolism`,
+      
+      technical: `Provide technical analysis of this image:
+- Image quality and resolution
+- Lighting setup and direction
+- Camera angle and perspective
+- Depth of field and focus
+- Post-processing effects
+- Technical execution quality`,
+      
+      character: `Focus on character details in this image:
+- Physical appearance and features
+- Clothing and accessories
+- Pose and expression
+- Personality traits suggested
+- Age and demographics
+- Distinctive characteristics`,
+      
+      environment: `Analyze the environment and setting:
+- Location and setting type
+- Time of day and weather
+- Architectural or natural features
+- Props and objects present
+- Spatial relationships
+- Atmosphere and ambiance`
+    };
+    
+    const textarea = document.getElementById('sp-image-analysis');
+    if (textarea && templates[template]) {
+      textarea.value = templates[template];
+      showNotification(`Applied ${template} template`, 'success');
+    }
+  },
+  
+  // Edit system prompt for image
+  editImagePromptSystem: () => {
+    const textarea = document.getElementById('sp-image-to-prompt');
+    if (textarea) {
+      textarea.focus();
+      textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+});
+
+// Initialize Image to Prompt on load
+document.addEventListener('DOMContentLoaded', () => {
+  // Load saved vision model
+  const savedVisionModel = localStorage.getItem('vision-model');
+  if (savedVisionModel) {
+    const select = document.getElementById('vision-model-select');
+    if (select) {
+      select.value = savedVisionModel;
+      App.imageState.visionModel = savedVisionModel;
+    }
+  }
+  
+  // Load saved output format
+  const savedImageFormat = localStorage.getItem('image-output-format');
+  if (savedImageFormat) {
+    const select = document.getElementById('image-output-format');
+    if (select) {
+      select.value = savedImageFormat;
+      App.imageState.imageOutputFormat = savedImageFormat;
+    }
+  }
+  
+  // Load saved system prompts
+  const savedImagePrompts = localStorage.getItem('image-system-prompts');
+  if (savedImagePrompts) {
+    try {
+      const prompts = JSON.parse(savedImagePrompts);
+      const analysisTextarea = document.getElementById('sp-image-analysis');
+      const generationTextarea = document.getElementById('sp-image-to-prompt');
+      
+      if (analysisTextarea && prompts.analysis) {
+        analysisTextarea.value = prompts.analysis;
+      }
+      if (generationTextarea && prompts.generation) {
+        generationTextarea.value = prompts.generation;
+      }
+    } catch (e) {
+      console.error('Failed to load saved prompts:', e);
+    }
+  } else {
+    // Set default prompts
+    const analysisTextarea = document.getElementById('sp-image-analysis');
+    const generationTextarea = document.getElementById('sp-image-to-prompt');
+    
+    if (analysisTextarea) {
+      analysisTextarea.value = App.getDefaultImageAnalysisPrompt();
+    }
+    if (generationTextarea) {
+      const prompts = App.getFormatSystemPrompts();
+      generationTextarea.value = prompts[App.imageState.imageOutputFormat];
+    }
+  }
+});
+
+// Make App global
+window.App = App;
