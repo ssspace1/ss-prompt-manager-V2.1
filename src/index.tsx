@@ -761,51 +761,63 @@ const appHtml = `<!DOCTYPE html>
                                       placeholder="Enter your prompt, description, or idea here..."
                                       class="w-full h-32 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"></textarea>
                             
-                            <!-- Action Buttons -->
-                            <div class="flex gap-2 mt-3 flex-wrap items-center">
+                            <!-- Action Buttons - Redesigned -->
+                            <div class="flex items-center gap-3 mt-3 flex-wrap">
+                                <!-- Split Button -->
                                 <button onclick="App.splitText()" 
-                                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                                    <i class="fas fa-cut mr-2"></i>Split to Tags (Auto Color-Coded)
+                                        class="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
+                                    <i class="fas fa-cut"></i>✂️ Split
                                 </button>
                                 
-                                <div class="ml-auto flex items-center gap-2">
-                                    <label class="text-sm text-gray-600">AI Format:</label>
-                                    <div class="flex items-center gap-1">
-                                        <select id="output-format" onchange="App.updateOutputFormat()" 
-                                                class="px-3 py-2 border rounded-lg text-sm">
-                                            <option value="sdxl">SDXL Tags</option>
-                                            <option value="flux">Flux Phrases</option>
-                                            <option value="imagefx">ImageFX</option>
-                                            <option value="imagefx-natural">ImageFX Natural</option>
-                                        </select>
-                                        <button onclick="App.showPromptEditor()" 
-                                                class="px-2 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-                                                title="Edit System Prompt">
-                                            <i class="fas fa-cog"></i>
-                                        </button>
-                                        <button onclick="App.aiCategorizeAllTags()" 
-                                                class="px-2 py-2 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-lg transition-colors"
-                                                title="AI Categorize All Tags">
-                                            <i class="fas fa-brain"></i>
-                                        </button>
-                                        <button onclick="App.addCustomFormat()" 
-                                                class="px-2 py-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
-                                                title="Add Custom Format">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- Model indicator -->
-                                    <div class="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600" title="Current AI Model">
-                                        <i class="fas fa-robot mr-1"></i>
-                                        <span id="current-model-indicator">No model</span>
-                                    </div>
-                                    
-                                    <button onclick="App.generateOptimized()" 
-                                            class="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all">
-                                        <i class="fas fa-sparkles mr-2"></i>AI Generate
+                                <!-- Format Selection -->
+                                <div class="flex items-center gap-2">
+                                    <label class="text-sm text-gray-600 font-medium">Format:</label>
+                                    <select id="output-format" onchange="App.updateOutputFormat()" 
+                                            class="px-3 py-2 border rounded-lg text-sm min-w-[120px]">
+                                        <option value="sdxl">SDXL Tags</option>
+                                        <option value="flux">Flux Phrases</option>
+                                        <option value="imagefx">ImageFX</option>
+                                        <option value="imagefx-natural">ImageFX Natural</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Tool Buttons -->
+                                <div class="flex items-center gap-1">
+                                    <button onclick="App.showPromptEditor()" 
+                                            class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                                            title="Edit System Prompt">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                    <button onclick="App.addCustomFormat()" 
+                                            class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+                                            title="Add Custom Format">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                    <button onclick="App.aiCategorizeAllTags()" 
+                                            class="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-lg transition-colors"
+                                            title="AI Categorize All Tags">
+                                        <i class="fas fa-brain"></i>
                                     </button>
                                 </div>
+                                
+                                <!-- Model Selection -->
+                                <div class="flex items-center gap-2">
+                                    <label class="text-sm text-gray-600 font-medium">Model:</label>
+                                    <select id="model-selector" onchange="App.updateSelectedModel()" 
+                                            class="px-3 py-2 border rounded-lg text-sm min-w-[140px]">
+                                        <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                                        <option value="openai/gpt-4o">GPT-4o</option>
+                                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                                        <option value="google/gemini-pro-1.5">Gemini Pro 1.5</option>
+                                        <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- AI Generate Button -->
+                                <button onclick="App.generateOptimized()" 
+                                        class="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all flex items-center gap-2 shadow-md">
+                                    <i class="fas fa-magic"></i>✨ Generate
+                                </button>
                             </div>
                         </section>
                         
@@ -1062,42 +1074,46 @@ const appHtml = `<!DOCTYPE html>
                             <!-- Split to Tags Button -->
                             <div class="mt-3">
                                 <button onclick="App.splitImagePrompt()" 
-                                        class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                                    <i class="fas fa-cut mr-2"></i>Split to Tags (Auto Color-Coded)
+                                        class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+                                    <i class="fas fa-cut"></i>✂️ Split
                                 </button>
                             </div>
                         </section>
                     </div>
                     
-                    <!-- Middle Section: Controls and Actions -->
+                    <!-- Middle Section: Controls and Actions - Redesigned -->
                     <div class="bg-white rounded-lg shadow-sm p-3">
-                        <div class="flex items-center gap-3">
-                            <!-- AI Analysis Result Toggle -->
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <!-- AI Analysis Toggle -->
                             <button onclick="App.toggleAnalysisResult()" 
-                                    class="px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 text-sm"
+                                    class="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
                                     id="toggle-analysis-btn">
-                                <i class="fas fa-eye mr-1"></i>
-                                <span id="toggle-analysis-text">Show AI Analysis</span>
-                                <i class="fas fa-chevron-down ml-1" id="toggle-analysis-icon"></i>
+                                <i class="fas fa-eye"></i>
+                                <span id="toggle-analysis-text">Analysis</span>
+                                <i class="fas fa-chevron-down" id="toggle-analysis-icon"></i>
                             </button>
                             
                             <!-- Format Selection -->
                             <div class="flex items-center gap-2">
-                                <label class="text-sm text-gray-600">AI Format:</label>
+                                <label class="text-sm text-gray-600 font-medium">Format:</label>
                                 <select id="image-output-format" onchange="App.updateImageOutputFormat()" 
-                                        class="px-2 py-1 border rounded-lg text-sm">
+                                        class="px-3 py-2 border rounded-lg text-sm min-w-[120px]">
                                     <option value="sdxl">SDXL Tags</option>
                                     <option value="flux">Flux Phrases</option>
                                     <option value="imagefx">ImageFX Commands</option>
                                     <option value="natural">Natural Language</option>
                                 </select>
+                            </div>
+                            
+                            <!-- Tool Buttons -->
+                            <div class="flex items-center gap-1">
                                 <button onclick="App.showImagePromptEditor()" 
-                                        class="px-2 py-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                                        class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                                         title="Edit System Prompt">
                                     <i class="fas fa-cog"></i>
                                 </button>
                                 <button onclick="App.addImageCustomFormat()" 
-                                        class="px-2 py-1 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+                                        class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
                                         title="Add Custom Format">
                                     <i class="fas fa-plus"></i>
                                 </button>
@@ -1105,9 +1121,9 @@ const appHtml = `<!DOCTYPE html>
                             
                             <!-- Model Selection -->
                             <div class="flex items-center gap-2">
-                                <label class="text-sm text-gray-600">Model:</label>
+                                <label class="text-sm text-gray-600 font-medium">Model:</label>
                                 <select id="vision-model-select" onchange="App.updateVisionModel()" 
-                                        class="px-2 py-1 border rounded-lg text-sm">
+                                        class="px-3 py-2 border rounded-lg text-sm min-w-[140px]">
                                     <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash</option>
                                     <option value="google/gemini-flash-1.5-8b">Gemini 1.5 8B (Free)</option>
                                     <option value="google/gemini-flash-1.5">Gemini 1.5</option>
@@ -1120,7 +1136,7 @@ const appHtml = `<!DOCTYPE html>
                             
                             <!-- AI Generate Button -->
                             <button onclick="App.generateFromImage()" 
-                                    class="ml-auto px-4 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    class="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md"
                                     id="image-ai-generate-btn" disabled>
                                 <i class="fas fa-sparkles mr-2"></i>AI Generate
                             </button>
@@ -1168,9 +1184,9 @@ const appHtml = `<!DOCTYPE html>
                                         <i class="fas fa-sort-numeric-down"></i>
                                     </button>
                                     <button onclick="App.aiCategorizeImageTags()" 
-                                            class="px-3 py-1 text-sm bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors tooltip" 
+                                            class="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-lg transition-colors tooltip" 
                                             data-tooltip="AI Categorize Tags">
-                                        <i class="fas fa-brain text-purple-600"></i>
+                                        <i class="fas fa-brain"></i>
                                     </button>
                                 </div>
                             </div>

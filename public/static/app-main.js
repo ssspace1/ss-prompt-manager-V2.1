@@ -1473,6 +1473,17 @@ Respond ONLY with valid JSON format:
     }
   },
   
+  updateSelectedModel: () => {
+    const select = document.getElementById('model-selector');
+    if (select) {
+      appState.selectedModel = select.value;
+      localStorage.setItem('selected-model', select.value);
+      
+      const modelName = select.options[select.selectedIndex].text;
+      showNotification(`モデルを ${modelName} に変更しました`, 'success');
+    }
+  },
+  
   updateFinalOutputFormat: () => {
     const select = document.getElementById('final-output-format');
     if (select) {
@@ -2532,6 +2543,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (formatSelect) {
       formatSelect.value = savedOutputFormat;
       appState.outputFormat = savedOutputFormat;
+    }
+  }
+  
+  // Initialize model selector
+  const savedModel = localStorage.getItem('selected-model');
+  if (savedModel) {
+    const modelSelect = document.getElementById('model-selector');
+    if (modelSelect) {
+      modelSelect.value = savedModel;
+      appState.selectedModel = savedModel;
     }
   }
   
