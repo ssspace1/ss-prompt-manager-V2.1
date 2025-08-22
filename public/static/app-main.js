@@ -157,7 +157,7 @@ const TagEditor = {
   // Create a tag card element with drag and drop
   createTagCard: (tag, index, lang, colorClass, context) => {
     const card = document.createElement('div');
-    card.className = `tag-card ${colorClass} border rounded-lg p-3 hover:shadow-md transition-all relative cursor-move mb-2`;
+    card.className = `tag-card ${colorClass} border rounded-md p-2 hover:shadow-md transition-all relative cursor-move mb-1.5`;
     card.draggable = true;
     card.dataset.index = index;
     card.dataset.context = context;
@@ -169,32 +169,32 @@ const TagEditor = {
     // Escape text for HTML attributes
     const escapedText = text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     
-    // Create content with multi-line text display
+    // Create compact content layout
     card.innerHTML = `
-      <div class="flex items-start gap-2">
-        <i class="fas fa-grip-vertical drag-handle text-gray-400 hover:text-gray-600 transition-colors mt-1" style="cursor: grab;"></i>
+      <div class="flex items-center gap-2">
         <div class="flex-1 min-w-0">
-          <div class="tag-text text-sm mb-2 break-words whitespace-pre-wrap" 
+          <div class="tag-text text-sm break-words" 
                ondblclick="TagEditor.makeEditable(${index}, '${lang}', '${context}')" 
-               style="cursor: text; line-height: 1.4;">
+               style="cursor: text; line-height: 1.3;">
             ${text}
           </div>
         </div>
-        <div class="flex items-center gap-1 flex-shrink-0">
+        <div class="flex items-center gap-0.5 flex-shrink-0">
           <button onclick="${funcPrefix}.decreaseWeight(${index})" 
-                  class="px-2 py-1 text-gray-600 hover:bg-white/50 rounded transition-colors">
-            <i class="fas fa-minus text-xs"></i>
+                  class="p-1 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-sm transition-colors"
+                  title="Decrease weight">
+            <i class="fas fa-chevron-down text-xs"></i>
           </button>
-          <input type="number" value="${tag.weight.toFixed(1)}" min="0.1" max="2.0" step="0.1" 
-                 class="w-12 px-1 py-0.5 text-xs text-center border rounded"
-                 onchange="${funcPrefix}.updateWeight(${index}, this.value)">
+          <span class="text-xs font-mono text-gray-600 w-8 text-center">${tag.weight.toFixed(1)}</span>
           <button onclick="${funcPrefix}.increaseWeight(${index})" 
-                  class="px-2 py-1 text-gray-600 hover:bg-white/50 rounded transition-colors">
-            <i class="fas fa-plus text-xs"></i>
+                  class="p-1 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-sm transition-colors"
+                  title="Increase weight">
+            <i class="fas fa-chevron-up text-xs"></i>
           </button>
           <button onclick="${funcPrefix}.remove(${index})" 
-                  class="px-2 py-1 text-red-600 hover:bg-red-100 rounded transition-colors ml-1">
-            <i class="fas fa-trash text-xs"></i>
+                  class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-sm transition-colors ml-0.5"
+                  title="Delete tag">
+            <i class="fas fa-times text-xs"></i>
           </button>
         </div>
       </div>
@@ -224,22 +224,21 @@ const TagEditor = {
     
     const currentText = lang === 'en' ? tag.en : tag.ja;
     
-    // Create textarea for multi-line editing
-    const textarea = document.createElement('textarea');
-    textarea.value = currentText;
-    textarea.className = 'w-full px-2 py-1 text-sm border rounded resize-none focus:outline-none focus:ring-1 focus:ring-blue-400';
-    textarea.style.minHeight = '60px';
-    textarea.rows = Math.max(2, currentText.split('\n').length);
+    // Create input for inline editing
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentText;
+    input.className = 'w-full px-1 py-0.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-400';
     
-    // Replace text div with textarea
+    // Replace text div with input
     textDiv.style.display = 'none';
-    textDiv.parentElement.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
+    textDiv.parentElement.appendChild(input);
+    input.focus();
+    input.select();
     
     // Save function
     const saveEdit = () => {
-      const newText = textarea.value.trim();
+      const newText = input.value.trim();
       if (newText && newText !== currentText) {
         if (context === 'image') {
           TagEditor.imageTag.updateText(index, lang, newText);
@@ -247,21 +246,21 @@ const TagEditor = {
           TagEditor.mainTag.updateText(index, lang, newText);
         }
       }
-      textarea.remove();
+      input.remove();
       textDiv.style.display = 'block';
       TagEditor.renderTags(context);
     };
     
     // Cancel function
     const cancelEdit = () => {
-      textarea.remove();
+      input.remove();
       textDiv.style.display = 'block';
     };
     
     // Event listeners
-    textarea.addEventListener('blur', saveEdit);
-    textarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.ctrlKey) {
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
         e.preventDefault();
         saveEdit();
       } else if (e.key === 'Escape') {
@@ -527,7 +526,7 @@ const TagEditor = {
     updateWeight: (index, weight) => {
       if (appState.tags[index]) {
         appState.tags[index].weight = parseFloat(weight);
-        TagEditor.updateOutput('main');
+        TagEditor.renderTags('main');
       }
     },
     increaseWeight: (index) => {
@@ -570,7 +569,7 @@ const TagEditor = {
     updateWeight: (index, weight) => {
       if (App.imageState.imageTags[index]) {
         App.imageState.imageTags[index].weight = parseFloat(weight);
-        TagEditor.updateOutput('image');
+        TagEditor.renderTags('image');
       }
     },
     increaseWeight: (index) => {

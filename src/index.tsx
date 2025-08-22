@@ -333,19 +333,24 @@ const appHtml = `<!DOCTYPE html>
         
         /* Drag and Drop Styles */
         .tag-card {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                        box-shadow 0.2s ease;
             cursor: grab;
             position: relative;
             min-height: auto;
             display: block;
         }
         
+        .tag-card:hover {
+            transform: translateY(-1px);
+        }
+        
         .tag-text {
             word-break: break-word;
-            white-space: pre-wrap;
             overflow-wrap: break-word;
-            line-height: 1.5;
-            padding: 2px 0;
+            line-height: 1.4;
+            padding: 0;
+            display: block;
         }
         
         .tag-card:active {
@@ -353,12 +358,11 @@ const appHtml = `<!DOCTYPE html>
         }
         
         .tag-card.dragging {
-            opacity: 0.25;
-            transform: scale(1.03) rotate(2deg);
-            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.25);
+            opacity: 0.3;
+            transform: scale(1.02) rotate(1deg);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
             z-index: 1000;
             cursor: grabbing !important;
-            background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(219,234,254,0.9));
         }
         
         .tag-card.drag-over {
