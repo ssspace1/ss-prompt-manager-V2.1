@@ -169,7 +169,7 @@ const TagEditor = {
     // Escape text for HTML attributes
     const escapedText = text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     
-    // Create compact content layout
+    // Create compact content layout with vertical arrow buttons
     card.innerHTML = `
       <div class="flex items-center gap-2">
         <div class="flex-1 min-w-0">
@@ -179,20 +179,24 @@ const TagEditor = {
             ${text}
           </div>
         </div>
-        <div class="flex items-center gap-0.5 flex-shrink-0">
-          <button onclick="${funcPrefix}.decreaseWeight(${index})" 
-                  class="p-1 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-sm transition-colors"
-                  title="Decrease weight">
-            <i class="fas fa-chevron-down text-xs"></i>
-          </button>
+        <div class="flex items-center gap-1 flex-shrink-0">
           <span class="text-xs font-mono text-gray-600 w-8 text-center">${tag.weight.toFixed(1)}</span>
-          <button onclick="${funcPrefix}.increaseWeight(${index})" 
-                  class="p-1 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-sm transition-colors"
-                  title="Increase weight">
-            <i class="fas fa-chevron-up text-xs"></i>
-          </button>
+          <div class="flex flex-col -my-1">
+            <button onclick="${funcPrefix}.increaseWeight(${index})" 
+                    class="px-0.5 py-0 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-sm transition-colors leading-none"
+                    title="Increase weight"
+                    style="height: 14px;">
+              <i class="fas fa-caret-up text-xs"></i>
+            </button>
+            <button onclick="${funcPrefix}.decreaseWeight(${index})" 
+                    class="px-0.5 py-0 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-sm transition-colors leading-none"
+                    title="Decrease weight"
+                    style="height: 14px;">
+              <i class="fas fa-caret-down text-xs"></i>
+            </button>
+          </div>
           <button onclick="${funcPrefix}.remove(${index})" 
-                  class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-sm transition-colors ml-0.5"
+                  class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-sm transition-colors"
                   title="Delete tag">
             <i class="fas fa-times text-xs"></i>
           </button>

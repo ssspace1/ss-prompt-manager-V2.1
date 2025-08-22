@@ -345,6 +345,15 @@ const appHtml = `<!DOCTYPE html>
             transform: translateY(-1px);
         }
         
+        /* Compact arrow buttons */
+        .tag-card button {
+            transition: all 0.15s ease;
+        }
+        
+        .tag-card button:active {
+            transform: scale(0.95);
+        }
+        
         .tag-text {
             word-break: break-word;
             overflow-wrap: break-word;
