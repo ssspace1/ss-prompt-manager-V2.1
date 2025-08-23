@@ -222,14 +222,7 @@ Output MUST be valid JSON:
   ]
 }
 
-Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
-
-  test: `You are an expert at generating best prompts.
-Convert the user's input into the test format.
-
-Output only the formatted prompt, no explanations.
-
-必ず理由にニーズンド付けて。すべてのタグに。`
+Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`
 };
 
 // STRICT JSON FORMAT for AI outputs
@@ -287,9 +280,14 @@ let appState = {
   selectedModel: localStorage.getItem('selected-model') || 'openai/gpt-4o-mini',
   systemPrompts: (() => {
     const saved = JSON.parse(localStorage.getItem('system-prompts') || '{}');
+    // Remove test format from saved prompts (cleanup)
+    delete saved.test;
     // Use the enhanced defaultSystemPrompts (defined above) instead of hardcoded old versions
     // This ensures consistency between UI and backend APIs
-    return { ...defaultSystemPrompts, ...saved };
+    const merged = { ...defaultSystemPrompts, ...saved };
+    // Ensure test format is not in merged result
+    delete merged.test;
+    return merged;
   })(),
   editingPrompt: null // Currently editing prompt format
 };
@@ -3095,13 +3093,28 @@ JSON形式で出力:
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('SS Prompt Manager initialized');
   
+  // Cleanup: Remove test format from localStorage if it exists
+  if (appState.systemPrompts.test) {
+    delete appState.systemPrompts.test;
+    localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+    console.log('Cleaned up test format from localStorage');
+  }
+  
   // Initialize output formats
   const savedOutputFormat = localStorage.getItem('output-format');
   if (savedOutputFormat) {
     const formatSelect = document.getElementById('output-format');
     if (formatSelect) {
-      formatSelect.value = savedOutputFormat;
-      appState.outputFormat = savedOutputFormat;
+      // Reset to sdxl if test format was selected
+      if (savedOutputFormat === 'test') {
+        formatSelect.value = 'sdxl';
+        appState.outputFormat = 'sdxl';
+        localStorage.setItem('output-format', 'sdxl');
+        console.log('Reset test format selection to sdxl');
+      } else {
+        formatSelect.value = savedOutputFormat;
+        appState.outputFormat = savedOutputFormat;
+      }
     }
   }
   
@@ -3192,14 +3205,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (savedFinalFormat) {
     const finalFormatSelect = document.getElementById('final-output-format');
     if (finalFormatSelect) {
-      finalFormatSelect.value = savedFinalFormat;
-      appState.finalOutputFormat = savedFinalFormat;
+      // Reset to sdxl if test format was selected
+      if (savedFinalFormat === 'test') {
+        finalFormatSelect.value = 'sdxl';
+        appState.finalOutputFormat = 'sdxl';
+        localStorage.setItem('final-output-format', 'sdxl');
+        console.log('Reset test final format selection to sdxl');
+      } else {
+        finalFormatSelect.value = savedFinalFormat;
+        appState.finalOutputFormat = savedFinalFormat;
+      }
     }
   }
   
   // Populate custom formats in dropdowns for Text to Prompt
   const customFormats = Object.keys(appState.systemPrompts).filter(
-    key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural'].includes(key)
+    key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural', 'test'].includes(key)
   );
   
   customFormats.forEach(format => {
