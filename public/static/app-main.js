@@ -1600,26 +1600,7 @@ window.App = {
           messages: [
             {
               role: 'system',
-              content: `You are an AI tag categorizer for image generation prompts. Analyze each tag and categorize it into one of these categories:
-
-- person: Characters, people, gender, age (1girl, boy, woman, etc.)
-- appearance: Physical features, hair, eyes, facial expressions, beauty
-- clothing: Outfits, uniforms, accessories, fashion items
-- action: Poses, movements, activities, gestures
-- background: Environments, scenery, lighting, settings, weather
-- quality: Image quality enhancers, resolution, detail level
-- style: Art styles, techniques, artist names, aesthetic choices
-- composition: Camera angles, views, shots, framing, perspectives (full body, close-up, low angle, etc.)
-- object: Items, props, tools, decorative elements
-- other: Anything that doesn't fit the above categories
-
-Respond ONLY with valid JSON format:
-{
-  "categories": [
-    {"tag": "tag_name", "category": "category_name"},
-    ...
-  ]
-}`
+              content: App.getAICategorizerPrompt()
             },
             {
               role: 'user',
@@ -2643,7 +2624,7 @@ Output ONLY the JSON, no explanations.`;
   
   setSettingsTab: (tab) => {
     // Hide all tabs
-    ['api', 'formats', 'preferences', 'ai-instructions', 'image-analysis'].forEach(t => {
+    ['api', 'formats', 'preferences', 'ai-instructions'].forEach(t => {
       const content = document.getElementById(`settings-${t}`);
       const tabBtn = document.querySelector(`[data-settings-tab="${t}"]`);
       if (content) {
@@ -5939,6 +5920,7 @@ Object.assign(App, {
         break;
         
       case 'advanced':
+        App.loadPromptToTextarea('ai-categorizer-prompt', prompts['categorizer'] || App.getDefaultCategorizerPrompt());
         App.loadPromptToTextarea('ai-json-schema-prompt', prompts['json-schema'] || App.getDefaultJSONSchemaPrompt());
         App.loadPromptToTextarea('ai-error-handling-prompt', prompts['error-handling'] || App.getDefaultErrorHandlingPrompt());
         App.loadAIParameters();
@@ -5967,6 +5949,7 @@ Object.assign(App, {
       'translation-en-ja': 'ai-translation-en-ja-prompt',
       'translation-ja-en': 'ai-translation-ja-en-prompt',
       'custom-translation': 'ai-custom-translation-prompt',
+      'categorizer': 'ai-categorizer-prompt',
       'json-schema': 'ai-json-schema-prompt',
       'error-handling': 'ai-error-handling-prompt'
     };
@@ -6002,6 +5985,7 @@ Object.assign(App, {
       'translation-en-ja': App.getDefaultTranslationPrompt('en-ja'),
       'translation-ja-en': App.getDefaultTranslationPrompt('ja-en'),
       'custom-translation': App.getDefaultCustomTranslationPrompt(),
+      'categorizer': App.getDefaultCategorizerPrompt(),
       'json-schema': App.getDefaultJSONSchemaPrompt(),
       'error-handling': App.getDefaultErrorHandlingPrompt()
     };
@@ -6214,6 +6198,37 @@ Examples:
 - "ultra-detailed 8K nyan" → "超詳細 8K nyan"
 
 Output only the translation, no explanations.`;
+  },
+  
+  getDefaultCategorizerPrompt: () => {
+    return `You are an AI tag categorizer for image generation prompts. Analyze each tag and categorize it into one of these categories:
+
+- person: Characters, people, gender, age (1girl, boy, woman, etc.)
+- appearance: Physical features, hair, eyes, facial expressions, beauty
+- clothing: Outfits, uniforms, accessories, fashion items
+- action: Poses, movements, activities, gestures
+- background: Environments, scenery, lighting, settings, weather
+- quality: Image quality enhancers, resolution, detail level
+- style: Art styles, techniques, artist names, aesthetic choices
+- composition: Camera angles, views, shots, framing, perspectives (full body, close-up, low angle, etc.)
+- object: Items, props, tools, decorative elements
+- other: Anything that doesn't fit the above categories
+
+Respond ONLY with valid JSON format:
+{
+  "categories": [
+    {"tag": "tag_name", "category": "category_name"},
+    ...
+  ]
+}
+
+Do not include any explanations or additional text.`;
+  },
+  
+  // Get AI categorizer prompt from settings (with fallback to default)
+  getAICategorizerPrompt: () => {
+    const prompts = JSON.parse(localStorage.getItem('ai-instructions-prompts') || '{}');
+    return prompts['categorizer'] || App.getDefaultCategorizerPrompt();
   },
   
   getDefaultJSONSchemaPrompt: () => {

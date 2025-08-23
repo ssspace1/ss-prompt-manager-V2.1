@@ -1604,9 +1604,6 @@ const appHtml = `<!DOCTYPE html>
                         <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
                                 data-settings-tab="ai-instructions"
                                 onclick="App.setSettingsTab('ai-instructions')">AI Instructions</button>
-                        <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
-                                data-settings-tab="image-analysis"
-                                onclick="App.setSettingsTab('image-analysis')">Image Analysis</button>
                     </div>
                 </div>
                 
@@ -1701,6 +1698,29 @@ const appHtml = `<!DOCTYPE html>
                         <p class="text-xs text-gray-500 mt-1">
                             For connecting to DALL-E, Midjourney, or other image APIs
                         </p>
+                    </div>
+                    
+                    <!-- Image to Prompt Model Selection -->
+                    <div class="pt-4 border-t">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-eye mr-1 text-purple-500"></i>
+                            Image to Prompt Model
+                        </label>
+                        <p class="text-xs text-gray-500 mb-2">
+                            画像からプロンプト生成に使用するVision モデル
+                        </p>
+                        <div class="flex gap-2 items-start">
+                            <select id="settings-image-model" 
+                                    onchange="App.updateImageModelFromSettings(this.value)"
+                                    class="flex-1 px-3 py-2 border rounded-lg">
+                                <option value="">Select a model...</option>
+                            </select>
+                            <button onclick="App.refreshModelList()" 
+                                    class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                                    title="Refresh model list">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -2131,8 +2151,33 @@ const appHtml = `<!DOCTYPE html>
                                 <i class="fas fa-cogs mr-2"></i>高度なAI設定
                             </h4>
                             <p class="text-sm text-red-700 mb-3">
-                                JSONスキーマ定義、出力フォーマット制御、エラーハンドリング等の設定
+                                JSONスキーマ定義、出力フォーマット制御、エラーハンドリング、カテゴリ分類等の設定
                             </p>
+                            
+                            <!-- AI Categorizer Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-tags mr-1 text-indigo-500"></i>
+                                    AIカテゴリ分類指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    AI Analyze機能でタグを自動分類する際の指示（person、appearance、clothing等）
+                                </p>
+                                <textarea id="ai-categorizer-prompt" 
+                                          rows="12"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="AIカテゴリ分類指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('categorizer')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('categorizer')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
                             
                             <!-- JSON Output Schema -->
                             <div class="mb-4">
@@ -2230,94 +2275,7 @@ const appHtml = `<!DOCTYPE html>
                     </div>
                 </div>
                 
-                <!-- Image Analysis Settings -->
-                <div id="settings-image-analysis" class="space-y-4 hidden">
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                        <h3 class="font-semibold text-blue-900 mb-2">
-                            <i class="fas fa-image mr-2"></i>画像解析設定
-                        </h3>
-                        <p class="text-sm text-blue-700">
-                            Image to Promptタブで使用される画像解析とタグ生成のシステムプロンプトを設定します。
-                        </p>
-                    </div>
-                    
-                    <!-- Image Analysis System Prompt -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-eye mr-1 text-purple-500"></i>
-                            画像解析プロンプト (Image Analysis)
-                        </label>
-                        <p class="text-xs text-gray-500 mb-2">
-                            画像を解析する際の指示を定義します。何を抽出するか、どのように分析するかを指定してください。
-                        </p>
-                        <textarea id="image-analysis-prompt" 
-                                  rows="8"
-                                  class="w-full px-3 py-2 border rounded-lg font-mono text-sm"
-                                  placeholder="画像解析用のシステムプロンプトを入力..."></textarea>
-                        <div class="flex gap-2 mt-2">
-                            <button onclick="App.resetImageAnalysisPrompt()" 
-                                    class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
-                                <i class="fas fa-undo mr-1"></i>デフォルトに戻す
-                            </button>
-                            <button onclick="App.testImageAnalysisPrompt()" 
-                                    class="px-3 py-1 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors">
-                                <i class="fas fa-flask mr-1"></i>テスト実行
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Tag Generation System Prompt -->
-                    <div class="mt-6">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-tags mr-1 text-indigo-500"></i>
-                            タグ生成プロンプト (Tag Generation)
-                        </label>
-                        <p class="text-xs text-gray-500 mb-2">
-                            解析結果からタグを生成する際のルールを定義します。JSON形式での出力ルールを指定してください。
-                        </p>
-                        <div class="flex items-center gap-2 mb-2">
-                            <label class="text-sm text-gray-600">フォーマット:</label>
-                            <select id="image-tag-format-select" 
-                                    onchange="App.loadImageTagPrompt(this.value)"
-                                    class="px-2 py-1 border rounded text-sm">
-                                <option value="sdxl">SDXL Tags</option>
-                                <option value="flux">Flux Phrases</option>
-                                <option value="imagefx">ImageFX Commands</option>
-                                <option value="imagefx-natural">ImageFX Natural</option>
-                            </select>
-                        </div>
-                        <textarea id="image-tag-generation-prompt" 
-                                  rows="10"
-                                  class="w-full px-3 py-2 border rounded-lg font-mono text-sm"
-                                  placeholder="タグ生成用のシステムプロンプトを入力..."></textarea>
-                        <div class="flex gap-2 mt-2">
-                            <button onclick="App.saveImageTagPrompt()" 
-                                    class="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
-                                <i class="fas fa-save mr-1"></i>保存
-                            </button>
-                            <button onclick="App.resetImageTagPrompt()" 
-                                    class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
-                                <i class="fas fa-undo mr-1"></i>デフォルトに戻す
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Image to Prompt Model Selection -->
-                    <div class="mt-6">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-image mr-1 text-blue-500"></i>
-                            Image to Prompt Model
-                        </label>
-                        <p class="text-xs text-gray-500 mb-2">
-                            画像からプロンプト生成に使用するVisionモデル
-                        </p>
-                        <select id="settings-image-model" 
-                                onchange="App.updateImageModelFromSettings(this.value)"
-                                class="w-full px-3 py-2 border rounded-lg">
-                            <option value="">Select a model...</option>
-                        </select>
-                    </div>
-                </div>
+
                 
                 <!-- Save Button -->
                 <div class="mt-6 flex justify-end gap-2">
