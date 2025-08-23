@@ -161,9 +161,7 @@ Rules:
 5. Output only the prompt, no explanations`
     };
     // Merge defaults with saved (saved takes priority)
-    // Use the enhanced defaultSystemPrompts (defined above) instead of hardcoded old versions
-    // This ensures consistency between UI and backend APIs
-    return { ...defaultSystemPrompts, ...saved };
+    return { ...defaults, ...saved };
   })(),
   editingPrompt: null // Currently editing prompt format
 };
@@ -1125,8 +1123,7 @@ const JsonProcessor = {
 // Force update outdated prompts
 for (const [format, defaultPrompt] of Object.entries(defaultSystemPrompts)) {
   if (!appState.systemPrompts[format] || 
-      (format === 'sdxl' && !appState.systemPrompts[format].includes('PROFESSIONAL QUALITY v15.0')) ||
-      (format === 'flux' && !appState.systemPrompts[format].includes('CINEMATIC STORYTELLING v14.0'))) {
+      (format === 'flux' && !appState.systemPrompts[format].includes('CINEMATIC NARRATIVE STYLE v12.0'))) {
     console.log(`Force updating ${format} system prompt to latest version`);
     appState.systemPrompts[format] = defaultPrompt;
   }
@@ -1816,8 +1813,7 @@ Respond ONLY with valid JSON format:
   generateNarrativePrompt: async (inputText, format) => {
     // Get format-specific system prompt
     if (!appState.systemPrompts[format] || 
-        (format === 'sdxl' && !appState.systemPrompts[format].includes('PROFESSIONAL QUALITY v15.0')) ||
-        (format === 'flux' && !appState.systemPrompts[format].includes('CINEMATIC STORYTELLING v14.0'))) {
+        (format === 'flux' && !appState.systemPrompts[format].includes('STRUCTURED TAG GENERATOR'))) {
       appState.systemPrompts[format] = defaultSystemPrompts[format];
       localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
     }
@@ -2075,8 +2071,7 @@ Output ONLY the JSON, no explanations.`;
     // Force refresh to latest default prompts if outdated
     const formatKey = appState.editingPrompt;
     if (!appState.systemPrompts[formatKey] || 
-        (formatKey === 'sdxl' && !appState.systemPrompts[formatKey].includes('PROFESSIONAL QUALITY v15.0')) ||
-        (formatKey === 'flux' && !appState.systemPrompts[formatKey].includes('CINEMATIC STORYTELLING v14.0'))) {
+        (formatKey === 'flux' && !appState.systemPrompts[formatKey].includes('CINEMATIC NARRATIVE STYLE v12.0'))) {
       console.log(`Updating outdated system prompt for ${formatKey}`);
       appState.systemPrompts[formatKey] = defaultSystemPrompts[formatKey];
       localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
