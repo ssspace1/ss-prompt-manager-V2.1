@@ -1739,47 +1739,33 @@ Respond ONLY with valid JSON format:
   
   // STAGE 1: Generate high-quality narrative prompt using system prompts
   generateNarrativePrompt: async (inputText, format) => {
-    // Get format-specific system prompt
-    if (!appState.systemPrompts[format] || 
-        (format === 'sdxl' && !appState.systemPrompts[format].includes('PROFESSIONAL QUALITY v15.0')) ||
-        (format === 'flux' && !appState.systemPrompts[format].includes('CINEMATIC STORYTELLING v14.0'))) {
-      appState.systemPrompts[format] = defaultSystemPrompts[format];
+    // Get format-specific system prompt - RESPECT CUSTOM PROMPTS
+    let systemPrompt = appState.systemPrompts[format];
+    
+    // Only update if using default formats and they're outdated
+    if (!systemPrompt || 
+        (format === 'sdxl' && systemPrompt === defaultSystemPrompts.sdxl && !systemPrompt.includes('PROFESSIONAL QUALITY v15.0')) ||
+        (format === 'flux' && systemPrompt === defaultSystemPrompts.flux && !systemPrompt.includes('CINEMATIC STORYTELLING v14.0'))) {
+      systemPrompt = defaultSystemPrompts[format];
+      appState.systemPrompts[format] = systemPrompt;
       localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
     }
     
-    const systemPrompt = appState.systemPrompts[format] || defaultSystemPrompts[format];
+    // If no system prompt exists, use default
+    if (!systemPrompt) {
+      systemPrompt = defaultSystemPrompts[format] || defaultSystemPrompts.sdxl;
+    }
     
-    // Override system prompt for narrative generation (not tag generation)
-    const narrativeSystemPrompt = format === 'flux' 
-      ? `You are a professional Flux prompt writer. Convert the user's casual Japanese input into a high-quality, detailed English prompt for Flux image generation.
-
-IMPORTANT: Output ONLY the final prompt text, no JSON, no explanations.
-
-Create a flowing, descriptive narrative that includes:
-1. Character details (1girl, 1boy, etc.)
-2. Setting and environment 
-3. Clothing and appearance details
-4. Actions and poses
-5. Atmosphere and mood
-6. Camera angle if relevant
-
-Style: Natural, descriptive language that Flux understands well.
-Length: 1-2 sentences, detailed but not overly long.
-
-Example input: "かっこいい女でエモい感じでタバコ吸ってる"
-Example output: "1girl in a dimly lit back alley at night. The wet asphalt reflects the glow of distant neon signs. The girl, wearing a stylish black leather jacket over a simple white t-shirt, leans against a brick wall, holding a cigarette between her fingers and exhaling a plume of smoke, her gaze is distant and melancholic. Shot from a slightly low angle. Full body view. This image conveys a sense of cool, urban loneliness and a rebellious spirit."
-
-Output ONLY the prompt text.`
-      : `You are a professional ${format.toUpperCase()} prompt writer. Convert the user's input into a high-quality, detailed prompt.
-Output ONLY the final prompt text, no explanations.`;
-
+    console.log(`🎯 Using system prompt for format "${format}":`, systemPrompt.substring(0, 100) + '...');
+    
+    // Use the custom/format-specific system prompt directly (respecting user customizations)
     const response = await fetch('/api/openrouter/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [{ role: 'user', content: inputText }],
         model: appState.selectedModel || 'openai/gpt-4o-mini',
-        systemPrompt: narrativeSystemPrompt,
+        systemPrompt: systemPrompt,
         apiKey: appState.apiKey,
         temperature: 0.8,
         maxTokens: 1000
@@ -2388,7 +2374,7 @@ Output ONLY the JSON, no explanations.`;
     const container = document.getElementById('custom-formats-list');
     if (container) {
       const customFormats = Object.keys(appState.systemPrompts).filter(
-        key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural'].includes(key)
+        key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural', 'test'].includes(key)
       );
       
       if (customFormats.length === 0) {
