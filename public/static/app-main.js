@@ -1737,7 +1737,8 @@ window.App = {
       systemPrompt = defaultSystemPrompts[format] || defaultSystemPrompts.sdxl;
     }
     
-    console.log(`🎯 Using system prompt for format "${format}":`, systemPrompt.substring(0, 100) + '...');
+    console.log(`🎯 Using system prompt for format "${format}":`, systemPrompt.substring(0, 200) + '...');
+    console.log(`🔍 Full system prompt length: ${systemPrompt.length} characters`);
     
     // Use the format-specific system prompt to generate JSON
     const response = await fetch('/api/openrouter/chat', {
@@ -1764,16 +1765,26 @@ window.App = {
       throw new Error('AI returned empty response');
     }
 
+    console.log('🔍 Raw AI response:', generatedContent);
+    
     // Parse the JSON response
     const parseResult = JsonProcessor.cleanAndParse(generatedContent);
+    console.log('🔍 Parse result:', parseResult);
+    
     if (!parseResult.success) {
-      throw new Error(`Failed to parse AI response: ${parseResult.error}`);
+      console.error('❌ JSON parsing failed:', parseResult.error);
+      console.error('❌ Raw content was:', generatedContent);
+      throw new Error(`Failed to parse AI response: ${parseResult.error}. Raw response: ${generatedContent.substring(0, 200)}...`);
     }
 
     // Validate the bilingual tags structure
     const validation = JsonProcessor.validateBilingualTags(parseResult.data);
+    console.log('🔍 Validation result:', validation);
+    
     if (!validation.valid) {
-      throw new Error(`Invalid tag structure: ${validation.error}`);
+      console.error('❌ Tag structure validation failed:', validation.error);
+      console.error('❌ Parsed data was:', parseResult.data);
+      throw new Error(`Invalid tag structure: ${validation.error}. Parsed data: ${JSON.stringify(parseResult.data).substring(0, 200)}...`);
     }
 
     return validation.pairs;
