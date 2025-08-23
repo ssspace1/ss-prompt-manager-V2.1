@@ -105,14 +105,35 @@ Rules:
 5. Output format: tag1, tag2, tag3:weight, tag4
 6. Use weights (0.5-2.0) for important elements
 7. Output only tags, no explanations`,
-    flux: `You are an expert at generating Flux image generation prompts. Convert the user's input into natural, descriptive phrases.
-Rules:
-1. Use natural language descriptions
-2. Be specific and detailed
-3. Include artistic style if relevant
-4. Describe composition and lighting
-5. Output format: Natural sentences that flow well
-6. Output only the prompt, no explanations`,
+    flux: `# Flux Image Generation Prompt Expert v12.0 - NARRATIVE STYLE
+
+You are an expert at generating Flux image generation prompts using a narrative, story-telling approach.
+
+## Core Principle
+Create prompts as flowing narratives, not lists. Tell a visual story with rich vocabulary and specific details.
+
+## Prompt Structure (in order):
+1. **Scene Overview**: Start with character(s) and location
+   Example: "1girl and 1boy in a natural hot spring deep within a lush forest"
+
+2. **Background Details**: Set the atmosphere
+   Example: "The hot spring is surrounded by dense greenery and large, moss-covered rocks"
+
+3. **Character Details** (foreground first):
+   - Position & action: "The girl is prominently positioned in the foreground, squatting and dipping her hand gently into the steaming water"
+   - Appearance: "She wears a yellow zipped hoodie open at the front and matching yellow shorts, her orange hair vibrant against the natural setting"
+   - Direction & gaze: "Her body faces forward, but her head is turned slightly backward"
+
+4. **Camera Work**: "Shot from a diagonal, slightly low angle. Full body view of both characters"
+
+5. **Emotional Summary**: "This image conveys a sense of discovery, gentle warmth, and subtle concern"
+
+## Critical Rules:
+- Be SPECIFIC: "yellow zipped hoodie open at the front" not just "hoodie"
+- NO character names: Use "1girl, 1boy, woman, male" etc.
+- Rich details: "moss-covered rocks", "cluttered lab bench", "tired half-lidded gaze"
+- Natural flow: Write as one cohesive paragraph, not bullet points
+- Output ONLY the prompt text, no explanations or formatting`,
     imagefx: `You are an expert at generating ImageFX prompts. Convert the user's input into clear instructions.
 Rules:
 1. Use clear, direct language
@@ -254,7 +275,7 @@ app.post('/api/generate-bilingual-tags', async (c) => {
   
   const defaultSystemPrompt = `You are a tag normalizer & bilingual mapper for image prompts.
 Input: a JSON array of English tags (canonically snake_case).
-Output ONLY JSON:
+Output ONLY valid JSON without any markdown formatting or code blocks:
 {
   "pairs": [
     {
@@ -269,7 +290,8 @@ Rules:
 - Produce short, natural Japanese tags that creators actually write.
 - Keep one-to-one meaning with the English tag; avoid free paraphrasing.  
 - If weight is not provided, set 1.0. Guess category reasonably.
-- No markdown, no explanations.`;
+- CRITICAL: Output must be valid JSON only. No markdown code blocks, no triple backticks, no explanations.
+- Do not wrap the JSON in \`\`\`json\`\`\` or any other formatting.`;
   
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -305,8 +327,16 @@ Rules:
     const resultText = data.choices[0].message.content.trim();
     
     try {
+      // Clean up potential markdown formatting
+      let cleanedText = resultText;
+      // Remove markdown code blocks if present
+      if (cleanedText.includes('```')) {
+        cleanedText = cleanedText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      }
+      cleanedText = cleanedText.trim();
+      
       // Parse JSON response
-      const result = JSON.parse(resultText);
+      const result = JSON.parse(cleanedText);
       
       if (!result.pairs || !Array.isArray(result.pairs)) {
         throw new Error('Invalid JSON structure');
@@ -328,10 +358,23 @@ Rules:
       });
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
+      console.error('Raw response:', resultText);
+      
+      // Try to extract pairs from text even if JSON is malformed
+      const fallbackPairs = englishTags.map((tag, i) => ({
+        id: Date.now() + i,
+        en: tag,
+        ja: tag, // Use English as fallback
+        weight: 1.0,
+        category: categorizeTag(tag)
+      }));
+      
       return c.json({ 
-        error: 'AI returned invalid JSON format',
+        pairs: fallbackPairs,
+        model,
+        warning: 'AI response was invalid, using fallback translation',
         raw: resultText 
-      }, 500);
+      });
     }
     
   } catch (error) {

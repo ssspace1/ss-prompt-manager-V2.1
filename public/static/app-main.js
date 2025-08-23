@@ -1451,6 +1451,12 @@ Respond ONLY with valid JSON format:
       
       const data = await response.json();
       
+      // Show warning if fallback was used
+      if (data.warning) {
+        console.warn('AI Generation Warning:', data.warning);
+        showNotification(data.warning, 'warning');
+      }
+      
       if (data.pairs && data.pairs.length > 0) {
         // Update existing tags or create new ones
         if (appState.tags && appState.tags.length > 0) {
