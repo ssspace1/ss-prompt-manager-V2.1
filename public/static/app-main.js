@@ -1079,22 +1079,22 @@ function translateToJapanese(text) {
 }
 
 // AI Translation function
-async function translateWithAI(text, targetLang = 'ja') {
+async function translateWithAI(text, targetLang = 'ja', sourceLang = 'en', format = null) {
   if (!appState.apiKey) {
     return targetLang === 'ja' ? translateToJapanese(text) : translateToEnglish(text);
   }
   
   try {
-    const sourceLang = targetLang === 'ja' ? 'English' : 'Japanese';
     const response = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text,
-        sourceLang,
+        sourceLang: sourceLang === 'en' ? 'English' : 'Japanese',
         targetLang,
         model: appState.selectedModel || 'openai/gpt-4o-mini',
-        apiKey: appState.apiKey
+        apiKey: appState.apiKey,
+        format: format // カスタムフォーマット情報を送信
       })
     });
     
@@ -1468,7 +1468,7 @@ window.App = {
     
     // Create tags with AI translation if available
     const tagPromises = parsedTags.map(async (parsedTag, i) => {
-      const ja = await translateWithAI(parsedTag.text, 'ja');
+      const ja = await translateWithAI(parsedTag.text, 'ja', 'en', appState.outputFormat);
       
       return {
         id: Date.now() + i,
@@ -1707,7 +1707,7 @@ Respond ONLY with valid JSON format:
       // STEP 3: Create bilingual tags using existing proven translation logic
       showLoading('Translating tags...');
       const tagPromises = parsedTags.map(async (parsedTag, i) => {
-        const ja = await translateWithAI(parsedTag.text, 'ja');
+        const ja = await translateWithAI(parsedTag.text, 'ja', 'en', currentFormat);
         
         return {
           id: Date.now() + i,
@@ -5560,36 +5560,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Translation Functions
-async function translateWithAI(text, targetLang = 'ja', sourceLang = 'en') {
-  if (!appState.apiKey) {
-    return translationDict[text.toLowerCase()] || text;
-  }
-  
-  try {
-    const response = await fetch('/api/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: text,
-        sourceLang: sourceLang,
-        targetLang: targetLang,
-        model: appState.selectedModel || 'openai/gpt-4o-mini',
-        apiKey: appState.apiKey
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Translation failed');
-    }
-    
-    const data = await response.json();
-    return data.translated || text;
-  } catch (error) {
-    console.error('Translation error:', error);
-    return translationDict[text.toLowerCase()] || text;
-  }
-}
+// Translation Functions (unified version above at line 1082)
 
 // Enhanced Tag Editor Methods for Bilingual Sync
 TagEditor.mainTag = {

@@ -16,7 +16,7 @@ app.use('/static/*', serveStatic({ root: './public' }))
 
 // AI Translation API endpoint
 app.post('/api/translate', async (c) => {
-  const { text, targetLang = 'ja', apiKey } = await c.req.json();
+  const { text, targetLang = 'ja', apiKey, format } = await c.req.json();
   
   if (!text) {
     return c.json({ error: 'Text is required' }, 400);
@@ -34,6 +34,38 @@ app.post('/api/translate', async (c) => {
   }
   
   try {
+    // Create format-aware translation prompt
+    let systemPrompt = '';
+    
+    if (format && format !== 'sdxl' && format !== 'flux' && format !== 'imagefx' && format !== 'imagefx-natural') {
+      // Custom format - preserve special instructions
+      if (targetLang === 'ja') {
+        systemPrompt = `You are a professional translator for custom image generation prompts.
+Translate the given English image generation tag to Japanese while preserving any special formatting or custom instructions.
+
+IMPORTANT: If the original tag has special suffixes, patterns, or custom formatting (like "nyan", "nyaa", special characters, etc.), maintain them in the translation.
+
+Examples:
+- "1girl nyan" → "1人の女の子 nyan"
+- "hot spring nyan" → "温泉 nyan"
+- "ultra-detailed 8K nyan" → "超詳細 8K nyan"
+
+Output only the translation, no explanations.`;
+      } else {
+        systemPrompt = `You are a professional translator for custom image generation prompts.
+Translate the given Japanese image generation tag to English while preserving any special formatting or custom instructions.
+
+IMPORTANT: If the original tag has special suffixes, patterns, or custom formatting (like "ニャン", special characters, etc.), maintain them in the translation.
+
+Output only the translation, no explanations.`;
+      }
+    } else {
+      // Standard translation for default formats
+      systemPrompt = targetLang === 'ja' 
+        ? 'You are a professional translator. Translate the given image generation prompt tags from English to Japanese. Keep the translation natural and appropriate for image generation. Output only the translation, no explanations.'
+        : 'You are a professional translator. Translate the given image generation prompt tags from Japanese to English. Keep the translation natural and appropriate for image generation. Output only the translation, no explanations.';
+    }
+    
     // Call OpenRouter API for translation
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -48,9 +80,7 @@ app.post('/api/translate', async (c) => {
         messages: [
           {
             role: 'system',
-            content: targetLang === 'ja' 
-              ? 'You are a professional translator. Translate the given image generation prompt tags from English to Japanese. Keep the translation natural and appropriate for image generation. Output only the translation, no explanations.'
-              : 'You are a professional translator. Translate the given image generation prompt tags from Japanese to English. Keep the translation natural and appropriate for image generation. Output only the translation, no explanations.'
+            content: systemPrompt
           },
           {
             role: 'user',
