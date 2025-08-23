@@ -987,7 +987,7 @@ const JsonProcessor = {
       }
       
       const validatedPair = {
-        id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: pair.id || `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         en: pair.en.trim(),
         ja: pair.ja && typeof pair.ja === 'string' ? pair.ja.trim() : '',
         weight: Math.max(0.1, Math.min(2.0, weight)),
@@ -1665,7 +1665,7 @@ window.App = {
   },
   
   generateOptimized: async () => {
-    console.log('🚀 AI Generate Started - Natural Language to Split Processing');
+    console.log('🚀 AI Generate Started - Direct JSON to Tags Processing');
     
     // STEP 0: Validation
     if (!appState.apiKey) {
@@ -1685,42 +1685,30 @@ window.App = {
     console.log('📝 Original input preserved:', originalInput);
     console.log('🎯 Target format:', currentFormat);
     
-    showLoading(`Generating ${currentFormat.toUpperCase()} prompt with AI...`);
+    showLoading(`Generating ${currentFormat.toUpperCase()} tags with AI...`);
     
     try {
-      // STEP 1: Generate high-quality narrative prompt using system prompt
-      const generatedPrompt = await App.generateNarrativePrompt(originalInput, currentFormat);
-      console.log('✅ Stage 1 - Narrative prompt generated:', generatedPrompt.substring(0, 100) + '...');
+      // STEP 1: Generate bilingual tags directly using JSON system prompts
+      const bilingualTags = await App.generateBilingualTags(originalInput, currentFormat);
+      console.log('✅ Stage 1 - Bilingual tags generated:', bilingualTags.length, 'tags');
       
-      // STEP 2: Use existing proven split logic (same as Split to Tags button)
-      showLoading('Processing with existing split logic...');
-      const parsedTags = App.parseComplexTags(generatedPrompt);
-      console.log('✅ Stage 2 - Parsed with existing logic:', parsedTags.length, 'tags');
+      // STEP 2: Convert to appState format
+      appState.tags = bilingualTags.map((tag, i) => ({
+        id: tag.id || `ai-${Date.now()}-${i}`,
+        en: tag.en,
+        ja: tag.ja,
+        weight: tag.weight,
+        category: tag.category || categorizeTag(tag.en)
+      }));
       
-      // STEP 3: Create bilingual tags using existing proven translation logic
-      showLoading('Translating tags...');
-      const tagPromises = parsedTags.map(async (parsedTag, i) => {
-        const ja = await translateWithAI(parsedTag.text, 'ja', 'en', currentFormat);
-        
-        return {
-          id: Date.now() + i,
-          en: parsedTag.text,
-          ja: ja,
-          weight: parsedTag.weight,
-          category: categorizeTag(parsedTag.text)
-        };
-      });
+      console.log('✅ Stage 2 - Tags converted to app format:', appState.tags.length, 'tags');
       
-      // Wait for all translations (exactly like splitText function)
-      appState.tags = await Promise.all(tagPromises);
-      console.log('✅ Stage 3 - Bilingual tags created:', appState.tags.length, 'tags');
-      
-      // STEP 4: Apply to UI using existing render logic
+      // STEP 3: Render tags to UI
       TagEditor.renderTags('main');
       
-      // STEP 5: Success notification (preserving original input reference)
-      showNotification(`Generated ${appState.tags.length} tags from: "${originalInput.substring(0, 30)}..." via AI prompt`, 'success');
-      console.log('🎉 AI Generate completed successfully with existing split logic');
+      // STEP 4: Success notification
+      showNotification(`Generated ${appState.tags.length} tags from: "${originalInput.substring(0, 30)}..." via AI`, 'success');
+      console.log('🎉 AI Generate completed successfully with direct JSON processing');
       
     } catch (error) {
       console.error('❌ AI Generate failed:', error);
@@ -1730,8 +1718,8 @@ window.App = {
     }
   },
   
-  // STAGE 1: Generate high-quality narrative prompt using system prompts
-  generateNarrativePrompt: async (inputText, format) => {
+  // STAGE 1: Generate bilingual tags using JSON-based system prompts
+  generateBilingualTags: async (inputText, format) => {
     // Get format-specific system prompt - RESPECT CUSTOM PROMPTS
     let systemPrompt = appState.systemPrompts[format];
     
@@ -1751,7 +1739,7 @@ window.App = {
     
     console.log(`🎯 Using system prompt for format "${format}":`, systemPrompt.substring(0, 100) + '...');
     
-    // Use the custom/format-specific system prompt directly (respecting user customizations)
+    // Use the format-specific system prompt to generate JSON
     const response = await fetch('/api/openrouter/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1760,23 +1748,35 @@ window.App = {
         model: appState.selectedModel || 'openai/gpt-4o-mini',
         systemPrompt: systemPrompt,
         apiKey: appState.apiKey,
-        temperature: 0.8,
+        temperature: 0.7,
         maxTokens: 1000
       })
     });
 
     if (!response.ok) {
-      throw new Error(`Narrative prompt generation failed: ${response.statusText}`);
+      throw new Error(`Tag generation failed: ${response.statusText}`);
     }
 
     const data = await response.json();
-    const generatedPrompt = data.content || '';
+    const generatedContent = data.content || '';
     
-    if (!generatedPrompt.trim()) {
-      throw new Error('AI returned empty prompt');
+    if (!generatedContent.trim()) {
+      throw new Error('AI returned empty response');
     }
 
-    return generatedPrompt.trim();
+    // Parse the JSON response
+    const parseResult = JsonProcessor.cleanAndParse(generatedContent);
+    if (!parseResult.success) {
+      throw new Error(`Failed to parse AI response: ${parseResult.error}`);
+    }
+
+    // Validate the bilingual tags structure
+    const validation = JsonProcessor.validateBilingualTags(parseResult.data);
+    if (!validation.valid) {
+      throw new Error(`Invalid tag structure: ${validation.error}`);
+    }
+
+    return validation.pairs;
   },
 
   // STAGE 1: Generate structured English tags using clean system prompts
