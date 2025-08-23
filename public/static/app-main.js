@@ -136,7 +136,13 @@ SDXL excels with SHORT, SPECIFIC tags that clearly define:
 ## CATEGORIES: 
 person, appearance, clothing, pose, background, quality, style, action, object, other
 
-CRITICAL: SDXL用に**短い、具体的なタグ**を生成し、5ブロック階層思考で物語の核心を捉える！`,
+## CRITICAL OUTPUT REQUIREMENTS:
+- **ONLY OUTPUT VALID JSON** - No explanations, no markdown, no additional text
+- **NO CONTAMINATION** - Final output must be pure JSON format only
+- Use **短い、具体的なタグ** for SDXL optimization
+- Apply **5ブロック階層思考** to capture story essence
+
+CRITICAL: 必ずJSON形式のみで出力し、説明文や追加テキストは一切含めないこと！`,
   
   flux: `# Flux Narrative Master - CINEMATIC STORYTELLING v14.0 (5-Block Hierarchy Model)
 
@@ -194,7 +200,13 @@ Flux excels with DESCRIPTIVE PHRASES and EMOTIONAL CONTEXT:
 ## CATEGORIES: 
 person, appearance, clothing, pose, background, quality, style, action, object, other
 
-CRITICAL: Flux用に**長い、描写的なフレーズ**を生成し、5ブロック階層思考で物語の感情と雰囲気を捉える！`,
+## CRITICAL OUTPUT REQUIREMENTS:
+- **ONLY OUTPUT VALID JSON** - No explanations, no markdown, no additional text
+- **NO CONTAMINATION** - Final output must be pure JSON format only
+- Use **長い、描写的なフレーズ** for Flux optimization
+- Apply **5ブロック階層思考** to capture story emotion and atmosphere
+
+CRITICAL: 必ずJSON形式のみで出力し、説明文や追加テキストは一切含めないこと！`,
   
   imagefx: `You are an AI tag generator for ImageFX with automatic categorization.
 
@@ -2631,7 +2643,7 @@ Output ONLY the JSON, no explanations.`;
   
   setSettingsTab: (tab) => {
     // Hide all tabs
-    ['api', 'formats', 'preferences', 'image-analysis'].forEach(t => {
+    ['api', 'formats', 'preferences', 'ai-instructions', 'image-analysis'].forEach(t => {
       const content = document.getElementById(`settings-${t}`);
       const tabBtn = document.querySelector(`[data-settings-tab="${t}"]`);
       if (content) {
@@ -4297,8 +4309,8 @@ Rules:
           const tagData = await tagResponse.json();
           let tagResponseText = tagData.choices[0].message.content.trim();
           
-          // Remove markdown code blocks if present
-          tagResponseText = tagResponseText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+          // Enhanced cleanup for JSON response
+          tagResponseText = App.cleanAIResponse(tagResponseText);
           
           try {
             const tagsData = JSON.parse(tagResponseText);
@@ -4561,8 +4573,8 @@ Rules:
       const data = await response.json();
       let responseText = data.choices[0].message.content.trim();
       
-      // マークダウンコードブロックを削除
-      responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      // Enhanced JSON cleanup - remove all markdown artifacts and contamination
+      responseText = App.cleanAIResponse(responseText);
       
       // JSON解析
       let tagsData;
@@ -5828,4 +5840,430 @@ window.debugSystemPrompts = () => {
 
 window.forceRefreshPrompts = () => {
   App.refreshAllSystemPrompts();
+};
+
+// =============================================================================
+// AI INSTRUCTIONS MANAGEMENT SYSTEM
+// =============================================================================
+
+// Extended App object with AI Instructions management
+Object.assign(App, {
+  
+  // Enhanced AI response cleanup function
+  cleanAIResponse: (rawResponse) => {
+    if (!rawResponse || typeof rawResponse !== 'string') {
+      return rawResponse;
+    }
+    
+    let cleaned = rawResponse.trim();
+    
+    // Remove markdown code blocks - various formats
+    cleaned = cleaned.replace(/```json\s*/gi, '');
+    cleaned = cleaned.replace(/```javascript\s*/gi, '');
+    cleaned = cleaned.replace(/```\s*/g, '');
+    
+    // Remove leading text before JSON
+    cleaned = cleaned.replace(/^[^{]*(?={)/s, '');
+    
+    // Remove trailing text after JSON
+    cleaned = cleaned.replace(/}[^}]*$/s, '}');
+    
+    // Remove common AI response prefixes
+    cleaned = cleaned.replace(/^(Here's|Here is|The following is|Below is).*?:/gi, '');
+    cleaned = cleaned.replace(/^(Response|Output|Result):\s*/gi, '');
+    
+    // Clean up whitespace
+    cleaned = cleaned.trim();
+    
+    // Ensure we have valid JSON boundaries
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+    }
+    
+    return cleaned;
+  },
+  
+  // Current AI Instructions tab
+  currentAIInstructionsTab: 'text-generation',
+  
+  // AI Instructions management
+  setAIInstructionsTab: (tab) => {
+    App.currentAIInstructionsTab = tab;
+    
+    // Hide all AI instruction panels
+    const panels = ['text-generation', 'image-processing', 'translation', 'advanced'];
+    panels.forEach(panel => {
+      const panelEl = document.getElementById(`ai-instructions-${panel}`);
+      const tabEl = document.querySelector(`[data-ai-tab="${panel}"]`);
+      if (panelEl && tabEl) {
+        if (panel === tab) {
+          panelEl.classList.remove('hidden');
+          tabEl.classList.add('border-purple-500', 'text-purple-600');
+          tabEl.classList.remove('border-transparent', 'text-gray-600');
+        } else {
+          panelEl.classList.add('hidden');
+          tabEl.classList.remove('border-purple-500', 'text-purple-600');
+          tabEl.classList.add('border-transparent', 'text-gray-600');
+        }
+      }
+    });
+    
+    // Load prompts for the selected tab
+    App.loadAIPromptsForTab(tab);
+  },
+  
+  // Load AI prompts for specific tab
+  loadAIPromptsForTab: (tab) => {
+    const prompts = JSON.parse(localStorage.getItem('ai-instructions-prompts') || '{}');
+    
+    switch (tab) {
+      case 'text-generation':
+        App.loadPromptToTextarea('ai-sdxl-prompt', prompts.sdxl || appState.systemPrompts.sdxl);
+        App.loadPromptToTextarea('ai-flux-prompt', prompts.flux || appState.systemPrompts.flux);
+        App.loadPromptToTextarea('ai-imagefx-prompt', prompts.imagefx || appState.systemPrompts.imagefx);
+        App.loadPromptToTextarea('ai-imagefx-natural-prompt', prompts['imagefx-natural'] || appState.systemPrompts['imagefx-natural']);
+        break;
+        
+      case 'image-processing':
+        App.loadPromptToTextarea('ai-image-analysis-prompt', prompts['image-analysis'] || App.getDefaultImageAnalysisPrompt());
+        App.loadPromptToTextarea('ai-image-tag-generation-prompt', prompts['image-tag-generation'] || App.getDefaultImageTagGenerationPrompt());
+        break;
+        
+      case 'translation':
+        App.loadPromptToTextarea('ai-translation-en-ja-prompt', prompts['translation-en-ja'] || App.getDefaultTranslationPrompt('en-ja'));
+        App.loadPromptToTextarea('ai-translation-ja-en-prompt', prompts['translation-ja-en'] || App.getDefaultTranslationPrompt('ja-en'));
+        App.loadPromptToTextarea('ai-custom-translation-prompt', prompts['custom-translation'] || App.getDefaultCustomTranslationPrompt());
+        break;
+        
+      case 'advanced':
+        App.loadPromptToTextarea('ai-json-schema-prompt', prompts['json-schema'] || App.getDefaultJSONSchemaPrompt());
+        App.loadPromptToTextarea('ai-error-handling-prompt', prompts['error-handling'] || App.getDefaultErrorHandlingPrompt());
+        App.loadAIParameters();
+        break;
+    }
+  },
+  
+  // Load prompt content to textarea
+  loadPromptToTextarea: (textareaId, content) => {
+    const textarea = document.getElementById(textareaId);
+    if (textarea) {
+      textarea.value = content || '';
+    }
+  },
+  
+  // Save specific AI prompt
+  saveAIPrompt: (promptType) => {
+    const prompts = JSON.parse(localStorage.getItem('ai-instructions-prompts') || '{}');
+    const textareaMapping = {
+      'sdxl': 'ai-sdxl-prompt',
+      'flux': 'ai-flux-prompt', 
+      'imagefx': 'ai-imagefx-prompt',
+      'imagefx-natural': 'ai-imagefx-natural-prompt',
+      'image-analysis': 'ai-image-analysis-prompt',
+      'image-tag-generation': 'ai-image-tag-generation-prompt',
+      'translation-en-ja': 'ai-translation-en-ja-prompt',
+      'translation-ja-en': 'ai-translation-ja-en-prompt',
+      'custom-translation': 'ai-custom-translation-prompt',
+      'json-schema': 'ai-json-schema-prompt',
+      'error-handling': 'ai-error-handling-prompt'
+    };
+    
+    const textareaId = textareaMapping[promptType];
+    const textarea = document.getElementById(textareaId);
+    
+    if (textarea) {
+      prompts[promptType] = textarea.value.trim();
+      localStorage.setItem('ai-instructions-prompts', JSON.stringify(prompts));
+      
+      // Also update system prompts for backward compatibility
+      if (['sdxl', 'flux', 'imagefx', 'imagefx-natural'].includes(promptType)) {
+        appState.systemPrompts[promptType] = textarea.value.trim();
+        localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+      }
+      
+      showNotification(`${promptType} プロンプトを保存しました`, 'success');
+    } else {
+      showNotification(`プロンプトの保存に失敗しました: ${promptType}`, 'error');
+    }
+  },
+  
+  // Reset specific AI prompt to default
+  resetAIPrompt: (promptType) => {
+    const defaults = {
+      'sdxl': appState.systemPrompts.sdxl,
+      'flux': appState.systemPrompts.flux,
+      'imagefx': appState.systemPrompts.imagefx,
+      'imagefx-natural': appState.systemPrompts['imagefx-natural'],
+      'image-analysis': App.getDefaultImageAnalysisPrompt(),
+      'image-tag-generation': App.getDefaultImageTagGenerationPrompt(),
+      'translation-en-ja': App.getDefaultTranslationPrompt('en-ja'),
+      'translation-ja-en': App.getDefaultTranslationPrompt('ja-en'),
+      'custom-translation': App.getDefaultCustomTranslationPrompt(),
+      'json-schema': App.getDefaultJSONSchemaPrompt(),
+      'error-handling': App.getDefaultErrorHandlingPrompt()
+    };
+    
+    const textareaMapping = {
+      'sdxl': 'ai-sdxl-prompt',
+      'flux': 'ai-flux-prompt',
+      'imagefx': 'ai-imagefx-prompt',
+      'imagefx-natural': 'ai-imagefx-natural-prompt',
+      'image-analysis': 'ai-image-analysis-prompt',
+      'image-tag-generation': 'ai-image-tag-generation-prompt',
+      'translation-en-ja': 'ai-translation-en-ja-prompt',
+      'translation-ja-en': 'ai-translation-ja-en-prompt',
+      'custom-translation': 'ai-custom-translation-prompt',
+      'json-schema': 'ai-json-schema-prompt',
+      'error-handling': 'ai-error-handling-prompt'
+    };
+    
+    const textareaId = textareaMapping[promptType];
+    const textarea = document.getElementById(textareaId);
+    
+    if (textarea && defaults[promptType]) {
+      textarea.value = defaults[promptType];
+      showNotification(`${promptType} プロンプトをデフォルトに戻しました`, 'success');
+    }
+  },
+  
+  // Load AI parameters
+  loadAIParameters: () => {
+    const params = JSON.parse(localStorage.getItem('ai-global-parameters') || '{}');
+    
+    const temperatureSlider = document.getElementById('ai-temperature');
+    const temperatureValue = document.getElementById('temperature-value');
+    const maxTokensInput = document.getElementById('ai-max-tokens');
+    
+    if (temperatureSlider) {
+      temperatureSlider.value = params.temperature || 0.3;
+      if (temperatureValue) temperatureValue.textContent = temperatureSlider.value;
+    }
+    
+    if (maxTokensInput) {
+      maxTokensInput.value = params.maxTokens || 1000;
+    }
+  },
+  
+  // Update AI parameter
+  updateAIParameter: (paramName, value) => {
+    const params = JSON.parse(localStorage.getItem('ai-global-parameters') || '{}');
+    params[paramName] = parseFloat(value) || value;
+    localStorage.setItem('ai-global-parameters', JSON.stringify(params));
+    
+    if (paramName === 'temperature') {
+      const valueSpan = document.getElementById('temperature-value');
+      if (valueSpan) valueSpan.textContent = value;
+    }
+    
+    showNotification(`${paramName} パラメータを更新しました`, 'success');
+  },
+  
+  // Reset all AI prompts
+  resetAllAIPrompts: () => {
+    if (confirm('全てのAI指示をデフォルトに戻しますか？この操作は取り消せません。')) {
+      localStorage.removeItem('ai-instructions-prompts');
+      localStorage.removeItem('ai-global-parameters');
+      localStorage.removeItem('system-prompts');
+      
+      // Restore default system prompts
+      appState.systemPrompts = { ...defaultSystemPrompts };
+      
+      // Reload current tab
+      App.loadAIPromptsForTab(App.currentAIInstructionsTab);
+      
+      showNotification('全てのAI指示をリセットしました', 'success');
+    }
+  },
+  
+  // Export AI prompts
+  exportAIPrompts: () => {
+    const allPrompts = {
+      aiInstructions: JSON.parse(localStorage.getItem('ai-instructions-prompts') || '{}'),
+      systemPrompts: appState.systemPrompts,
+      globalParameters: JSON.parse(localStorage.getItem('ai-global-parameters') || '{}'),
+      exportDate: new Date().toISOString(),
+      version: '2.1'
+    };
+    
+    const blob = new Blob([JSON.stringify(allPrompts, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ss-prompt-manager-ai-instructions-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showNotification('AI指示をエクスポートしました', 'success');
+  },
+  
+  // Import AI prompts
+  importAIPrompts: () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            
+            if (data.aiInstructions) {
+              localStorage.setItem('ai-instructions-prompts', JSON.stringify(data.aiInstructions));
+            }
+            
+            if (data.systemPrompts) {
+              appState.systemPrompts = { ...appState.systemPrompts, ...data.systemPrompts };
+              localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+            }
+            
+            if (data.globalParameters) {
+              localStorage.setItem('ai-global-parameters', JSON.stringify(data.globalParameters));
+            }
+            
+            // Reload current tab
+            App.loadAIPromptsForTab(App.currentAIInstructionsTab);
+            
+            showNotification('AI指示をインポートしました', 'success');
+          } catch (error) {
+            showNotification('ファイルの読み込みに失敗しました', 'error');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  },
+  
+  // Default prompt getters
+  getDefaultImageAnalysisPrompt: () => {
+    return `# 画像解析プロフェッショナル - 画像生成プロンプト抽出特化
+
+あなたは画像を詳細に分析し、画像生成AI用のプロンプト要素を抽出する専門家です。
+
+## 解析指示:
+1. **人物要素**: 人数、性別、年齢層、表情、髪色、服装、ポーズ、動作
+2. **背景・環境**: 場所、雰囲気、照明、時間帯、天候、オブジェクト
+3. **構図・スタイル**: アングル、距離感、アートスタイル、色調
+4. **特徴的要素**: 目立つ特徴、象徴的なアイテム、感情表現
+
+## 出力要求:
+- 簡潔で具体的な記述
+- 画像生成AIが理解しやすい表現
+- 主要要素から詳細要素の順で記述
+- 不要な推測や解釈は避ける
+
+画像を詳細に分析し、画像生成プロンプト作成に必要な要素を抽出してください。`;
+  },
+  
+  getDefaultImageTagGenerationPrompt: () => {
+    return `# Image to Prompt Tag Generator - JSON Schema専用
+
+画像解析結果から、画像生成用の英語タグとわかりやすい日本語タグを生成してください。
+
+## 出力要求:
+**必ずJSON形式で出力してください:**
+
+{
+  "pairs": [
+    {"en": "1girl", "ja": "1人の女の子", "weight": 1.2, "category": "person"},
+    {"en": "sitting", "ja": "座っている", "weight": 1.0, "category": "pose"},
+    {"en": "natural lighting", "ja": "自然な照明", "weight": 1.1, "category": "background"}
+  ]
+}
+
+## 重要なルール:
+- 英語タグは画像生成AIに最適化された表現を使用
+- 日本語タグはわかりやすく親しみやすい表現
+- weight: 重要度（0.8-1.3の範囲）
+- category: person, appearance, clothing, pose, background, quality, style, action, object, otherのいずれか
+- 10-15個のタグを生成
+
+JSONフォーマット厳守で出力してください。`;
+  },
+  
+  getDefaultTranslationPrompt: (direction) => {
+    if (direction === 'en-ja') {
+      return `You are a professional translator for image generation prompts.
+Translate the given English image generation tag to Japanese while keeping it natural and appropriate for image generation contexts.
+
+Output only the translation, no explanations.`;
+    } else {
+      return `You are a professional translator for image generation prompts.
+Translate the given Japanese image generation tag to English while keeping it natural and appropriate for image generation contexts.
+
+Output only the translation, no explanations.`;
+    }
+  },
+  
+  getDefaultCustomTranslationPrompt: () => {
+    return `You are a professional translator for custom image generation prompts.
+Translate the given text while preserving any special formatting or custom instructions.
+
+IMPORTANT: If the original text has special suffixes, patterns, or custom formatting (like "nyan", "nyaa", special characters, etc.), maintain them in the translation.
+
+Examples:
+- "1girl nyan" → "1人の女の子 nyan"
+- "hot spring nyan" → "温泉 nyan"
+- "ultra-detailed 8K nyan" → "超詳細 8K nyan"
+
+Output only the translation, no explanations.`;
+  },
+  
+  getDefaultJSONSchemaPrompt: () => {
+    return `# JSON出力スキーマ定義
+
+すべてのAI応答は以下のJSON構造に従って出力してください:
+
+## Tag Editor用スキーマ:
+{
+  "pairs": [
+    {
+      "en": "string (英語タグ)",
+      "ja": "string (日本語翻訳)", 
+      "weight": "number (0.1-2.0)",
+      "category": "string (カテゴリ)"
+    }
+  ]
+}
+
+## カテゴリ一覧:
+person, appearance, clothing, pose, background, quality, style, action, object, other
+
+## 重要:
+- 必ず有効なJSONで出力
+- マークダウンコードブロックは使用しない
+- 説明テキストは含めない
+- 構造を厳密に守る`;
+  },
+  
+  getDefaultErrorHandlingPrompt: () => {
+    return `# AI応答エラー処理指示
+
+## エラー発生時の処理:
+1. **JSON解析エラー**: 応答を再フォーマットして再試行
+2. **スキーマ不一致**: デフォルト値で補完
+3. **API制限エラー**: 辞書ベース翻訳にフォールバック
+4. **ネットワークエラー**: ローカル処理で継続
+
+## 最大再試行回数: 2回
+## フォールバック方法: 既存の翻訳辞書を使用
+## ユーザー通知: エラー内容をわかりやすく表示`;
+  }
+});
+
+// Initialize AI Instructions tab when settings is opened
+const originalShowSettings = App.showSettings;
+App.showSettings = () => {
+  originalShowSettings();
+  // Initialize AI Instructions tab content
+  setTimeout(() => {
+    App.setAIInstructionsTab('text-generation');
+  }, 100);
 };

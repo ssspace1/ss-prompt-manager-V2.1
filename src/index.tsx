@@ -1602,6 +1602,9 @@ const appHtml = `<!DOCTYPE html>
                                 data-settings-tab="preferences"
                                 onclick="App.setSettingsTab('preferences')">Preferences</button>
                         <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
+                                data-settings-tab="ai-instructions"
+                                onclick="App.setSettingsTab('ai-instructions')">AI Instructions</button>
+                        <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
                                 data-settings-tab="image-analysis"
                                 onclick="App.setSettingsTab('image-analysis')">Image Analysis</button>
                     </div>
@@ -1840,6 +1843,390 @@ const appHtml = `<!DOCTYPE html>
                             <option value="dark">Dark</option>
                             <option value="auto">Auto (System)</option>
                         </select>
+                    </div>
+                </div>
+                
+                <!-- AI Instructions Settings -->
+                <div id="settings-ai-instructions" class="space-y-4 hidden">
+                    <div class="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 mb-6">
+                        <h3 class="font-semibold text-purple-900 mb-2 flex items-center">
+                            <i class="fas fa-brain mr-2"></i>AI指示・システムプロンプト統合管理
+                        </h3>
+                        <p class="text-sm text-purple-700 mb-2">
+                            すべてのAI機能のシステムプロンプトと指示をここで一元管理できます。
+                        </p>
+                        <div class="text-xs text-purple-600 space-y-1">
+                            <div>• <strong>Text to Prompt生成</strong>: 自然言語からタグ生成</div>
+                            <div>• <strong>Image to Prompt生成</strong>: 画像解析とタグ抽出</div>
+                            <div>• <strong>翻訳処理</strong>: 英日双方向翻訳</div>
+                            <div>• <strong>カスタムフォーマット</strong>: 独自形式の指示</div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Instructions Categories -->
+                    <div class="border-b mb-4">
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="py-2 px-3 border-b-2 border-purple-500 text-purple-600 text-sm" 
+                                    data-ai-tab="text-generation"
+                                    onclick="App.setAIInstructionsTab('text-generation')">Text生成</button>
+                            <button class="py-2 px-3 border-b-2 border-transparent text-gray-600 text-sm" 
+                                    data-ai-tab="image-processing"
+                                    onclick="App.setAIInstructionsTab('image-processing')">Image処理</button>
+                            <button class="py-2 px-3 border-b-2 border-transparent text-gray-600 text-sm" 
+                                    data-ai-tab="translation"
+                                    onclick="App.setAIInstructionsTab('translation')">翻訳処理</button>
+                            <button class="py-2 px-3 border-b-2 border-transparent text-gray-600 text-sm" 
+                                    data-ai-tab="advanced"
+                                    onclick="App.setAIInstructionsTab('advanced')">高度な設定</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Text Generation Instructions -->
+                    <div id="ai-instructions-text-generation" class="space-y-6">
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-medium text-blue-900 mb-2">
+                                <i class="fas fa-file-text mr-2"></i>Text to Prompt 生成指示
+                            </h4>
+                            <p class="text-sm text-blue-700 mb-3">
+                                自然言語入力からプロンプトを生成する際のAI指示を設定します。
+                            </p>
+                            
+                            <!-- SDXL Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-tag mr-1 text-orange-500"></i>
+                                    SDXL タグ生成指示
+                                </label>
+                                <textarea id="ai-sdxl-prompt" 
+                                          rows="12"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="SDXL用のタグ生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('sdxl')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('sdxl')" 
+                                            class="px-3 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Flux Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-quote-right mr-1 text-green-500"></i>
+                                    Flux フレーズ生成指示
+                                </label>
+                                <textarea id="ai-flux-prompt" 
+                                          rows="12"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="Flux用のフレーズ生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('flux')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('flux')" 
+                                            class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- ImageFX Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-terminal mr-1 text-purple-500"></i>
+                                    ImageFX コマンド生成指示
+                                </label>
+                                <textarea id="ai-imagefx-prompt" 
+                                          rows="8"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="ImageFX用のコマンド生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('imagefx')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('imagefx')" 
+                                            class="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- ImageFX Natural Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-leaf mr-1 text-teal-500"></i>
+                                    ImageFX Natural 生成指示
+                                </label>
+                                <textarea id="ai-imagefx-natural-prompt" 
+                                          rows="8"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="ImageFX Natural用の生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('imagefx-natural')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('imagefx-natural')" 
+                                            class="px-3 py-1 text-xs bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Image Processing Instructions -->
+                    <div id="ai-instructions-image-processing" class="space-y-6 hidden">
+                        <div class="bg-purple-50 rounded-lg p-4">
+                            <h4 class="font-medium text-purple-900 mb-2">
+                                <i class="fas fa-image mr-2"></i>Image to Prompt 処理指示
+                            </h4>
+                            <p class="text-sm text-purple-700 mb-3">
+                                画像解析とタグ生成の際のAI指示を設定します。
+                            </p>
+                            
+                            <!-- Image Analysis Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-eye mr-1 text-indigo-500"></i>
+                                    画像解析指示 (Vision AI)
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    画像から何を抽出するか、どのように分析するかの指示
+                                </p>
+                                <textarea id="ai-image-analysis-prompt" 
+                                          rows="10"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="画像解析用の指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('image-analysis')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('image-analysis')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Image Tag Generation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-tags mr-1 text-pink-500"></i>
+                                    画像タグ生成指示 (JSON Schema)
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    解析結果からJSON形式のタグを生成する指示
+                                </p>
+                                <textarea id="ai-image-tag-generation-prompt" 
+                                          rows="12"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="画像タグ生成用の指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('image-tag-generation')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('image-tag-generation')" 
+                                            class="px-3 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Translation Instructions -->
+                    <div id="ai-instructions-translation" class="space-y-6 hidden">
+                        <div class="bg-emerald-50 rounded-lg p-4">
+                            <h4 class="font-medium text-emerald-900 mb-2">
+                                <i class="fas fa-language mr-2"></i>翻訳処理指示
+                            </h4>
+                            <p class="text-sm text-emerald-700 mb-3">
+                                英日双方向翻訳とカスタムフォーマット翻訳の指示を設定します。
+                            </p>
+                            
+                            <!-- Standard Translation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-exchange-alt mr-1 text-blue-500"></i>
+                                    標準翻訳指示 (英→日)
+                                </label>
+                                <textarea id="ai-translation-en-ja-prompt" 
+                                          rows="6"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="英語から日本語への翻訳指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('translation-en-ja')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('translation-en-ja')" 
+                                            class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Reverse Translation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-exchange-alt fa-flip-horizontal mr-1 text-red-500"></i>
+                                    逆翻訳指示 (日→英)
+                                </label>
+                                <textarea id="ai-translation-ja-en-prompt" 
+                                          rows="6"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="日本語から英語への翻訳指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('translation-ja-en')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('translation-ja-en')" 
+                                            class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Custom Format Translation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-magic mr-1 text-purple-500"></i>
+                                    カスタムフォーマット翻訳指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    特殊な接尾辞や書式を保持する翻訳指示（例："nyan", "nyaa" 等）
+                                </p>
+                                <textarea id="ai-custom-translation-prompt" 
+                                          rows="8"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="カスタムフォーマット翻訳指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('custom-translation')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('custom-translation')" 
+                                            class="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Advanced Settings -->
+                    <div id="ai-instructions-advanced" class="space-y-6 hidden">
+                        <div class="bg-red-50 rounded-lg p-4">
+                            <h4 class="font-medium text-red-900 mb-2">
+                                <i class="fas fa-cogs mr-2"></i>高度なAI設定
+                            </h4>
+                            <p class="text-sm text-red-700 mb-3">
+                                JSONスキーマ定義、出力フォーマット制御、エラーハンドリング等の設定
+                            </p>
+                            
+                            <!-- JSON Output Schema -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-code mr-1 text-amber-500"></i>
+                                    JSON出力スキーマ定義
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    AIが生成するJSONの厳密な構造定義
+                                </p>
+                                <textarea id="ai-json-schema-prompt" 
+                                          rows="10"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="JSON出力スキーマの定義を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('json-schema')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('json-schema')" 
+                                            class="px-3 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Error Handling Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-exclamation-triangle mr-1 text-yellow-500"></i>
+                                    エラーハンドリング指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    AI応答エラー時の再試行・フォールバック処理指示
+                                </p>
+                                <textarea id="ai-error-handling-prompt" 
+                                          rows="6"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="エラーハンドリング指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('error-handling')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('error-handling')" 
+                                            class="px-3 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Global AI Parameters -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-sliders-h mr-1 text-cyan-500"></i>
+                                    グローバルAIパラメータ
+                                </label>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">Temperature (創造性)</label>
+                                        <input type="range" id="ai-temperature" min="0" max="1" step="0.1" value="0.3" 
+                                               class="w-full" onchange="App.updateAIParameter('temperature', this.value)">
+                                        <span class="text-xs text-gray-500" id="temperature-value">0.3</span>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">Max Tokens (最大トークン数)</label>
+                                        <input type="number" id="ai-max-tokens" min="100" max="4000" value="1000" 
+                                               class="w-full px-2 py-1 border rounded text-xs" 
+                                               onchange="App.updateAIParameter('maxTokens', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="mt-8 p-4 bg-gray-50 rounded-lg">
+                        <h4 class="font-medium text-gray-900 mb-3">
+                            <i class="fas fa-tools mr-2"></i>一括操作
+                        </h4>
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="App.resetAllAIPrompts()" 
+                                    class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                                <i class="fas fa-refresh mr-1"></i>全ての指示をリセット
+                            </button>
+                            <button onclick="App.exportAIPrompts()" 
+                                    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                <i class="fas fa-download mr-1"></i>指示をエクスポート
+                            </button>
+                            <button onclick="App.importAIPrompts()" 
+                                    class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                                <i class="fas fa-upload mr-1"></i>指示をインポート
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
