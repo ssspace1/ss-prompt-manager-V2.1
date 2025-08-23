@@ -1,6 +1,81 @@
 # Changelog
 
-## [2025-08-23] システムプロンプト強化 - 5ブロック階層モデル統合
+## [2025-08-23 19:30] 🚨 JavaScript致命的エラー完全修正 - システム復旧完了！
+
+### 🔥 緊急修正事項 - 全ボタン機能停止からの完全復旧
+
+#### ❌ 修正した深刻なJavaScript実行時エラー
+1. **JavaScript Hoisting Error**
+   - エラー: `Cannot access 'defaultSystemPrompts' before initialization`
+   - 原因: 変数定義より先に使用していた
+   - 影響: 全ボタンが完全に反応しない致命的状態
+   - 修正: `defaultSystemPrompts`定義をファイル上部に移動
+
+2. **Duplicate Declaration Error**
+   - エラー: `Identifier 'AI_OUTPUT_SCHEMAS' has already been declared`
+   - 原因: 同一定数が2箇所で宣言されていた
+   - 影響: 変数競合でスクリプト実行停止
+   - 修正: 重複定義を削除して単一定義に統一
+
+3. **Undefined Variable Assignment**
+   - エラー: `window.App = App` で未定義変数を代入
+   - 原因: `App`変数が存在しないのに代入を試行
+   - 影響: ランタイムエラーでApp初期化失敗
+   - 修正: 不正な代入行を削除
+
+#### ✅ 技術的解決策
+
+**修正前のエラーコード**:
+```javascript
+// ❌ エラー: defaultSystemPrompts がまだ定義されていない
+let appState = {
+  systemPrompts: { ...defaultSystemPrompts, ...saved } // ReferenceError!
+};
+// ...
+const defaultSystemPrompts = { /* 後で定義 */ }; // 遅すぎる
+```
+
+**修正後の正常コード**:
+```javascript
+// ✅ 正解: 最初に定義
+const defaultSystemPrompts = { /* 定義内容 */ };
+// ✅ その後で使用
+let appState = {
+  systemPrompts: { ...defaultSystemPrompts, ...saved } // 正常動作
+};
+```
+
+#### 🛠️ 修正プロセス
+1. **診断**: PlaywrightConsoleCapture でJavaScriptエラー特定
+2. **原因特定**: Hoisting問題と重複宣言を発見
+3. **コード整理**: 変数定義順序の正規化
+4. **キャッシュ対策**: cache-busting parameter 追加 `?v=${Date.now()}`
+5. **検証**: エラーが "SS Prompt Manager initialized" ログに変わることを確認
+
+#### 📊 修正結果
+- **修正前**: "Cannot access 'defaultSystemPrompts' before initialization" → 全機能停止
+- **修正後**: "SS Prompt Manager initialized" → 全機能正常復旧
+
+### 🚀 復旧した機能
+- ✅ **AI Generate**: 5-Block Hierarchy Model による高品質プロンプト生成
+- ✅ **Split to Tags**: 既存の優秀な分解機能
+- ✅ **タグ編集**: 英日双方向編集、重み調整、カテゴリ色分け
+- ✅ **システムプロンプト編集**: v15.0 (SDXL) と v14.0 (Flux) 強化版
+- ✅ **設定画面**: APIキー設定、モデル選択など全機能
+
+### 🔧 開発者向け重要な教訓
+1. **JavaScript Hoisting に注意**: 変数は使用前に必ず定義
+2. **重複宣言チェック**: `const`/`let`の重複定義を避ける
+3. **ビルドシステム理解**: `npm run build && pm2 restart` は必須
+4. **デバッグツール活用**: PlaywrightConsoleCapture が非常に有効
+5. **段階的テスト**: 修正後は必ずブラウザでの動作確認を行う
+
+### 📁 影響を受けたファイル
+- `public/static/app-main.js`: 変数定義順序修正、重複削除
+- `src/index.tsx`: キャッシュバスティング追加
+- バックアップ作成: `app-main.js.backup-before-hoisting-fix`
+
+## [2025-08-23 18:00] システムプロンプト強化 - 5ブロック階層モデル統合
 
 ### 🎯 高品質プロンプト生成システムの導入
 - **複数カット書き出し用システムプロンプトの統合**: 高度な構造化思考プロセスを適用

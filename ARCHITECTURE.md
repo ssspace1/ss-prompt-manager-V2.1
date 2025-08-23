@@ -231,7 +231,7 @@ app.get('/')  // HTMLをインラインで返す（長大なHTML文字列）
 
 ## 🔗 アクセスURL
 
-- **開発環境**: https://3000-icbwmbmktn0pgobop47sb-6532622b.e2b.dev
+- **開発環境**: https://3000-i41r1j85stwar1xpfbpp6-6532622b.e2b.dev
 - **GitHub**: https://github.com/ssspace1/ss-prompt-manager-V2.1
 - **ヘルスチェック**: /api/health
 
@@ -260,8 +260,9 @@ git push origin main
 
 ## 🏷️ バージョン情報
 
-- **Version**: 2.1
-- **Last Updated**: 2024-08-21
+- **Version**: 2.4 (JavaScript エラー修正版)
+- **Last Updated**: 2025-08-23 19:30
+- **Critical Fix**: JavaScript Hoisting Error 完全解決
 - **Author**: ssspace1
 - **License**: MIT
 
