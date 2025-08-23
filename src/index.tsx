@@ -937,12 +937,8 @@ const appHtml = `<!DOCTYPE html>
                                     <div class="flex items-center gap-2">
                                         <label class="text-sm text-gray-600 font-medium">Model:</label>
                                         <select id="text-model-selector" onchange="App.updateTextModelFromTab()" 
-                                                class="px-3 py-2 border rounded-lg text-sm min-w-[140px]">
-                                            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                                            <option value="openai/gpt-4o">GPT-4o</option>
-                                            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                                            <option value="google/gemini-pro-1.5">Gemini Pro 1.5</option>
-                                            <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
+                                                class="px-3 py-2 border rounded-lg text-sm min-w-[200px]">
+                                            <option value="">Select a model...</option>
                                         </select>
                                     </div>
                                 </div>
@@ -1250,14 +1246,8 @@ const appHtml = `<!DOCTYPE html>
                             <div class="flex items-center gap-1">
                                 <label class="text-xs text-gray-600">Model:</label>
                                 <select id="image-model-selector" onchange="App.updateImageModelFromTab()" 
-                                        class="px-2 py-1 border rounded text-xs min-w-[120px]">
-                                    <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash</option>
-                                    <option value="google/gemini-flash-1.5-8b">Gemini 1.5 8B (Free)</option>
-                                    <option value="google/gemini-flash-1.5">Gemini 1.5</option>
-                                    <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                                    <option value="openai/gpt-4o">GPT-4o</option>
-                                    <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
-                                    <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                                        class="px-2 py-1 border rounded text-xs min-w-[180px]">
+                                    <option value="">Select a model...</option>
                                 </select>
                             </div>
                             
@@ -1810,11 +1800,7 @@ const appHtml = `<!DOCTYPE html>
                         <select id="settings-image-model" 
                                 onchange="App.updateImageModelFromSettings(this.value)"
                                 class="w-full px-3 py-2 border rounded-lg">
-                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp (推奨)</option>
-                            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                            <option value="openai/gpt-4o">GPT-4o</option>
-                            <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
-                            <option value="anthropic/claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+                            <option value="">Select a model...</option>
                         </select>
                     </div>
                 </div>

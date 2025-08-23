@@ -2328,9 +2328,15 @@ Respond ONLY with valid JSON format:
       });
     };
     
-    // Populate both Text and Image model dropdowns
+    // Populate Settings dropdowns
     populateModelSelect(textModelSelect, false);
     populateModelSelect(imageModelSelect, true);
+    
+    // Also populate tab dropdowns
+    const textTabSelect = document.getElementById('text-model-selector');
+    const imageTabSelect = document.getElementById('image-model-selector');
+    populateModelSelect(textTabSelect, false);
+    populateModelSelect(imageTabSelect, true);
     
     // Update model indicator
     const modelIndicator = document.getElementById('current-model-indicator');
@@ -2609,31 +2615,86 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   // Initialize Text to Prompt model selector
-  const savedTextModel = localStorage.getItem('text-model') || localStorage.getItem('selected-model');
-  if (savedTextModel) {
-    const textModelSelect = document.getElementById('text-model-selector');
-    const settingsTextModel = document.getElementById('settings-text-model');
-    if (textModelSelect) {
-      textModelSelect.value = savedTextModel;
-      appState.selectedModel = savedTextModel;
+  const savedTextModel = localStorage.getItem('text-model') || localStorage.getItem('selected-model') || 'openai/gpt-4o-mini';
+  const textModelSelect = document.getElementById('text-model-selector');
+  const settingsTextModel = document.getElementById('settings-text-model');
+  
+  // Default options for text models before API loads
+  const defaultTextOptions = [
+    { value: 'openai/gpt-4o-mini', text: 'GPT-4o Mini' },
+    { value: 'openai/gpt-4o', text: 'GPT-4o' },
+    { value: 'anthropic/claude-3.5-sonnet', text: 'Claude 3.5 Sonnet' },
+    { value: 'google/gemini-pro-1.5', text: 'Gemini Pro 1.5' },
+    { value: 'deepseek/deepseek-r1', text: 'DeepSeek R1' },
+    { value: 'deepseek/deepseek-v3', text: 'DeepSeek V3' }
+  ];
+  
+  // Populate default options for text model
+  if (textModelSelect && textModelSelect.options.length <= 1) {
+    defaultTextOptions.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.text;
+      textModelSelect.appendChild(option);
+    });
+  }
+  
+  if (textModelSelect) {
+    textModelSelect.value = savedTextModel;
+    appState.selectedModel = savedTextModel;
+  }
+  if (settingsTextModel) {
+    // Add default options to settings too
+    if (settingsTextModel.options.length <= 1) {
+      defaultTextOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.text;
+        settingsTextModel.appendChild(option);
+      });
     }
-    if (settingsTextModel) {
-      settingsTextModel.value = savedTextModel;
-    }
+    settingsTextModel.value = savedTextModel;
   }
   
   // Initialize Image to Prompt model selector
-  const savedImageModel = localStorage.getItem('image-model') || localStorage.getItem('vision-model');
-  if (savedImageModel) {
-    const imageModelSelect = document.getElementById('image-model-selector');
-    const settingsImageModel = document.getElementById('settings-image-model');
-    if (imageModelSelect) {
-      imageModelSelect.value = savedImageModel;
-      App.imageState.visionModel = savedImageModel;
+  const savedImageModel = localStorage.getItem('image-model') || localStorage.getItem('vision-model') || 'gemini-2.0-flash-exp';
+  const imageModelSelect = document.getElementById('image-model-selector');
+  const settingsImageModel = document.getElementById('settings-image-model');
+  
+  // Default options for vision models
+  const defaultVisionOptions = [
+    { value: 'gemini-2.0-flash-exp', text: 'Gemini 2.0 Flash Exp' },
+    { value: 'openai/gpt-4o-mini', text: 'GPT-4o Mini' },
+    { value: 'openai/gpt-4o', text: 'GPT-4o' },
+    { value: 'anthropic/claude-3-haiku', text: 'Claude 3 Haiku' },
+    { value: 'anthropic/claude-3.5-sonnet', text: 'Claude 3.5 Sonnet' }
+  ];
+  
+  // Populate default options for image model
+  if (imageModelSelect && imageModelSelect.options.length <= 1) {
+    defaultVisionOptions.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.text;
+      imageModelSelect.appendChild(option);
+    });
+  }
+  
+  if (imageModelSelect) {
+    imageModelSelect.value = savedImageModel;
+    App.imageState.visionModel = savedImageModel;
+  }
+  if (settingsImageModel) {
+    // Add default options to settings too
+    if (settingsImageModel.options.length <= 1) {
+      defaultVisionOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.text;
+        settingsImageModel.appendChild(option);
+      });
     }
-    if (settingsImageModel) {
-      settingsImageModel.value = savedImageModel;
-    }
+    settingsImageModel.value = savedImageModel;
   }
   
   const savedFinalFormat = localStorage.getItem('final-output-format');
