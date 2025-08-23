@@ -111,8 +111,9 @@ Output only the translation, no explanations.`;
   }
 });
 
-// AI Generate Tags API endpoint
-app.post('/api/generate-tags', async (c) => {
+// DISABLED: Legacy generate-tags API that conflicted with frontend system prompts
+// app.post('/api/generate-tags', async (c) => {
+app.post('/api/generate-tags-disabled', async (c) => {
   const { prompt, format = 'sdxl', apiKey, systemPrompt } = await c.req.json();
   
   if (!prompt) {
@@ -343,129 +344,8 @@ Rules:
   }
 });
 
-// NEW API: AI Generate Bilingual Tags based on English input
-app.post('/api/generate-bilingual-tags', async (c) => {
-  const { englishTags, model = 'openai/gpt-4o-mini', apiKey, systemPrompt } = await c.req.json();
-  
-  if (!englishTags || !Array.isArray(englishTags) || englishTags.length === 0) {
-    return c.json({ error: 'English tags array is required' }, 400);
-  }
-  
-  const key = apiKey || c.env?.AI_API_KEY;
-  
-  if (!key) {
-    return c.json({ error: 'API key is required' }, 400);
-  }
-  
-  const defaultSystemPrompt = `You are a tag normalizer & bilingual mapper for image prompts.
-Input: a JSON array of English tags (canonically snake_case).
-Output ONLY valid JSON without any markdown formatting or code blocks:
-{
-  "pairs": [
-    {
-      "en": "...",
-      "ja": "...", 
-      "weight": number,
-      "category": "person|appearance|clothes|pose|background|quality|style|other"
-    }
-  ]
-}
-Rules:
-- Produce short, natural Japanese tags that creators actually write.
-- Keep one-to-one meaning with the English tag; avoid free paraphrasing.  
-- If weight is not provided, set 1.0. Guess category reasonably.
-- CRITICAL: Output must be valid JSON only. No markdown code blocks, no triple backticks, no explanations.
-- Do not wrap the JSON in \`\`\`json\`\`\` or any other formatting.`;
-  
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
-        'X-Title': 'SS Prompt Manager'
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt || defaultSystemPrompt
-          },
-          {
-            role: 'user',
-            content: JSON.stringify(englishTags)
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 2000
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Generation API failed');
-    }
-    
-    const data = await response.json();
-    const resultText = data.choices[0].message.content.trim();
-    
-    try {
-      // Clean up potential markdown formatting
-      let cleanedText = resultText;
-      // Remove markdown code blocks if present
-      if (cleanedText.includes('```')) {
-        cleanedText = cleanedText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-      }
-      cleanedText = cleanedText.trim();
-      
-      // Parse JSON response
-      const result = JSON.parse(cleanedText);
-      
-      if (!result.pairs || !Array.isArray(result.pairs)) {
-        throw new Error('Invalid JSON structure');
-      }
-      
-      // Add IDs to tags
-      const pairs = result.pairs.map((pair, i) => ({
-        id: Date.now() + i,
-        en: pair.en,
-        ja: pair.ja,
-        weight: pair.weight || 1.0,
-        category: pair.category || 'other'
-      }));
-      
-      return c.json({
-        pairs: pairs,
-        model,
-        raw: resultText
-      });
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      console.error('Raw response:', resultText);
-      
-      // Try to extract pairs from text even if JSON is malformed
-      const fallbackPairs = englishTags.map((tag, i) => ({
-        id: Date.now() + i,
-        en: tag,
-        ja: tag, // Use English as fallback
-        weight: 1.0,
-        category: categorizeTag(tag)
-      }));
-      
-      return c.json({ 
-        pairs: fallbackPairs,
-        model,
-        warning: 'AI response was invalid, using fallback translation',
-        raw: resultText 
-      });
-    }
-    
-  } catch (error) {
-    console.error('Generation error:', error);
-    return c.json({ error: 'Failed to generate bilingual tags' }, 500);
-  }
-});
+// REMOVED: Unused /api/generate-bilingual-tags endpoint that was causing prompt conflicts
+// All AI generation now uses /api/openrouter/chat with frontend-managed system prompts
 
 // Helper function to categorize tags
 function categorizeTag(text: string): string {
@@ -2598,8 +2478,9 @@ Return only the translation, no explanations.`
   }
 })
 
-// API: Optimize prompt for specific format
-app.post('/api/optimize', async (c) => {
+// DISABLED: Legacy optimize API that conflicted with frontend system prompts
+// app.post('/api/optimize', async (c) => {
+app.post('/api/optimize-disabled', async (c) => {
   const { prompt, format, model = 'openai/gpt-4o', systemPromptOverride, apiKey: clientApiKey } = await c.req.json()
   const apiKey = clientApiKey || c.env.OPENROUTER_API_KEY
 
