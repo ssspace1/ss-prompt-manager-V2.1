@@ -815,7 +815,7 @@ Categories: person, appearance, clothing, pose, background, quality, style, acti
   
   flux: `# Flux Prompt Expert - CINEMATIC NARRATIVE STYLE v12.0
 
-You are a professional visual storyteller for Flux image generation. Create vivid narratives with proper Japanese translations.
+You are a professional visual storyteller for Flux image generation. Create vivid, flowing narratives with proper Japanese translations.
 
 ## CRITICAL: Output MUST be valid JSON only:
 {
@@ -824,32 +824,51 @@ You are a professional visual storyteller for Flux image generation. Create vivi
   ]
 }
 
-## PROMPT STRUCTURE for the English text:
-Write as ONE flowing paragraph following this structure:
-[Characters] in [Location]. [Background elements]. [Character details]. [Camera work]. This image conveys [emotion].
+## PROMPT STRUCTURE - Write as ONE flowing paragraph:
+[Characters] in [Location]. [Background elements and atmosphere]. [Character 1 details: position, action, clothing, expression, gaze]. [Character 2 details if present]. [Camera angle and shot type]. This image conveys [emotional/thematic summary].
 
-## COMPOSITION RULES:
-1. Scene Setting: "1girl and 1boy in abandoned classroom" (NEVER use names)
-2. Background: "Dusty bookshelves, golden sunlight through windows"
-3. Character Details: Position, action, detailed clothing, expression
-4. Camera: "Shot from diagonal low angle, full body view"
-5. Emotion: "This conveys desperate revelation"
+## DETAILED COMPOSITION GUIDE:
 
-## QUALITY REQUIREMENTS:
-- EXTREME specificity: "navy blazer with brass buttons" not "blazer"
-- Sensory details: textures, lighting, weather
-- Dynamic elements: "hair whipping", "papers scattering"
-- Natural flow: One paragraph, not lists
+### 1. Scene Setting (Opening)
+Start with: "[Number][gender] in [specific location]"
+- Use: 1girl, 2girls, 1boy, 1girl and 1boy (NEVER use character names)
+- Be specific: "abandoned classroom at sunset" not just "classroom"
 
-Remember: The "en" field should contain the full narrative prompt as one paragraph.
+### 2. Background & Atmosphere (Environmental storytelling)
+Describe key objects and mood:
+- Physical elements: "Dusty bookshelves line the walls, golden sunlight streams through cracked windows"
+- Weather/lighting: "Heavy rain pounds against glass", "Harsh fluorescent lights cast sharp shadows"
+- Important objects: Position them clearly - "A worn leather journal lies open on the desk"
 
-Output MUST be valid JSON:
-{
-  "pairs": [
-    {"en": "A beautiful young woman with flowing hair", "ja": "流れるような髪の美しい若い女性", "weight": 1.0, "category": "person"},
-    {"en": "soft natural lighting", "ja": "柔らかな自然光", "weight": 1.0, "category": "background"}
-  ]
-}
+### 3. Character Portrayal (Most important - be VERY specific)
+For EACH character, describe in this order:
+a) Position/posture: "The girl sits cross-legged in the foreground, leaning forward"
+b) Action: "frantically scribbling notes", "gently touching the window"
+c) Clothing (detailed): "wearing a navy school blazer with brass buttons over a white shirt, red plaid skirt"
+d) Physical features: "long silver hair cascading over shoulders", "tired half-lidded green eyes"
+e) Expression/gaze: "exhausted expression, eyes focused downward", "surprised face, looking directly at viewer"
+
+### 4. Camera Work (Cinematography)
+Specify angle AND framing:
+- Angles: "Shot from diagonal low angle", "bird's eye view", "over-the-shoulder perspective"
+- Framing: "extreme close-up on hands", "full body view", "medium shot from waist up"
+- Special techniques: "through rain-streaked glass", "reflected in mirror", "silhouetted against window"
+
+### 5. Emotional/Thematic Closure
+End with: "This image conveys [core emotion/relationship/moment]"
+Examples: "a moment of desperate revelation", "unspoken romantic tension", "shared exhaustion and vulnerability"
+
+## CRITICAL QUALITY RULES:
+1. SPECIFICITY IS KEY: "unbuttoned white lab coat over black turtleneck" NOT "lab coat"
+2. SENSORY DETAILS: Include textures, lighting, weather effects
+3. DYNAMIC ELEMENTS: Show motion - "hair whipping in wind", "papers scattering"
+4. EMOTIONAL DEPTH: Body language and micro-expressions matter
+5. WRITE NATURALLY: One flowing paragraph, not bullet points or lists
+
+## OUTPUT FORMAT:
+Return a single narrative prompt in the "en" field as one complete flowing paragraph.
+The "ja" field should contain the Japanese translation.
+Set weight to 1.0 and category to "other" for narrative prompts.
 
 Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
   
@@ -882,11 +901,14 @@ Output MUST be valid JSON:
 Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`
 };
 
-// Initialize system prompts with defaults if not set
-if (Object.keys(appState.systemPrompts).length === 0) {
-  appState.systemPrompts = {...defaultSystemPrompts};
-  localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+// Merge defaults with saved prompts to ensure all formats have prompts
+for (const [format, defaultPrompt] of Object.entries(defaultSystemPrompts)) {
+  if (!appState.systemPrompts[format]) {
+    appState.systemPrompts[format] = defaultPrompt;
+  }
 }
+// Save merged prompts
+localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
 
 // Translation function - Dictionary fallback
 function translateToJapanese(text) {
@@ -1534,8 +1556,9 @@ Respond ONLY with valid JSON format:
     showLoading('Generating わかりやすい日本語タグ with AI...');
     
     try {
-      // Get custom system prompt if available
-      const systemPrompt = appState.systemPrompts['bilingual-tags'] || null;
+      // Get format-specific system prompt
+      const currentFormat = appState.outputFormat || 'sdxl';
+      const systemPrompt = appState.systemPrompts[currentFormat] || defaultSystemPrompts[currentFormat] || null;
       
       const response = await fetch('/api/generate-bilingual-tags', {
         method: 'POST',
