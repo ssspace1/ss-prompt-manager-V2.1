@@ -858,7 +858,7 @@ const appHtml = `<!DOCTYPE html>
             <div id="content-text" class="h-full p-4">
                 <div id="split-container" class="flex gap-4 h-full">
                     <!-- Left Panel: Main Editor -->
-                    <div id="left-panel" class="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
+                    <div id="left-panel" class="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar" style="max-height: calc(100vh - 100px);">
                         
                         <!-- Input Section -->
                         <section class="bg-white rounded-lg shadow-sm p-4">
@@ -950,7 +950,7 @@ const appHtml = `<!DOCTYPE html>
                         </section>
                         
                         <!-- Tag Editor Section -->
-                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1 flex flex-col">
+                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1 flex flex-col min-h-0 overflow-hidden">
                             <div class="flex items-center justify-between mb-3">
                                 <h2 class="text-lg font-semibold text-gray-700">
                                     <i class="fas fa-tags mr-2 text-green-500"></i>
@@ -971,7 +971,7 @@ const appHtml = `<!DOCTYPE html>
                             </div>
                             
                             <!-- Bilingual Tag Columns -->
-                            <div class="grid grid-cols-2 gap-4 flex-1 min-h-0">
+                            <div class="grid grid-cols-2 gap-4 flex-1 min-h-0 overflow-hidden">
                                 <!-- English Column -->
                                 <div class="flex flex-col min-h-0">
                                     <div class="flex items-center justify-between mb-2 pb-2 border-b">
@@ -997,7 +997,7 @@ const appHtml = `<!DOCTYPE html>
                                     </div>
                                     
                                     <!-- Tag List -->
-                                    <div id="tags-en" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2" style="max-height: 500px;">
+                                    <div id="tags-en" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-0">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
@@ -1027,7 +1027,7 @@ const appHtml = `<!DOCTYPE html>
                                     </div>
                                     
                                     <!-- Tag List -->
-                                    <div id="tags-ja" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2" style="max-height: 500px;">
+                                    <div id="tags-ja" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-0">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
@@ -1035,7 +1035,7 @@ const appHtml = `<!DOCTYPE html>
                         </section>
                         
                         <!-- Output Section -->
-                        <section class="bg-white rounded-lg shadow-sm p-4">
+                        <section class="bg-white rounded-lg shadow-sm p-4 flex-shrink-0">
                             <div class="flex items-center justify-between mb-3">
                                 <h2 class="text-lg font-semibold text-gray-700">
                                     <i class="fas fa-file-export mr-2 text-orange-500"></i>
