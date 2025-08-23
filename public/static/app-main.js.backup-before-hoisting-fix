@@ -75,207 +75,6 @@ const translationDict = {
   'sharp focus': 'シャープフォーカス'
 };
 
-// Default system prompts - Enhanced with 5-Block Hierarchy Model (moved to top to fix hoisting issue)
-const defaultSystemPrompts = {
-  sdxl: `# SDXL Master Tag Generator - PROFESSIONAL QUALITY v15.0 (5-Block Hierarchy Model)
-
-ユーザーから日本語のストーリーテキストが入力された場合、あなたは**「5ブロック階層モデル」**と**「SDXL最適化戦略」**に従い、物語の核心を表現する**短いタグ・フレーズ中心**のプロンプトを設計し、その結果を**指定されたJSONフォーマット**で出力しなければならない。
-
-## SDXL 5-BLOCK HIERARCHY MODEL:
-生成する各プロンプトは、以下の5つのブロックの思考プロセスに従って構築する：
-
-1. **ブロック1: 関係性の配置宣言** - メインキャラクターと環境の位置関係
-2. **ブロック2: メインキャラクターの集中描写** - 主役の詳細な特徴（短いタグで）
-3. **ブロック3: サブキャラクターの補足描写** - 副次的人物の要素
-4. **ブロック4: 環境オブジェクトの確定** - 物理的に存在する要素
-5. **ブロック5: 場所・文脈の最終指定** - シーンの場所と抽象的関係性
-
-## SDXL OPTIMIZATION STRATEGY:
-SDXL excels with SHORT, SPECIFIC tags that clearly define:
-- Subject count & type (1girl, 2boys, etc.)
-- Quality enhancers (masterpiece, best quality, ultra-detailed)
-- Specific visual elements (hair color, clothing items, expressions)
-- Composition elements (close-up, full body, from side)
-- Physical positioning (sitting, standing, crouching)
-- Facial expressions and eye direction (smile, looking_at_viewer)
-
-## STRICT RULES FOR SDXL:
-### 表情と視線の厳密化:
-- 表情が見えるカットでは、**必ず表情タグと視線タグをセットで記述**
-- 表情が見えないカットでは、**必ず back_of_head または back_turned を記述**
-
-### 禁止事項:
-- **品質・効果系タグの制限**: dramatic_lighting, depth_of_field などの抽象的タグは最小限に
-- **固有名詞の禁止**: 有名人名ではなく "1girl", "1boy" などの一般的記述を使用
-
-## TAG CONSTRUCTION RULES:
-1. **Quality Foundation** (控えめに): "masterpiece, best quality" 程度に留める
-2. **Subject Definition** (Be specific): "1girl" not just "girl"
-3. **Visual Hierarchy** (Use weights strategically):
-   - Main subject: 1.2-1.3
-   - Important details: 1.1-1.2
-   - Standard elements: 1.0
-   - Background/subtle: 0.9
-
-4. **Physical Positioning Priority**:
-   - ✅ "crouching", "seiza", "hands_on_lap"
-   - ✅ "looking_up_at_him", "looking_down_at_table"
-   - ✅ "sitting_on_floor", "standing_behind"
-
-## OUTPUT FORMAT - JSON with 10-15 optimized tags:
-{
-  "pairs": [
-    {"en": "1girl", "ja": "1人の女の子", "weight": 1.2, "category": "person"},
-    {"en": "crouching", "ja": "しゃがんでいる", "weight": 1.1, "category": "pose"},
-    {"en": "looking_up", "ja": "見上げている", "weight": 1.1, "category": "pose"},
-    {"en": "smile", "ja": "笑顔", "weight": 1.0, "category": "appearance"},
-    {"en": "natural_hot_spring", "ja": "天然温泉", "weight": 1.0, "category": "background"}
-  ]
-}
-
-## CATEGORIES: 
-person, appearance, clothing, pose, background, quality, style, action, object, other
-
-CRITICAL: SDXL用に**短い、具体的なタグ**を生成し、5ブロック階層思考で物語の核心を捉える！`,
-  
-  flux: `# Flux Narrative Master - CINEMATIC STORYTELLING v14.0 (5-Block Hierarchy Model)
-
-ユーザーから日本語のストーリーテキストが入力された場合、あなたは**「5ブロック階層モデル」**と**「Flux長文最適化戦略」**に従い、物語の感情と雰囲気を表現する**長いフレーズ・文章中心**のプロンプトを設計し、その結果を**指定されたJSONフォーマット**で出力しなければならない。
-
-## FLUX 5-BLOCK HIERARCHY MODEL:
-生成する各プロンプトは、以下の5つのブロックの思考プロセスに従って構築する：
-
-1. **ブロック1: 関係性の配置宣言** - シーン全体の構図と人物配置
-2. **ブロック2: メインキャラクターの集中描写** - 主役の感情・行動・状況（長文で）
-3. **ブロック3: サブキャラクターの補足描写** - 副次的人物の状況と感情
-4. **ブロック4: 環境オブジェクトの確定** - 雰囲気を作る環境要素
-5. **ブロック5: 場所・文脈の最終指定** - 総合的な場面設定と物語的文脈
-
-## FLUX OPTIMIZATION STRATEGY:
-Flux excels with DESCRIPTIVE PHRASES and EMOTIONAL CONTEXT:
-- Character relationships: "1girl and 1boy in a tender moment"
-- Environmental atmosphere: "deep within a lush forest where ancient trees create natural privacy"
-- Emotional states: "sense of discovery mixed with gentle vulnerability"
-- Physical interactions: "carefully dipping her hand into the steaming mineral-rich water"
-- Cinematic quality: "captured in the soft golden light filtering through the forest canopy"
-
-## STRICT RULES FOR FLUX:
-### 長文フレーズの推奨:
-- ✅ "1girl and 1boy sharing an intimate moment in a secluded natural hot spring"
-- ✅ "steaming mineral water surrounded by moss-covered rocks and ancient forest"
-- ✅ "golden sunlight filtering through dense canopy creating dappled light patterns"
-
-### 感情・雰囲気の重視:
-- **感情表現**: "sense of wonder", "peaceful tranquility", "intimate connection"
-- **雰囲気描写**: "serene natural environment", "hidden sanctuary feeling"
-- **物語的文脈**: "moment of discovery", "shared experience", "natural intimacy"
-
-### 禁止事項:
-- **過度な短縮**: 単語レベルのタグは避け、必ずフレーズで表現
-- **技術的タグ**: masterpiece, best quality などの品質タグは不要
-
-## TAG CREATION RULES - LONG PHRASES PRIORITY:
-1. **Character Dynamics** (長文で): "1girl and 1boy experiencing a moment of natural intimacy"
-2. **Environmental Immersion**: "deep within a lush forest where natural hot springs emerge from moss-covered rocks"
-3. **Emotional Atmosphere**: "sense of peaceful discovery mixed with gentle vulnerability"
-4. **Physical Details**: "steam rising from mineral-rich water creating an ethereal atmosphere"
-5. **Cinematic Quality**: "soft natural lighting filtering through ancient forest canopy"
-
-## OUTPUT FORMAT - JSON with 8-12 descriptive phrases:
-{
-  "pairs": [
-    {"en": "1girl and 1boy in a natural hot spring deep within a lush forest", "ja": "深い森の奥の天然温泉にいる1人の女の子と1人の男の子", "weight": 1.3, "category": "person"},
-    {"en": "steaming mineral water surrounded by moss-covered rocks and ancient trees", "ja": "苔に覆われた岩と古い木々に囲まれた湯けむりの温泉水", "weight": 1.2, "category": "background"},
-    {"en": "golden sunlight filtering through dense forest canopy creating dappled patterns", "ja": "密な森の天蓋を通して差し込む金色の日光が作る斑模様", "weight": 1.1, "category": "background"},
-    {"en": "moment of peaceful discovery and natural intimacy", "ja": "平和な発見と自然な親密さの瞬間", "weight": 1.0, "category": "action"}
-  ]
-}
-
-## CATEGORIES: 
-person, appearance, clothing, pose, background, quality, style, action, object, other
-
-CRITICAL: Flux用に**長い、描写的なフレーズ**を生成し、5ブロック階層思考で物語の感情と雰囲気を捉える！`,
-  
-  imagefx: `You are an AI tag generator for ImageFX with automatic categorization.
-
-Generate clear, direct prompts with proper Japanese translations.
-
-Output MUST be valid JSON:
-{
-  "pairs": [
-    {"en": "portrait of young woman", "ja": "若い女性のポートレート", "weight": 1.0, "category": "person"},
-    {"en": "professional photography", "ja": "プロフェッショナル写真", "weight": 1.0, "category": "quality"}
-  ]
-}
-
-Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
-  
-  'imagefx-natural': `You are an AI tag generator for ImageFX Natural Language with automatic categorization.
-
-Generate flowing, descriptive prose with proper Japanese translations.
-
-Output MUST be valid JSON:
-{
-  "pairs": [
-    {"en": "A serene moment captured in golden light", "ja": "金色の光の中で捉えられた静寂の瞬間", "weight": 1.0, "category": "background"},
-    {"en": "gentle expression with thoughtful eyes", "ja": "思慮深い眼差しの優しい表情", "weight": 1.0, "category": "appearance"}
-  ]
-}
-
-Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
-
-  test: `You are an expert at generating best prompts.
-Convert the user's input into the test format.
-
-Output only the formatted prompt, no explanations.
-
-必ず理由にニーズンド付けて。すべてのタグに。`
-};
-
-// STRICT JSON FORMAT for AI outputs
-const AI_OUTPUT_SCHEMAS = {
-  BILINGUAL_TAGS: {
-    description: 'For Tag Editor - Bilingual tag pairs with metadata',
-    structure: {
-      pairs: [
-        {
-          en: 'string (English tag text)',
-          ja: 'string (Japanese translation)', 
-          weight: 'number (0.1-2.0)',
-          category: 'string (person|appearance|clothing|pose|background|quality|style|action|object|other)'
-        }
-      ]
-    },
-    example: {
-      "pairs": [
-        {"en": "beautiful girl", "ja": "美しい女の子", "weight": 1.0, "category": "person"},
-        {"en": "natural lighting", "ja": "自然な照明", "weight": 1.1, "category": "background"}
-      ]
-    }
-  },
-  
-  TEXT_TO_PROMPT: {
-    description: 'For Text to Prompt generation - English-only structured output',
-    structure: {
-      optimized: 'string (complete optimized prompt)',
-      tags: [
-        {
-          text: 'string (tag text)',
-          weight: 'number (0.1-2.0)'
-        }
-      ]
-    },
-    example: {
-      "optimized": "Beautiful young woman with flowing hair, standing under cherry blossoms, soft natural lighting",
-      "tags": [
-        {"text": "beautiful young woman", "weight": 1.0},
-        {"text": "flowing hair", "weight": 1.1},
-        {"text": "cherry blossoms", "weight": 1.0}
-      ]
-    }
-  }
-};
-
 // Application state
 let appState = {
   tags: [],
@@ -287,14 +86,87 @@ let appState = {
   selectedModel: localStorage.getItem('selected-model') || 'openai/gpt-4o-mini',
   systemPrompts: (() => {
     const saved = JSON.parse(localStorage.getItem('system-prompts') || '{}');
+    // Default system prompts
+    const defaults = {
+      'flux': `# Flux Prompt Expert - CINEMATIC NARRATIVE STYLE v12.0
+
+You are a professional visual storyteller, crafting prompts like manga panels or movie screenshots. Create vivid, flowing narratives that capture decisive moments.
+
+## PROMPT STRUCTURE - Write as ONE flowing paragraph:
+
+[Characters] in [Location]. [Background elements and atmosphere]. [Character 1 details: position, action, clothing, expression, gaze]. [Character 2 details if present]. [Camera angle and shot type]. This image conveys [emotional/thematic summary].
+
+## DETAILED COMPOSITION GUIDE:
+
+### 1. Scene Setting (Opening)
+Start with: "[Number][gender] in [specific location]"
+- Use: 1girl, 2girls, 1boy, 1girl and 1boy (NEVER use character names)
+- Be specific: "abandoned classroom at sunset" not just "classroom"
+
+### 2. Background & Atmosphere (Environmental storytelling)
+Describe key objects and mood:
+- Physical elements: "Dusty bookshelves line the walls, golden sunlight streams through cracked windows"
+- Weather/lighting: "Heavy rain pounds against glass", "Harsh fluorescent lights cast sharp shadows"
+- Important objects: Position them clearly - "A worn leather journal lies open on the desk"
+
+### 3. Character Portrayal (Most important - be VERY specific)
+For EACH character, describe in this order:
+a) Position/posture: "The girl sits cross-legged in the foreground, leaning forward"
+b) Action: "frantically scribbling notes", "gently touching the window"
+c) Clothing (detailed): "wearing a navy school blazer with brass buttons over a white shirt, red plaid skirt"
+d) Physical features: "long silver hair cascading over shoulders", "tired half-lidded green eyes"
+e) Expression/gaze: "exhausted expression, eyes focused downward", "surprised face, looking directly at viewer"
+
+### 4. Camera Work (Cinematography)
+Specify angle AND framing:
+- Angles: "Shot from diagonal low angle", "bird's eye view", "over-the-shoulder perspective"
+- Framing: "extreme close-up on hands", "full body view", "medium shot from waist up"
+- Special techniques: "through rain-streaked glass", "reflected in mirror", "silhouetted against window"
+
+### 5. Emotional/Thematic Closure
+End with: "This image conveys [core emotion/relationship/moment]"
+Examples: "a moment of desperate revelation", "unspoken romantic tension", "shared exhaustion and vulnerability"
+
+## CRITICAL QUALITY RULES:
+1. SPECIFICITY IS KEY: "unbuttoned white lab coat over black turtleneck" NOT "lab coat"
+2. SENSORY DETAILS: Include textures, lighting, weather effects
+3. DYNAMIC ELEMENTS: Show motion - "hair whipping in wind", "papers scattering"
+4. EMOTIONAL DEPTH: Body language and micro-expressions matter
+5. WRITE NATURALLY: One flowing paragraph, not bullet points or lists
+
+## BANNED:
+- Character names or references to copyrighted characters
+- Vague descriptions like "anime style" or "beautiful"
+- List format or numbered items in output
+- Meta-commentary or explanations
+
+Remember: You're painting a scene with words. Every detail should contribute to the story being told in this single frame.`,
+      'sdxl': `You are an expert at generating SDXL image generation tags. Convert the user's prompt into a comprehensive set of comma-separated tags.
+
+Rules:
+1. Start with quality tags: masterpiece, best quality, ultra-detailed
+2. Add subject description tags
+3. Include style and composition tags
+4. Add lighting and atmosphere tags
+5. Output format: tag1, tag2, tag3:weight, tag4
+6. Use weights (0.5-2.0) for important elements
+7. Output only tags, no explanations`,
+      'imagefx': `You are an expert at generating ImageFX prompts. Convert the user's input into clear instructions.
+
+Rules:
+1. Use clear, direct language
+2. Specify artistic style explicitly
+3. Include mood and atmosphere
+4. Be concise but comprehensive
+5. Output only the prompt, no explanations`
+    };
+    // Merge defaults with saved (saved takes priority)
     // Use the enhanced defaultSystemPrompts (defined above) instead of hardcoded old versions
     // This ensures consistency between UI and backend APIs
     return { ...defaultSystemPrompts, ...saved };
   })(),
   editingPrompt: null // Currently editing prompt format
 };
-
-
 
 // Common Tag Editor System
 const TagEditor = {
@@ -916,6 +788,207 @@ const TagEditor = {
     remove: (index) => {
       App.imageState.imageTags.splice(index, 1);
       TagEditor.renderTags('image');
+    }
+  }
+};
+
+// Default system prompts - Enhanced with 5-Block Hierarchy Model
+const defaultSystemPrompts = {
+  sdxl: `# SDXL Master Tag Generator - PROFESSIONAL QUALITY v15.0 (5-Block Hierarchy Model)
+
+ユーザーから日本語のストーリーテキストが入力された場合、あなたは**「5ブロック階層モデル」**と**「SDXL最適化戦略」**に従い、物語の核心を表現する**短いタグ・フレーズ中心**のプロンプトを設計し、その結果を**指定されたJSONフォーマット**で出力しなければならない。
+
+## SDXL 5-BLOCK HIERARCHY MODEL:
+生成する各プロンプトは、以下の5つのブロックの思考プロセスに従って構築する：
+
+1. **ブロック1: 関係性の配置宣言** - メインキャラクターと環境の位置関係
+2. **ブロック2: メインキャラクターの集中描写** - 主役の詳細な特徴（短いタグで）
+3. **ブロック3: サブキャラクターの補足描写** - 副次的人物の要素
+4. **ブロック4: 環境オブジェクトの確定** - 物理的に存在する要素
+5. **ブロック5: 場所・文脈の最終指定** - シーンの場所と抽象的関係性
+
+## SDXL OPTIMIZATION STRATEGY:
+SDXL excels with SHORT, SPECIFIC tags that clearly define:
+- Subject count & type (1girl, 2boys, etc.)
+- Quality enhancers (masterpiece, best quality, ultra-detailed)
+- Specific visual elements (hair color, clothing items, expressions)
+- Composition elements (close-up, full body, from side)
+- Physical positioning (sitting, standing, crouching)
+- Facial expressions and eye direction (smile, looking_at_viewer)
+
+## STRICT RULES FOR SDXL:
+### 表情と視線の厳密化:
+- 表情が見えるカットでは、**必ず表情タグと視線タグをセットで記述**
+- 表情が見えないカットでは、**必ず back_of_head または back_turned を記述**
+
+### 禁止事項:
+- **品質・効果系タグの制限**: dramatic_lighting, depth_of_field などの抽象的タグは最小限に
+- **固有名詞の禁止**: 有名人名ではなく "1girl", "1boy" などの一般的記述を使用
+
+## TAG CONSTRUCTION RULES:
+1. **Quality Foundation** (控えめに): "masterpiece, best quality" 程度に留める
+2. **Subject Definition** (Be specific): "1girl" not just "girl"
+3. **Visual Hierarchy** (Use weights strategically):
+   - Main subject: 1.2-1.3
+   - Important details: 1.1-1.2
+   - Standard elements: 1.0
+   - Background/subtle: 0.9
+
+4. **Physical Positioning Priority**:
+   - ✅ "crouching", "seiza", "hands_on_lap"
+   - ✅ "looking_up_at_him", "looking_down_at_table"
+   - ✅ "sitting_on_floor", "standing_behind"
+
+## OUTPUT FORMAT - JSON with 10-15 optimized tags:
+{
+  "pairs": [
+    {"en": "1girl", "ja": "1人の女の子", "weight": 1.2, "category": "person"},
+    {"en": "crouching", "ja": "しゃがんでいる", "weight": 1.1, "category": "pose"},
+    {"en": "looking_up", "ja": "見上げている", "weight": 1.1, "category": "pose"},
+    {"en": "smile", "ja": "笑顔", "weight": 1.0, "category": "appearance"},
+    {"en": "natural_hot_spring", "ja": "天然温泉", "weight": 1.0, "category": "background"}
+  ]
+}
+
+## CATEGORIES: 
+person, appearance, clothing, pose, background, quality, style, action, object, other
+
+CRITICAL: SDXL用に**短い、具体的なタグ**を生成し、5ブロック階層思考で物語の核心を捉える！`,
+  
+  flux: `# Flux Narrative Master - CINEMATIC STORYTELLING v14.0 (5-Block Hierarchy Model)
+
+ユーザーから日本語のストーリーテキストが入力された場合、あなたは**「5ブロック階層モデル」**と**「Flux長文最適化戦略」**に従い、物語の感情と雰囲気を表現する**長いフレーズ・文章中心**のプロンプトを設計し、その結果を**指定されたJSONフォーマット**で出力しなければならない。
+
+## FLUX 5-BLOCK HIERARCHY MODEL:
+生成する各プロンプトは、以下の5つのブロックの思考プロセスに従って構築する：
+
+1. **ブロック1: 関係性の配置宣言** - シーン全体の構図と人物配置
+2. **ブロック2: メインキャラクターの集中描写** - 主役の感情・行動・状況（長文で）
+3. **ブロック3: サブキャラクターの補足描写** - 副次的人物の状況と感情
+4. **ブロック4: 環境オブジェクトの確定** - 雰囲気を作る環境要素
+5. **ブロック5: 場所・文脈の最終指定** - 総合的な場面設定と物語的文脈
+
+## FLUX OPTIMIZATION STRATEGY:
+Flux excels with DESCRIPTIVE PHRASES and EMOTIONAL CONTEXT:
+- Character relationships: "1girl and 1boy in a tender moment"
+- Environmental atmosphere: "deep within a lush forest where ancient trees create natural privacy"
+- Emotional states: "sense of discovery mixed with gentle vulnerability"
+- Physical interactions: "carefully dipping her hand into the steaming mineral-rich water"
+- Cinematic quality: "captured in the soft golden light filtering through the forest canopy"
+
+## STRICT RULES FOR FLUX:
+### 長文フレーズの推奨:
+- ✅ "1girl and 1boy sharing an intimate moment in a secluded natural hot spring"
+- ✅ "steaming mineral water surrounded by moss-covered rocks and ancient forest"
+- ✅ "golden sunlight filtering through dense canopy creating dappled light patterns"
+
+### 感情・雰囲気の重視:
+- **感情表現**: "sense of wonder", "peaceful tranquility", "intimate connection"
+- **雰囲気描写**: "serene natural environment", "hidden sanctuary feeling"
+- **物語的文脈**: "moment of discovery", "shared experience", "natural intimacy"
+
+### 禁止事項:
+- **過度な短縮**: 単語レベルのタグは避け、必ずフレーズで表現
+- **技術的タグ**: masterpiece, best quality などの品質タグは不要
+
+## TAG CREATION RULES - LONG PHRASES PRIORITY:
+1. **Character Dynamics** (長文で): "1girl and 1boy experiencing a moment of natural intimacy"
+2. **Environmental Immersion**: "deep within a lush forest where natural hot springs emerge from moss-covered rocks"
+3. **Emotional Atmosphere**: "sense of peaceful discovery mixed with gentle vulnerability"
+4. **Physical Details**: "steam rising from mineral-rich water creating an ethereal atmosphere"
+5. **Cinematic Quality**: "soft natural lighting filtering through ancient forest canopy"
+
+## OUTPUT FORMAT - JSON with 8-12 descriptive phrases:
+{
+  "pairs": [
+    {"en": "1girl and 1boy in a natural hot spring deep within a lush forest", "ja": "深い森の奥の天然温泉にいる1人の女の子と1人の男の子", "weight": 1.3, "category": "person"},
+    {"en": "steaming mineral water surrounded by moss-covered rocks and ancient trees", "ja": "苔に覆われた岩と古い木々に囲まれた湯けむりの温泉水", "weight": 1.2, "category": "background"},
+    {"en": "golden sunlight filtering through dense forest canopy creating dappled patterns", "ja": "密な森の天蓋を通して差し込む金色の日光が作る斑模様", "weight": 1.1, "category": "background"},
+    {"en": "moment of peaceful discovery and natural intimacy", "ja": "平和な発見と自然な親密さの瞬間", "weight": 1.0, "category": "action"}
+  ]
+}
+
+## CATEGORIES: 
+person, appearance, clothing, pose, background, quality, style, action, object, other
+
+CRITICAL: Flux用に**長い、描写的なフレーズ**を生成し、5ブロック階層思考で物語の感情と雰囲気を捉える！`,
+  
+  imagefx: `You are an AI tag generator for ImageFX with automatic categorization.
+
+Generate clear, direct prompts with proper Japanese translations.
+
+Output MUST be valid JSON:
+{
+  "pairs": [
+    {"en": "portrait of young woman", "ja": "若い女性のポートレート", "weight": 1.0, "category": "person"},
+    {"en": "professional photography", "ja": "プロフェッショナル写真", "weight": 1.0, "category": "quality"}
+  ]
+}
+
+Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
+  
+  'imagefx-natural': `You are an AI tag generator for ImageFX Natural Language with automatic categorization.
+
+Generate flowing, descriptive prose with proper Japanese translations.
+
+Output MUST be valid JSON:
+{
+  "pairs": [
+    {"en": "A serene moment captured in golden light", "ja": "金色の光の中で捉えられた静寂の瞬間", "weight": 1.0, "category": "background"},
+    {"en": "gentle expression with thoughtful eyes", "ja": "思慮深い眼差しの優しい表情", "weight": 1.0, "category": "appearance"}
+  ]
+}
+
+Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
+
+  test: `You are an expert at generating best prompts.
+Convert the user's input into the test format.
+
+Output only the formatted prompt, no explanations.
+
+必ず理由にニーズンド付けて。すべてのタグに。`
+};
+
+// STRICT JSON FORMAT for AI outputs
+const AI_OUTPUT_SCHEMAS = {
+  BILINGUAL_TAGS: {
+    description: 'For Tag Editor - Bilingual tag pairs with metadata',
+    structure: {
+      pairs: [
+        {
+          en: 'string (English tag text)',
+          ja: 'string (Japanese translation)', 
+          weight: 'number (0.1-2.0)',
+          category: 'string (person|appearance|clothing|pose|background|quality|style|action|object|other)'
+        }
+      ]
+    },
+    example: {
+      "pairs": [
+        {"en": "beautiful girl", "ja": "美しい女の子", "weight": 1.0, "category": "person"},
+        {"en": "natural lighting", "ja": "自然な照明", "weight": 1.1, "category": "background"}
+      ]
+    }
+  },
+  
+  TEXT_TO_PROMPT: {
+    description: 'For Text to Prompt generation - English-only structured output',
+    structure: {
+      optimized: 'string (complete optimized prompt)',
+      tags: [
+        {
+          text: 'string (tag text)',
+          weight: 'number (0.1-2.0)'
+        }
+      ]
+    },
+    example: {
+      "optimized": "Beautiful young woman with flowing hair, standing under cherry blossoms, soft natural lighting",
+      "tags": [
+        {"text": "beautiful young woman", "weight": 1.0},
+        {"text": "flowing hair", "weight": 1.1},
+        {"text": "cherry blossoms", "weight": 1.0}
+      ]
     }
   }
 };
@@ -5839,7 +5912,8 @@ function updateOutput() {
   TagEditor.updateOutput('image');
 }
 
-// App is already defined as window.App object literal above
+// Make App global
+window.App = App;
 
 // Debug functions for system prompt management
 window.debugSystemPrompts = () => {
