@@ -692,13 +692,18 @@
     </div>
     
     <!-- Scripts -->
-    <script src="/static/systemPrompts.js"></script>
-    <script src="/static/appCore.js"></script>
+    <script src="/static/app-main.js?v=20250823-1900"></script>
     <script>
         // Initialize the application when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
-            window.App = new PromptManager();
-            App.init();
+            console.log('DOM loaded, initializing app...');
+            if (typeof PromptManager !== 'undefined') {
+                window.App = new PromptManager();
+                App.init();
+                console.log('App initialized successfully');
+            } else {
+                console.error('PromptManager not found!');
+            }
         });
     </script>
 </body>
