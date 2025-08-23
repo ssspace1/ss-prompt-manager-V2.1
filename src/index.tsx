@@ -950,7 +950,7 @@ const appHtml = `<!DOCTYPE html>
                         </section>
                         
                         <!-- Tag Editor Section -->
-                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1 flex flex-col" style="min-height: calc(100vh - 350px);">
+                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1 flex flex-col">
                             <div class="flex items-center justify-between mb-3">
                                 <h2 class="text-lg font-semibold text-gray-700">
                                     <i class="fas fa-tags mr-2 text-green-500"></i>
@@ -997,7 +997,7 @@ const appHtml = `<!DOCTYPE html>
                                     </div>
                                     
                                     <!-- Tag List -->
-                                    <div id="tags-en" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2" style="max-height: calc(100vh - 400px);">
+                                    <div id="tags-en" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2" style="max-height: 500px;">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
@@ -1027,7 +1027,7 @@ const appHtml = `<!DOCTYPE html>
                                     </div>
                                     
                                     <!-- Tag List -->
-                                    <div id="tags-ja" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2" style="max-height: calc(100vh - 400px);">
+                                    <div id="tags-ja" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2" style="max-height: 500px;">
                                         <!-- Tags will be dynamically inserted here -->
                                     </div>
                                 </div>
