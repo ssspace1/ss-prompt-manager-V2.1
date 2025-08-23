@@ -936,7 +936,7 @@ const appHtml = `<!DOCTYPE html>
                                     <!-- Model Selection -->
                                     <div class="flex items-center gap-2">
                                         <label class="text-sm text-gray-600 font-medium">Model:</label>
-                                        <select id="model-selector" onchange="App.updateSelectedModel()" 
+                                        <select id="text-model-selector" onchange="App.updateTextModelFromTab()" 
                                                 class="px-3 py-2 border rounded-lg text-sm min-w-[140px]">
                                             <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
                                             <option value="openai/gpt-4o">GPT-4o</option>
@@ -1249,7 +1249,7 @@ const appHtml = `<!DOCTYPE html>
                             <!-- Model Selection -->
                             <div class="flex items-center gap-1">
                                 <label class="text-xs text-gray-600">Model:</label>
-                                <select id="vision-model-select" onchange="App.updateVisionModel()" 
+                                <select id="image-model-selector" onchange="App.updateImageModelFromTab()" 
                                         class="px-2 py-1 border rounded text-xs min-w-[120px]">
                                     <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash</option>
                                     <option value="google/gemini-flash-1.5-8b">Gemini 1.5 8B (Free)</option>
@@ -1513,15 +1513,18 @@ const appHtml = `<!DOCTYPE html>
                         </p>
                     </div>
                     
-                    <!-- Model Selection -->
+                    <!-- Text to Prompt Model Selection -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             <i class="fas fa-robot mr-1 text-purple-500"></i>
-                            AI Model
+                            Text to Prompt Model
                         </label>
+                        <p class="text-xs text-gray-500 mb-2">
+                            テキストからプロンプト生成に使用するAIモデル
+                        </p>
                         <div class="flex gap-2 items-start">
-                            <select id="openrouter-model" class="flex-1 px-3 py-2 border rounded-lg"
-                                    onchange="App.updateOpenRouterModel(this.value)">
+                            <select id="settings-text-model" class="flex-1 px-3 py-2 border rounded-lg"
+                                    onchange="App.updateTextModelFromSettings(this.value)">
                                 <option value="">Loading models...</option>
                             </select>
                             <button onclick="App.refreshModelList()" 
@@ -1795,17 +1798,17 @@ const appHtml = `<!DOCTYPE html>
                         </div>
                     </div>
                     
-                    <!-- Vision Model Selection -->
+                    <!-- Image to Prompt Model Selection -->
                     <div class="mt-6">
                         <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-robot mr-1 text-blue-500"></i>
-                            Vision Model
+                            <i class="fas fa-image mr-1 text-blue-500"></i>
+                            Image to Prompt Model
                         </label>
                         <p class="text-xs text-gray-500 mb-2">
-                            画像解析に使用するVisionモデルを選択します。
+                            画像からプロンプト生成に使用するVisionモデル
                         </p>
-                        <select id="settings-vision-model" 
-                                onchange="App.updateVisionModelSetting(this.value)"
+                        <select id="settings-image-model" 
+                                onchange="App.updateImageModelFromSettings(this.value)"
                                 class="w-full px-3 py-2 border rounded-lg">
                             <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp (推奨)</option>
                             <option value="openai/gpt-4o-mini">GPT-4o Mini</option>

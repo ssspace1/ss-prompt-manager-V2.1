@@ -2259,57 +2259,78 @@ Respond ONLY with valid JSON format:
   },
   
   updateModelList: (models) => {
-    const modelSelect = document.getElementById('openrouter-model');
-    if (!modelSelect) return;
+    // Update both Text and Image model selects in Settings
+    const textModelSelect = document.getElementById('settings-text-model');
+    const imageModelSelect = document.getElementById('settings-image-model');
     
-    // Clear existing options
-    modelSelect.innerHTML = '';
-    
-    // Add default option
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Select a model...';
-    modelSelect.appendChild(defaultOption);
-    
-    // Filter and add text models
-    const textModels = models.filter(model => 
-      model.architecture?.modality === 'text->text' || 
-      model.id.includes('gpt') || 
-      model.id.includes('claude') || 
-      model.id.includes('gemini') ||
-      model.id.includes('mistral') ||
-      model.id.includes('deepseek')
-    );
-    
-    // Sort models by popularity/name
-    textModels.sort((a, b) => {
-      // Prioritize popular models
-      const priority = ['gpt-4', 'claude-3', 'gemini', 'deepseek', 'mistral'];
-      for (const p of priority) {
-        if (a.id.includes(p) && !b.id.includes(p)) return -1;
-        if (!a.id.includes(p) && b.id.includes(p)) return 1;
-      }
-      return a.name?.localeCompare(b.name) || a.id.localeCompare(b.id);
-    });
-    
-    // Add models to dropdown
-    textModels.forEach(model => {
-      const option = document.createElement('option');
-      option.value = model.id;
-      option.textContent = model.name || model.id;
+    // Function to populate a model select
+    const populateModelSelect = (selectElement, isVisionModel = false) => {
+      if (!selectElement) return;
       
-      // Add pricing info if available
-      if (model.pricing?.prompt) {
-        const price = parseFloat(model.pricing.prompt);
-        if (price === 0) {
-          option.textContent += ' (Free)';
+      // Clear existing options
+      selectElement.innerHTML = '';
+      
+      // Add default option
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'Select a model...';
+      selectElement.appendChild(defaultOption);
+    
+      // Filter models based on type
+      const filteredModels = models.filter(model => {
+        if (isVisionModel) {
+          // Vision models for Image to Prompt
+          return model.architecture?.modality === 'image->text' ||
+                 model.architecture?.modality === 'text+image->text' ||
+                 model.id.includes('vision') ||
+                 model.id.includes('gpt-4o') ||
+                 model.id.includes('claude-3') ||
+                 model.id.includes('gemini');
         } else {
-          option.textContent += ` ($${(price * 1000000).toFixed(2)}/M tokens)`;
+          // Text models for Text to Prompt
+          return model.architecture?.modality === 'text->text' || 
+                 model.id.includes('gpt') || 
+                 model.id.includes('claude') || 
+                 model.id.includes('gemini') ||
+                 model.id.includes('mistral') ||
+                 model.id.includes('deepseek');
         }
-      }
+      });
       
-      modelSelect.appendChild(option);
-    });
+      // Sort models by popularity/name
+      filteredModels.sort((a, b) => {
+        // Prioritize popular models
+        const priority = ['gpt-4', 'claude-3', 'gemini', 'deepseek', 'mistral'];
+        for (const p of priority) {
+          if (a.id.includes(p) && !b.id.includes(p)) return -1;
+          if (!a.id.includes(p) && b.id.includes(p)) return 1;
+        }
+        return a.name?.localeCompare(b.name) || a.id.localeCompare(b.id);
+      });
+      
+      // Add models to dropdown
+      filteredModels.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.id;
+        option.textContent = model.name || model.id;
+        
+        // Add pricing info if available
+        if (model.pricing?.prompt) {
+          const price = parseFloat(model.pricing.prompt);
+          if (price === 0) {
+            option.textContent += ' (Free)';
+          } else {
+            option.textContent += ` ($${(price * 1000000).toFixed(2)}/M tokens)`;
+          }
+        }
+        
+        selectElement.appendChild(option);
+      });
+    };
+    
+    // Populate both Text and Image model dropdowns
+    populateModelSelect(textModelSelect, false);
+    populateModelSelect(imageModelSelect, true);
     
     // Update model indicator
     const modelIndicator = document.getElementById('current-model-indicator');
@@ -2540,10 +2561,9 @@ JSON形式で出力:
     showNotification(`${format.toUpperCase()}形式をデフォルトに戻しました`, 'success');
   },
   
+  // Backward compatibility - redirect to image model settings
   updateVisionModelSetting: (model) => {
-    App.imageState.visionModel = model;
-    localStorage.setItem('vision-model', model);
-    showNotification(`Vision Modelを${model}に変更しました`, 'success');
+    App.updateImageModelFromSettings(model);
   },
   
   resetSettings: () => {
@@ -2588,13 +2608,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
   
-  // Initialize model selector
-  const savedModel = localStorage.getItem('selected-model');
-  if (savedModel) {
-    const modelSelect = document.getElementById('model-selector');
-    if (modelSelect) {
-      modelSelect.value = savedModel;
-      appState.selectedModel = savedModel;
+  // Initialize Text to Prompt model selector
+  const savedTextModel = localStorage.getItem('text-model') || localStorage.getItem('selected-model');
+  if (savedTextModel) {
+    const textModelSelect = document.getElementById('text-model-selector');
+    const settingsTextModel = document.getElementById('settings-text-model');
+    if (textModelSelect) {
+      textModelSelect.value = savedTextModel;
+      appState.selectedModel = savedTextModel;
+    }
+    if (settingsTextModel) {
+      settingsTextModel.value = savedTextModel;
+    }
+  }
+  
+  // Initialize Image to Prompt model selector
+  const savedImageModel = localStorage.getItem('image-model') || localStorage.getItem('vision-model');
+  if (savedImageModel) {
+    const imageModelSelect = document.getElementById('image-model-selector');
+    const settingsImageModel = document.getElementById('settings-image-model');
+    if (imageModelSelect) {
+      imageModelSelect.value = savedImageModel;
+      App.imageState.visionModel = savedImageModel;
+    }
+    if (settingsImageModel) {
+      settingsImageModel.value = savedImageModel;
     }
   }
   
