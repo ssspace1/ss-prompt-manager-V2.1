@@ -2218,6 +2218,7 @@ Return only the optimized prompt, no explanations.`,
 Convert the input into natural language phrases that Flux understands.
 Focus on descriptive, flowing sentences rather than tags.
 Maintain artistic and technical details.
+IMPORTANT: Output ONLY in English. No Japanese text.
 Return only the optimized prompt, no explanations.`,
     
     imagefx: `You are an expert at optimizing prompts for ImageFX.
@@ -2229,6 +2230,7 @@ Return only the optimized prompt, no explanations.`,
 Return only the optimized version.`
   }
 
+  // Prioritize systemPromptOverride (from client) over defaults
   const systemPrompt = systemPromptOverride || systemPrompts[format as keyof typeof systemPrompts] || systemPrompts.custom
 
   try {

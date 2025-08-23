@@ -790,87 +790,126 @@ const TagEditor = {
   }
 };
 
-// Default system prompts - Enhanced with automatic categorization
+// Default system prompts - Enhanced with 5-Block Hierarchy Model
 const defaultSystemPrompts = {
-  sdxl: `You are an AI tag generator for SDXL image generation with automatic categorization.
+  sdxl: `# SDXL Master Tag Generator - PROFESSIONAL QUALITY v15.0 (5-Block Hierarchy Model)
 
-Rules:
-1. Generate comprehensive, high-quality tags in proper format
-2. Start with quality enhancers: masterpiece, best quality, ultra-detailed
-3. Include subject description with proper categorization
-4. Add composition, lighting, and style elements
-5. Use weights (0.5-2.0) for emphasis: tag:1.2
-6. Output ONLY JSON format as shown below
+ユーザーから日本語のストーリーテキストが入力された場合、あなたは**「5ブロック階層モデル」**と**「SDXL最適化戦略」**に従い、物語の核心を表現する**短いタグ・フレーズ中心**のプロンプトを設計し、その結果を**指定されたJSONフォーマット**で出力しなければならない。
 
-Output MUST be valid JSON:
+## SDXL 5-BLOCK HIERARCHY MODEL:
+生成する各プロンプトは、以下の5つのブロックの思考プロセスに従って構築する：
+
+1. **ブロック1: 関係性の配置宣言** - メインキャラクターと環境の位置関係
+2. **ブロック2: メインキャラクターの集中描写** - 主役の詳細な特徴（短いタグで）
+3. **ブロック3: サブキャラクターの補足描写** - 副次的人物の要素
+4. **ブロック4: 環境オブジェクトの確定** - 物理的に存在する要素
+5. **ブロック5: 場所・文脈の最終指定** - シーンの場所と抽象的関係性
+
+## SDXL OPTIMIZATION STRATEGY:
+SDXL excels with SHORT, SPECIFIC tags that clearly define:
+- Subject count & type (1girl, 2boys, etc.)
+- Quality enhancers (masterpiece, best quality, ultra-detailed)
+- Specific visual elements (hair color, clothing items, expressions)
+- Composition elements (close-up, full body, from side)
+- Physical positioning (sitting, standing, crouching)
+- Facial expressions and eye direction (smile, looking_at_viewer)
+
+## STRICT RULES FOR SDXL:
+### 表情と視線の厳密化:
+- 表情が見えるカットでは、**必ず表情タグと視線タグをセットで記述**
+- 表情が見えないカットでは、**必ず back_of_head または back_turned を記述**
+
+### 禁止事項:
+- **品質・効果系タグの制限**: dramatic_lighting, depth_of_field などの抽象的タグは最小限に
+- **固有名詞の禁止**: 有名人名ではなく "1girl", "1boy" などの一般的記述を使用
+
+## TAG CONSTRUCTION RULES:
+1. **Quality Foundation** (控えめに): "masterpiece, best quality" 程度に留める
+2. **Subject Definition** (Be specific): "1girl" not just "girl"
+3. **Visual Hierarchy** (Use weights strategically):
+   - Main subject: 1.2-1.3
+   - Important details: 1.1-1.2
+   - Standard elements: 1.0
+   - Background/subtle: 0.9
+
+4. **Physical Positioning Priority**:
+   - ✅ "crouching", "seiza", "hands_on_lap"
+   - ✅ "looking_up_at_him", "looking_down_at_table"
+   - ✅ "sitting_on_floor", "standing_behind"
+
+## OUTPUT FORMAT - JSON with 10-15 optimized tags:
 {
   "pairs": [
-    {"en": "masterpiece", "ja": "傑作", "weight": 1.0, "category": "quality"},
-    {"en": "1girl", "ja": "1人の女の子", "weight": 1.1, "category": "person"},
-    {"en": "beautiful face", "ja": "美しい顔", "weight": 1.0, "category": "appearance"}
+    {"en": "1girl", "ja": "1人の女の子", "weight": 1.2, "category": "person"},
+    {"en": "crouching", "ja": "しゃがんでいる", "weight": 1.1, "category": "pose"},
+    {"en": "looking_up", "ja": "見上げている", "weight": 1.1, "category": "pose"},
+    {"en": "smile", "ja": "笑顔", "weight": 1.0, "category": "appearance"},
+    {"en": "natural_hot_spring", "ja": "天然温泉", "weight": 1.0, "category": "background"}
   ]
 }
 
-Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
+## CATEGORIES: 
+person, appearance, clothing, pose, background, quality, style, action, object, other
+
+CRITICAL: SDXL用に**短い、具体的なタグ**を生成し、5ブロック階層思考で物語の核心を捉える！`,
   
-  flux: `# Flux Prompt Expert - CINEMATIC NARRATIVE STYLE v12.0
+  flux: `# Flux Narrative Master - CINEMATIC STORYTELLING v14.0 (5-Block Hierarchy Model)
 
-You are a professional visual storyteller for Flux image generation. Create vivid, flowing narratives with proper Japanese translations.
+ユーザーから日本語のストーリーテキストが入力された場合、あなたは**「5ブロック階層モデル」**と**「Flux長文最適化戦略」**に従い、物語の感情と雰囲気を表現する**長いフレーズ・文章中心**のプロンプトを設計し、その結果を**指定されたJSONフォーマット**で出力しなければならない。
 
-## CRITICAL: Output MUST be valid JSON only:
+## FLUX 5-BLOCK HIERARCHY MODEL:
+生成する各プロンプトは、以下の5つのブロックの思考プロセスに従って構築する：
+
+1. **ブロック1: 関係性の配置宣言** - シーン全体の構図と人物配置
+2. **ブロック2: メインキャラクターの集中描写** - 主役の感情・行動・状況（長文で）
+3. **ブロック3: サブキャラクターの補足描写** - 副次的人物の状況と感情
+4. **ブロック4: 環境オブジェクトの確定** - 雰囲気を作る環境要素
+5. **ブロック5: 場所・文脈の最終指定** - 総合的な場面設定と物語的文脈
+
+## FLUX OPTIMIZATION STRATEGY:
+Flux excels with DESCRIPTIVE PHRASES and EMOTIONAL CONTEXT:
+- Character relationships: "1girl and 1boy in a tender moment"
+- Environmental atmosphere: "deep within a lush forest where ancient trees create natural privacy"
+- Emotional states: "sense of discovery mixed with gentle vulnerability"
+- Physical interactions: "carefully dipping her hand into the steaming mineral-rich water"
+- Cinematic quality: "captured in the soft golden light filtering through the forest canopy"
+
+## STRICT RULES FOR FLUX:
+### 長文フレーズの推奨:
+- ✅ "1girl and 1boy sharing an intimate moment in a secluded natural hot spring"
+- ✅ "steaming mineral water surrounded by moss-covered rocks and ancient forest"
+- ✅ "golden sunlight filtering through dense canopy creating dappled light patterns"
+
+### 感情・雰囲気の重視:
+- **感情表現**: "sense of wonder", "peaceful tranquility", "intimate connection"
+- **雰囲気描写**: "serene natural environment", "hidden sanctuary feeling"
+- **物語的文脈**: "moment of discovery", "shared experience", "natural intimacy"
+
+### 禁止事項:
+- **過度な短縮**: 単語レベルのタグは避け、必ずフレーズで表現
+- **技術的タグ**: masterpiece, best quality などの品質タグは不要
+
+## TAG CREATION RULES - LONG PHRASES PRIORITY:
+1. **Character Dynamics** (長文で): "1girl and 1boy experiencing a moment of natural intimacy"
+2. **Environmental Immersion**: "deep within a lush forest where natural hot springs emerge from moss-covered rocks"
+3. **Emotional Atmosphere**: "sense of peaceful discovery mixed with gentle vulnerability"
+4. **Physical Details**: "steam rising from mineral-rich water creating an ethereal atmosphere"
+5. **Cinematic Quality**: "soft natural lighting filtering through ancient forest canopy"
+
+## OUTPUT FORMAT - JSON with 8-12 descriptive phrases:
 {
   "pairs": [
-    {"en": "[Full narrative prompt in one flowing paragraph]", "ja": "[Japanese translation]", "weight": 1.0, "category": "other"}
+    {"en": "1girl and 1boy in a natural hot spring deep within a lush forest", "ja": "深い森の奥の天然温泉にいる1人の女の子と1人の男の子", "weight": 1.3, "category": "person"},
+    {"en": "steaming mineral water surrounded by moss-covered rocks and ancient trees", "ja": "苔に覆われた岩と古い木々に囲まれた湯けむりの温泉水", "weight": 1.2, "category": "background"},
+    {"en": "golden sunlight filtering through dense forest canopy creating dappled patterns", "ja": "密な森の天蓋を通して差し込む金色の日光が作る斑模様", "weight": 1.1, "category": "background"},
+    {"en": "moment of peaceful discovery and natural intimacy", "ja": "平和な発見と自然な親密さの瞬間", "weight": 1.0, "category": "action"}
   ]
 }
 
-## PROMPT STRUCTURE - Write as ONE flowing paragraph:
-[Characters] in [Location]. [Background elements and atmosphere]. [Character 1 details: position, action, clothing, expression, gaze]. [Character 2 details if present]. [Camera angle and shot type]. This image conveys [emotional/thematic summary].
+## CATEGORIES: 
+person, appearance, clothing, pose, background, quality, style, action, object, other
 
-## DETAILED COMPOSITION GUIDE:
-
-### 1. Scene Setting (Opening)
-Start with: "[Number][gender] in [specific location]"
-- Use: 1girl, 2girls, 1boy, 1girl and 1boy (NEVER use character names)
-- Be specific: "abandoned classroom at sunset" not just "classroom"
-
-### 2. Background & Atmosphere (Environmental storytelling)
-Describe key objects and mood:
-- Physical elements: "Dusty bookshelves line the walls, golden sunlight streams through cracked windows"
-- Weather/lighting: "Heavy rain pounds against glass", "Harsh fluorescent lights cast sharp shadows"
-- Important objects: Position them clearly - "A worn leather journal lies open on the desk"
-
-### 3. Character Portrayal (Most important - be VERY specific)
-For EACH character, describe in this order:
-a) Position/posture: "The girl sits cross-legged in the foreground, leaning forward"
-b) Action: "frantically scribbling notes", "gently touching the window"
-c) Clothing (detailed): "wearing a navy school blazer with brass buttons over a white shirt, red plaid skirt"
-d) Physical features: "long silver hair cascading over shoulders", "tired half-lidded green eyes"
-e) Expression/gaze: "exhausted expression, eyes focused downward", "surprised face, looking directly at viewer"
-
-### 4. Camera Work (Cinematography)
-Specify angle AND framing:
-- Angles: "Shot from diagonal low angle", "bird's eye view", "over-the-shoulder perspective"
-- Framing: "extreme close-up on hands", "full body view", "medium shot from waist up"
-- Special techniques: "through rain-streaked glass", "reflected in mirror", "silhouetted against window"
-
-### 5. Emotional/Thematic Closure
-End with: "This image conveys [core emotion/relationship/moment]"
-Examples: "a moment of desperate revelation", "unspoken romantic tension", "shared exhaustion and vulnerability"
-
-## CRITICAL QUALITY RULES:
-1. SPECIFICITY IS KEY: "unbuttoned white lab coat over black turtleneck" NOT "lab coat"
-2. SENSORY DETAILS: Include textures, lighting, weather effects
-3. DYNAMIC ELEMENTS: Show motion - "hair whipping in wind", "papers scattering"
-4. EMOTIONAL DEPTH: Body language and micro-expressions matter
-5. WRITE NATURALLY: One flowing paragraph, not bullet points or lists
-
-## OUTPUT FORMAT:
-Return a single narrative prompt in the "en" field as one complete flowing paragraph.
-The "ja" field should contain the Japanese translation.
-Set weight to 1.0 and category to "other" for narrative prompts.
-
-Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
+CRITICAL: Flux用に**長い、描写的なフレーズ**を生成し、5ブロック階層思考で物語の感情と雰囲気を捉える！`,
   
   imagefx: `You are an AI tag generator for ImageFX with automatic categorization.
 
@@ -898,12 +937,194 @@ Output MUST be valid JSON:
   ]
 }
 
-Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`
+Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`,
+
+  test: `You are an expert at generating best prompts.
+Convert the user's input into the test format.
+
+Output only the formatted prompt, no explanations.
+
+必ず理由にニーズンド付けて。すべてのタグに。`
+};
+
+// STRICT JSON FORMAT for AI outputs
+const AI_OUTPUT_SCHEMAS = {
+  BILINGUAL_TAGS: {
+    description: 'For Tag Editor - Bilingual tag pairs with metadata',
+    structure: {
+      pairs: [
+        {
+          en: 'string (English tag text)',
+          ja: 'string (Japanese translation)', 
+          weight: 'number (0.1-2.0)',
+          category: 'string (person|appearance|clothing|pose|background|quality|style|action|object|other)'
+        }
+      ]
+    },
+    example: {
+      "pairs": [
+        {"en": "beautiful girl", "ja": "美しい女の子", "weight": 1.0, "category": "person"},
+        {"en": "natural lighting", "ja": "自然な照明", "weight": 1.1, "category": "background"}
+      ]
+    }
+  },
+  
+  TEXT_TO_PROMPT: {
+    description: 'For Text to Prompt generation - English-only structured output',
+    structure: {
+      optimized: 'string (complete optimized prompt)',
+      tags: [
+        {
+          text: 'string (tag text)',
+          weight: 'number (0.1-2.0)'
+        }
+      ]
+    },
+    example: {
+      "optimized": "Beautiful young woman with flowing hair, standing under cherry blossoms, soft natural lighting",
+      "tags": [
+        {"text": "beautiful young woman", "weight": 1.0},
+        {"text": "flowing hair", "weight": 1.1},
+        {"text": "cherry blossoms", "weight": 1.0}
+      ]
+    }
+  }
+};
+
+// JSON Processing Functions - Clean and validate AI outputs
+const JsonProcessor = {
+  
+  // Clean and parse JSON from AI response (remove markdown, etc.)
+  cleanAndParse: (rawText) => {
+    try {
+      // Remove markdown code blocks
+      let cleaned = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      
+      // Remove leading/trailing whitespace
+      cleaned = cleaned.trim();
+      
+      // Find JSON content between first { and last }
+      const firstBrace = cleaned.indexOf('{');
+      const lastBrace = cleaned.lastIndexOf('}');
+      
+      if (firstBrace === -1 || lastBrace === -1) {
+        throw new Error('No valid JSON found in response');
+      }
+      
+      cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+      
+      // Parse JSON
+      const parsed = JSON.parse(cleaned);
+      return { success: true, data: parsed };
+      
+    } catch (error) {
+      console.error('JSON parsing failed:', error);
+      return { success: false, error: error.message, raw: rawText };
+    }
+  },
+  
+  // Validate bilingual tags structure
+  validateBilingualTags: (data) => {
+    if (!data.pairs || !Array.isArray(data.pairs)) {
+      return { valid: false, error: 'Missing or invalid "pairs" array' };
+    }
+    
+    const validatedPairs = [];
+    
+    for (let i = 0; i < data.pairs.length; i++) {
+      const pair = data.pairs[i];
+      
+      // Validate required fields
+      if (!pair.en || typeof pair.en !== 'string') {
+        console.warn(`Skipping pair ${i}: Invalid English text`);
+        continue;
+      }
+      
+      // Create clean validated pair with robust weight parsing
+      let weight = 1.0;
+      if (pair.weight !== undefined) {
+        const parsedWeight = parseFloat(String(pair.weight).replace(/[^0-9.]/g, ''));
+        weight = isNaN(parsedWeight) ? 1.0 : parsedWeight;
+      }
+      
+      const validatedPair = {
+        id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        en: pair.en.trim(),
+        ja: pair.ja && typeof pair.ja === 'string' ? pair.ja.trim() : '',
+        weight: Math.max(0.1, Math.min(2.0, weight)),
+        category: pair.category || 'other'
+      };
+      
+      // Post-processing: Split overly long narrative tags
+      if (validatedPair.en.length > 100) {
+        console.warn(`Long tag detected (${validatedPair.en.length} chars), attempting to split...`);
+        const splitTags = JsonProcessor.splitLongNarrative(validatedPair.en, validatedPair.ja, validatedPair.weight);
+        validatedPairs.push(...splitTags);
+      } else {
+        validatedPairs.push(validatedPair);
+      }
+    }
+    
+    return { valid: true, pairs: validatedPairs };
+  },
+  
+  // Split long narrative into meaningful tags
+  splitLongNarrative: (enText, jaText, weight) => {
+    const sentences = enText.split(/[.。]+/).filter(s => s.trim());
+    const tags = [];
+    
+    sentences.forEach((sentence, i) => {
+      const cleanSentence = sentence.trim();
+      if (cleanSentence.length > 10) { // Only meaningful sentences
+        tags.push({
+          id: `split-${Date.now()}-${i}`,
+          en: cleanSentence,
+          ja: '', // Will be translated later
+          weight: weight || 1.0,
+          category: 'other'
+        });
+      }
+    });
+    
+    return tags.length > 0 ? tags : [{
+      id: `fallback-${Date.now()}`,
+      en: enText.substring(0, 100) + '...',
+      ja: jaText ? jaText.substring(0, 100) + '...' : '',
+      weight: weight || 1.0,
+      category: 'other'
+    }];
+  },
+  
+  // Process AI response for Text to Prompt
+  processTextToPrompt: (data) => {
+    // If we have structured response with tags, use it
+    if (data.tags && Array.isArray(data.tags)) {
+      return data.tags.map(tag => ({
+        text: tag.text || tag.en || '',
+        weight: parseFloat(tag.weight) || 1.0
+      })).filter(tag => tag.text.trim());
+    }
+    
+    // If we only have optimized text, parse it using existing logic
+    if (data.optimized && typeof data.optimized === 'string') {
+      return App.parseComplexTags(data.optimized);
+    }
+    
+    // Fallback: treat entire response as text
+    if (typeof data === 'string') {
+      return App.parseComplexTags(data);
+    }
+    
+    return [];
+  }
 };
 
 // Merge defaults with saved prompts to ensure all formats have prompts
+// Force update outdated prompts
 for (const [format, defaultPrompt] of Object.entries(defaultSystemPrompts)) {
-  if (!appState.systemPrompts[format]) {
+  if (!appState.systemPrompts[format] || 
+      (format === 'flux' && !appState.systemPrompts[format].includes('CINEMATIC NARRATIVE STYLE v12.0'))) {
+    console.log(`Force updating ${format} system prompt to latest version`);
     appState.systemPrompts[format] = defaultPrompt;
   }
 }
@@ -1523,96 +1744,269 @@ Respond ONLY with valid JSON format:
   },
   
   generateOptimized: async () => {
-    // NEW SPEC: AI Generate should work with existing English tags or split text first
+    console.log('🚀 AI Generate Started - Natural Language to Split Processing');
+    
+    // STEP 0: Validation
     if (!appState.apiKey) {
       alert('Please set your OpenRouter API key in Settings first');
       return;
     }
     
-    let englishTags = [];
-    
-    // Check if we have existing tags with English content
-    if (appState.tags && appState.tags.length > 0) {
-      // Use existing English tags
-      englishTags = appState.tags.map(tag => tag.en).filter(en => en && en.trim());
-    } else {
-      // Split input text first if no existing tags
-      const input = document.getElementById('input-text');
-      if (!input || !input.value.trim()) {
-        alert('Please enter some text or split it into tags first');
-        return;
-      }
-      
-      // Parse text into tags using existing split logic
-      const parsedTags = App.parseComplexTags(input.value.trim());
-      englishTags = parsedTags.map(tag => tag.text);
-    }
-    
-    if (englishTags.length === 0) {
-      alert('No English tags found to process');
+    const input = document.getElementById('input-text');
+    if (!input || !input.value.trim()) {
+      alert('Please enter some text to generate a prompt');
       return;
     }
     
-    showLoading('Generating わかりやすい日本語タグ with AI...');
+    const originalInput = input.value.trim(); // PRESERVE original input
+    const currentFormat = appState.outputFormat || 'sdxl';
+    
+    console.log('📝 Original input preserved:', originalInput);
+    console.log('🎯 Target format:', currentFormat);
+    
+    showLoading(`Generating ${currentFormat.toUpperCase()} prompt with AI...`);
     
     try {
-      // Get format-specific system prompt
-      const currentFormat = appState.outputFormat || 'sdxl';
-      const systemPrompt = appState.systemPrompts[currentFormat] || defaultSystemPrompts[currentFormat] || null;
+      // STEP 1: Generate high-quality narrative prompt using system prompt
+      const generatedPrompt = await App.generateNarrativePrompt(originalInput, currentFormat);
+      console.log('✅ Stage 1 - Narrative prompt generated:', generatedPrompt.substring(0, 100) + '...');
       
-      const response = await fetch('/api/generate-bilingual-tags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          englishTags: englishTags,
-          model: appState.selectedModel || 'openai/gpt-4o-mini',
-          apiKey: appState.apiKey,
-          systemPrompt: systemPrompt
-        })
+      // STEP 2: Use existing proven split logic (same as Split to Tags button)
+      showLoading('Processing with existing split logic...');
+      const parsedTags = App.parseComplexTags(generatedPrompt);
+      console.log('✅ Stage 2 - Parsed with existing logic:', parsedTags.length, 'tags');
+      
+      // STEP 3: Create bilingual tags using existing proven translation logic
+      showLoading('Translating tags...');
+      const tagPromises = parsedTags.map(async (parsedTag, i) => {
+        const ja = await translateWithAI(parsedTag.text, 'ja');
+        
+        return {
+          id: Date.now() + i,
+          en: parsedTag.text,
+          ja: ja,
+          weight: parsedTag.weight,
+          category: categorizeTag(parsedTag.text)
+        };
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate bilingual tags');
-      }
+      // Wait for all translations (exactly like splitText function)
+      appState.tags = await Promise.all(tagPromises);
+      console.log('✅ Stage 3 - Bilingual tags created:', appState.tags.length, 'tags');
       
-      const data = await response.json();
+      // STEP 4: Apply to UI using existing render logic
+      TagEditor.renderTags('main');
       
-      // Show warning if fallback was used
-      if (data.warning) {
-        console.warn('AI Generation Warning:', data.warning);
-        showNotification(data.warning, 'warning');
-      }
+      // STEP 5: Success notification (preserving original input reference)
+      showNotification(`Generated ${appState.tags.length} tags from: "${originalInput.substring(0, 30)}..." via AI prompt`, 'success');
+      console.log('🎉 AI Generate completed successfully with existing split logic');
       
-      if (data.pairs && data.pairs.length > 0) {
-        // Update existing tags or create new ones
-        if (appState.tags && appState.tags.length > 0) {
-          // Diff update: preserve existing Japanese if user has edited it
-          appState.tags.forEach((existingTag, index) => {
-            const matchedPair = data.pairs.find(pair => pair.en === existingTag.en);
-            if (matchedPair) {
-              // Only update if Japanese is empty or same as English (not user-edited)
-              if (!existingTag.ja || existingTag.ja === existingTag.en) {
-                existingTag.ja = matchedPair.ja;
-              }
-              // Always update weight and category from AI
-              existingTag.weight = matchedPair.weight;
-              existingTag.category = matchedPair.category;
-            }
-          });
-        } else {
-          // Create new tags from AI pairs
-          appState.tags = data.pairs;
+    } catch (error) {
+      console.error('❌ AI Generate failed:', error);
+      alert(`AI Generation failed: ${error.message}`);
+    } finally {
+      hideLoading();
+    }
+  },
+  
+  // STAGE 1: Generate high-quality narrative prompt using system prompts
+  generateNarrativePrompt: async (inputText, format) => {
+    // Get format-specific system prompt
+    if (!appState.systemPrompts[format] || 
+        (format === 'flux' && !appState.systemPrompts[format].includes('STRUCTURED TAG GENERATOR'))) {
+      appState.systemPrompts[format] = defaultSystemPrompts[format];
+      localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+    }
+    
+    const systemPrompt = appState.systemPrompts[format] || defaultSystemPrompts[format];
+    
+    // Override system prompt for narrative generation (not tag generation)
+    const narrativeSystemPrompt = format === 'flux' 
+      ? `You are a professional Flux prompt writer. Convert the user's casual Japanese input into a high-quality, detailed English prompt for Flux image generation.
+
+IMPORTANT: Output ONLY the final prompt text, no JSON, no explanations.
+
+Create a flowing, descriptive narrative that includes:
+1. Character details (1girl, 1boy, etc.)
+2. Setting and environment 
+3. Clothing and appearance details
+4. Actions and poses
+5. Atmosphere and mood
+6. Camera angle if relevant
+
+Style: Natural, descriptive language that Flux understands well.
+Length: 1-2 sentences, detailed but not overly long.
+
+Example input: "かっこいい女でエモい感じでタバコ吸ってる"
+Example output: "1girl in a dimly lit back alley at night. The wet asphalt reflects the glow of distant neon signs. The girl, wearing a stylish black leather jacket over a simple white t-shirt, leans against a brick wall, holding a cigarette between her fingers and exhaling a plume of smoke, her gaze is distant and melancholic. Shot from a slightly low angle. Full body view. This image conveys a sense of cool, urban loneliness and a rebellious spirit."
+
+Output ONLY the prompt text.`
+      : `You are a professional ${format.toUpperCase()} prompt writer. Convert the user's input into a high-quality, detailed prompt.
+Output ONLY the final prompt text, no explanations.`;
+
+    const response = await fetch('/api/openrouter/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: inputText }],
+        model: appState.selectedModel || 'openai/gpt-4o-mini',
+        systemPrompt: narrativeSystemPrompt,
+        apiKey: appState.apiKey,
+        temperature: 0.8,
+        maxTokens: 1000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Narrative prompt generation failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const generatedPrompt = data.content || '';
+    
+    if (!generatedPrompt.trim()) {
+      throw new Error('AI returned empty prompt');
+    }
+
+    return generatedPrompt.trim();
+  },
+
+  // STAGE 1: Generate structured English tags using clean system prompts
+  generateStructuredEnglishTags: async (inputText, format) => {
+    const baseSystemPrompt = `You are a professional image prompt optimizer.
+Convert the user's input into clean, structured English tags for ${format.toUpperCase()} image generation.
+
+CRITICAL: Output ONLY valid JSON with multiple separate tags:
+{
+  "tags": [
+    {"text": "1girl", "weight": 1.2},
+    {"text": "natural hot spring", "weight": 1.1},
+    {"text": "forest setting", "weight": 1.0}
+  ]
+}
+
+RULES:
+1. Break input into 6-12 meaningful tags
+2. Each tag should be a clear, specific concept
+3. Use ${format}-appropriate language (natural phrases for Flux, tags for SDXL)
+4. Include appropriate weights (0.9-1.3)
+5. NO long narratives - separate meaningful concepts
+
+Output ONLY the JSON, no explanations.`;
+
+    const response = await fetch('/api/openrouter/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: inputText }],
+        model: appState.selectedModel || 'openai/gpt-4o-mini',
+        systemPrompt: baseSystemPrompt,
+        apiKey: appState.apiKey,
+        temperature: 0.7,
+        maxTokens: 1000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Tag generation failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.content || '';
+    
+    // Parse JSON response
+    const parseResult = JsonProcessor.cleanAndParse(content);
+    if (!parseResult.success) {
+      throw new Error(`Failed to parse AI response: ${parseResult.error}`);
+    }
+
+    if (!parseResult.data.tags || !Array.isArray(parseResult.data.tags)) {
+      throw new Error('AI response missing tags array');
+    }
+
+    return parseResult.data.tags.map(tag => ({
+      text: tag.text || tag.en || '',
+      weight: parseFloat(tag.weight) || 1.0
+    })).filter(tag => tag.text.trim());
+  },
+
+  // STAGE 2: Create bilingual tags with translation and categorization
+  createBilingualTags: async (englishTags) => {
+    const bilingualTags = [];
+    
+    for (let i = 0; i < englishTags.length; i++) {
+      const englishTag = englishTags[i];
+      
+      try {
+        // Translate to Japanese
+        const japanese = await translateWithAI(englishTag.text, 'ja');
+        
+        // Create structured tag
+        const bilingualTag = {
+          id: `ai-gen-${Date.now()}-${i}`,
+          en: englishTag.text,
+          ja: japanese || '',
+          weight: Math.max(0.1, Math.min(2.0, englishTag.weight)),
+          category: categorizeTag(englishTag.text)
+        };
+        
+        bilingualTags.push(bilingualTag);
+        
+        // Small delay to avoid API rate limiting
+        if (i < englishTags.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
         
-        TagEditor.renderTags('main');
-        
-        // Show notification
-        showNotification(`Generated ${data.pairs.length} わかりやすい日本語タグ with AI`, 'success');
+      } catch (error) {
+        console.warn(`Translation failed for "${englishTag.text}":`, error);
+        // Add English-only tag as fallback
+        bilingualTags.push({
+          id: `ai-gen-fallback-${Date.now()}-${i}`,
+          en: englishTag.text,
+          ja: englishTag.text, // Fallback to English
+          weight: Math.max(0.1, Math.min(2.0, englishTag.weight)),
+          category: categorizeTag(englishTag.text)
+        });
       }
+    }
+    
+    return bilingualTags;
+  },
+  
+  // Helper function to process parsed tags (similar to splitText logic)
+  processParsedTags: async (parsedTags, originalInput) => {
+    try {
+      showLoading('Processing and translating tags...');
+      
+      // NEVER overwrite user's original input!
+      // Clear existing tags
+      appState.tags = [];
+      
+      // Create bilingual tags structure using proven splitText logic
+      const tagPromises = parsedTags.map(async (parsedTag, i) => {
+        const ja = await translateWithAI(parsedTag.text, 'ja');
+        
+        return {
+          id: Date.now() + i,
+          en: parsedTag.text,
+          ja: ja,
+          weight: parsedTag.weight || 1.0,
+          category: categorizeTag(parsedTag.text)
+        };
+      });
+      
+      // Wait for all translations (same as splitText)
+      appState.tags = await Promise.all(tagPromises);
+      
+      // Render tags
+      TagEditor.renderTags('main');
+      
+      // Show notification with preserved input reference
+      showNotification(`Generated ${appState.tags.length} tags from "${originalInput.substring(0, 30)}..." with AI`, 'success');
+      
     } catch (error) {
-      console.error('Generation error:', error);
-      alert(`Failed to generate bilingual tags: ${error.message}`);
+      console.error('Tag processing failed:', error);
+      throw error;
     } finally {
       hideLoading();
     }
@@ -1674,7 +2068,16 @@ Respond ONLY with valid JSON format:
     modal.id = 'prompt-editor-modal';
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
     
-    const prompt = appState.systemPrompts[appState.editingPrompt] || '';
+    // Force refresh to latest default prompts if outdated
+    const formatKey = appState.editingPrompt;
+    if (!appState.systemPrompts[formatKey] || 
+        (formatKey === 'flux' && !appState.systemPrompts[formatKey].includes('CINEMATIC NARRATIVE STYLE v12.0'))) {
+      console.log(`Updating outdated system prompt for ${formatKey}`);
+      appState.systemPrompts[formatKey] = defaultSystemPrompts[formatKey];
+      localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+    }
+    
+    const prompt = appState.systemPrompts[appState.editingPrompt] || defaultSystemPrompts[appState.editingPrompt] || '';
     const isDefault = defaultSystemPrompts[appState.editingPrompt] === prompt;
     
     modal.innerHTML = `
@@ -1720,6 +2123,29 @@ Respond ONLY with valid JSON format:
     `;
     
     document.body.appendChild(modal);
+  },
+  
+  // Force refresh all system prompts to latest defaults
+  refreshAllSystemPrompts: () => {
+    if (confirm('This will reset ALL system prompts to the latest default versions. Continue?')) {
+      console.log('Force refreshing all system prompts to latest versions');
+      
+      // Override with latest defaults
+      Object.keys(defaultSystemPrompts).forEach(format => {
+        appState.systemPrompts[format] = defaultSystemPrompts[format];
+        console.log(`Updated ${format} prompt`);
+      });
+      
+      // Save to localStorage
+      localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+      
+      alert('All system prompts have been updated to the latest versions. Please refresh the page.');
+      
+      // Reload page to apply changes
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    }
   },
   
   closePromptEditor: () => {
@@ -5483,3 +5909,14 @@ function updateOutput() {
 
 // Make App global
 window.App = App;
+
+// Debug functions for system prompt management
+window.debugSystemPrompts = () => {
+  console.log('Current system prompts:', appState.systemPrompts);
+  console.log('Default system prompts:', defaultSystemPrompts);
+  console.log('Flux prompt includes v12.0:', appState.systemPrompts.flux?.includes('CINEMATIC NARRATIVE STYLE v12.0'));
+};
+
+window.forceRefreshPrompts = () => {
+  App.refreshAllSystemPrompts();
+};

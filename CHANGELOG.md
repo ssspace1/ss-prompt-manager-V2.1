@@ -1,5 +1,101 @@
 # Changelog
 
+## [2025-08-23] AI Generate機能の完全再設計
+
+### 🚨 重大な問題の修正
+- **❌ 問題**: AI Generateが入力欄を上書きしていた（ユーザーの元入力が失われる重大なバグ）
+- **❌ 問題**: 出力がぐちゃぐちゃ（長いナラティブが1つのタグになる、英語・日本語混在）
+- **❌ 問題**: システムプロンプトが参照されていない（カスタム指示が効かない）
+- **✅ 解決**: 完全な2段階処理システムを構築
+
+### 🎯 新しいワークフロー設計
+
+#### 理想的な処理フロー
+```
+【入力】"なんかかっこいい女でエモい感じでタバコ吸ってる感じ。服装もいいもの選んで"
+↓
+【段階1】AIがシステムプロンプト参照して高品質プロンプト生成
+├─ システムプロンプト: フォーマット別最適化
+├─ 結果例: "1girl in a dimly lit back alley at night. The wet asphalt reflects..."
+└─ 入力欄: 絶対に変更されない ✅
+↓
+【段階2】既存の実績ある分解ロジック適用
+├─ parseComplexTags(): 重み検出、区切り処理
+├─ translateWithAI(): 日本語翻訳
+├─ categorizeTag(): カテゴリー自動分類
+└─ TagEditor.renderTags(): UI表示・色分け
+↓
+【結果】構造化された綺麗なタグ一覧 ✅
+```
+
+### ✨ 技術的改善点
+
+#### 1. **入力保護システム**
+```javascript
+const originalInput = input.value.trim(); // PRESERVE original input
+// 処理中は絶対に input.value を変更しない
+```
+
+#### 2. **2段階AI処理**
+```javascript
+// Stage 1: Narrative prompt generation
+const generatedPrompt = await App.generateNarrativePrompt(originalInput, currentFormat);
+
+// Stage 2: Use existing proven split logic
+const parsedTags = App.parseComplexTags(generatedPrompt);
+```
+
+#### 3. **システムプロンプト統合**
+- フォーマット別システムプロンプトの確実な参照
+- ナラティブ生成用専用プロンプト
+- カスタム指示（"語尾にニャン"等）の確実な反映
+
+#### 4. **堅牢性向上**
+- 詳細なデバッグログ（console.log）
+- エラーハンドリング強化
+- 既存の実績ある機能の保護
+
+### 🛡️ 既存機能の保護
+
+#### Split to Tags機能
+- **保護対象**: parseComplexTags, translateWithAI, categorizeTag
+- **理由**: この機能は正常に動作しているため、絶対に変更しない
+- **活用**: AI Generate でも同じロジックを使用
+
+### 📝 修正されたファイル
+
+#### public/static/app-main.js
+- `generateOptimized()`: 完全再設計（2段階処理）
+- `generateNarrativePrompt()`: 新規追加（システムプロンプト参照）
+- `JsonProcessor`: 堅牢なJSON処理クラス追加
+- デバッグ機能強化
+
+#### システムプロンプト更新
+- Flux: STRUCTURED TAG GENERATOR v13.0（複数タグ生成）
+- 長いナラティブ生成の回避
+- 英語のみ出力の徹底
+
+### 🔧 ビルド・デプロイ
+
+#### 重要な教訓
+- **問題**: `dist/`ディレクトリが古いファイルを使用していた
+- **解決**: `npm run build` 後に `pm2 restart` が必要
+- **確認**: ファイルタイムスタンプの確認が重要
+
+```bash
+# 正しいデプロイ手順
+npm run build
+pm2 restart ss-prompt-manager
+```
+
+### 🎯 動作テスト例
+
+**入力**: "なんかかっこいい女でエモい感じでタバコ吸ってる感じ。服装もいいもの選んで"
+**期待結果**:
+- 入力欄: 元の文章が保持される
+- タグ: 構造化された複数タグ（英語・日本語分離、カテゴリー色分け）
+- 処理: コンソールで段階的処理が確認可能
+
 ## [2025-08-21] 形式切り替え機能の改善
 
 ### 🎯 解決した問題
