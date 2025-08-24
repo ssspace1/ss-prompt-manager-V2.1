@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SS Prompt Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom Styles -->
+    <style>
+        /* Category Colors - Very light backgrounds with white text and normal borders */
+        [data-category="person"] { 
+            background: rgba(251, 146, 60, 0.15); 
+            border: 2px solid #fb923c;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        [data-category="appearance"] { 
+            background: rgba(59, 130, 246, 0.15); 
+            border: 2px solid #3b82f6;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        [data-category="clothing"] { 
+            background: rgba(236, 72, 153, 0.15); 
+            border: 2px solid #ec4899;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        [data-category="action"] { 
+            background: rgba(139, 92, 246, 0.15); 
+            border: 2px solid #8b5cf6;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        [data-category="background"] { 
+            background: rgba(34, 197, 94, 0.15); 
+            border: 2px solid #22c55e;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        [data-category="quality"] { 
+            background: rgba(245, 158, 11, 0.15); 
+            border: 2px solid #f59e0b;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        [data-category="style"] { 
+            background: rgba(168, 85, 247, 0.15); 
+            border: 2px solid #a855f7;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        [data-category="composition"] {
+            background: rgba(75, 85, 99, 0.25);
+            border: 2px solid #4b5563;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
+        }
+        [data-category="object"] {
+            background: rgba(6, 182, 212, 0.15);
+            border: 2px solid #06b6d4;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        [data-category="other"] { 
+            background: rgba(156, 163, 175, 0.15); 
+            border: 2px solid #9ca3af;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        /* Block Styles */
+        .tag-block {
+            transition: all 0.2s ease;
+            cursor: move;
+            user-select: none;
+            position: relative;
+            overflow: hidden;
+            font-weight: 500;
+        }
+        
+        .tag-block:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        
+        .tag-block.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+            z-index: 1000;
+        }
+        
+        .tag-block.ghost {
+            opacity: 0.2;
+        }
+        
+        /* Drag and Drop Styles */
+        .tag-card {
+            cursor: grab;
+            position: relative;
+            min-height: auto;
+            display: block;
+            margin: 0 !important;
+            transition: none; /* Remove transition to prevent unwanted animations */
+        }
+        
+        /* Stack cards directly with border overlap */
+        .tag-card:not(:first-child) {
+            margin-top: -1px !important;
+        }
+        
+        /* Ensure no space between elements for main tabs */
+        #tags-en, #tags-ja {
+            line-height: 0;
+        }
+        
+        #tags-en > *, #tags-ja > * {
+            line-height: normal;
+        }
+        
+        /* Image tab tags should have proper spacing */
+        #image-tags-en, #image-tags-ja {
+            line-height: normal;
+        }
+        
+        /* Only slight hover effect, no movement */
+        .tag-card:hover {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        /* Enhanced scrollbar for tag lists */
+        #image-tags-en, #image-tags-ja {
+            overflow-y: auto !important;
+            max-height: 100% !important;
+        }
+        
+        /* Ensure proper spacing for image tab tags */
+        #image-tags-en > *, #image-tags-ja > * {
+            margin-bottom: 4px;
+        }
+        
+        #image-tags-en > *:last-child, #image-tags-ja > *:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* Compact arrow buttons */
+        .tag-card button {
+            transition: all 0.15s ease;
+        }
+        
+        .tag-card button:active {
+            transform: scale(0.95);
+        }
+        
+        .tag-text {
+            word-break: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.4;
+            padding: 0;
+            display: block;
+        }
+        
+        .tag-card:active {
+            cursor: grabbing;
+        }
+        
+        .tag-card.dragging {
+            opacity: 0.4;
+            transform: scale(0.98);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            z-index: 1000;
+            cursor: grabbing !important;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+        
+        /* Drop zone styles - Invisible but with large hit area */
+        .drop-zone {
+            position: relative;
+            height: 0;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            border: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+        
+        /* Large invisible drop zones when dragging - overlapping with tags */
+        .drop-zone-active {
+            height: 30px !important;
+            margin: -13px 0 !important; /* Overlap with adjacent tags */
+            pointer-events: auto !important;
+            position: relative;
+            z-index: 999;
+            /* Visual indicator - just a thin line */
+            background: transparent;
+            opacity: 1;
+        }
+        
+        /* Add subtle line indicator in the middle */
+        .drop-zone-active::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: rgba(59, 130, 246, 0.2);
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+        
+        /* Visual feedback when hovering - keep it minimal */
+        .drop-zone-hover {
+            /* Keep the large hit area */
+            height: 30px !important;
+            margin: -13px 0 !important;
+            background: transparent !important;
+            border: none !important;
+            opacity: 1;
+        }
+        
+        /* Stronger visual line when hovering */
+        .drop-zone-hover::after {
+            height: 3px !important;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                #3b82f6 20%,
+                #3b82f6 80%,
+                transparent 100%) !important;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+        }
+        
+        /* Optional: Small text indicator on strong hover */
+        .drop-zone-hover::before {
+            content: '• • •';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #3b82f6;
+            font-size: 8px;
+            font-weight: bold;
+            opacity: 0.6;
+            letter-spacing: 2px;
+            pointer-events: none;
+        }
+        
+        @keyframes dropZonePulse {
+            0%, 100% { 
+                opacity: 0.8;
+                transform: scaleY(1);
+            }
+            50% { 
+                opacity: 1;
+                transform: scaleY(1.05);
+            }
+        }
+        
+        @keyframes slideIndicator {
+            0% { transform: translateY(-50%) translateX(-100%); }
+            100% { transform: translateY(-50%) translateX(100%); }
+        }
+        
+        .tag-card.drag-over {
+            transform: scale(0.97);
+            opacity: 0.7;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Remove old drag indicators as we're using drop zones now */
+        
+        /* Cursor feedback for draggable areas */
+        .tag-card {
+            cursor: grab;
+        }
+        
+        .tag-card:active {
+            cursor: grabbing;
+        }
+        
+        .tag-card.dragging {
+            cursor: grabbing !important;
+        }
+        
+        /* Prevent text selection during drag */
+        .tag-card.dragging * {
+            user-select: none;
+            pointer-events: none;
+        }
+        
+        /* Split panes */
+        .gutter {
+            background-color: #e5e7eb;
+            background-repeat: no-repeat;
+            background-position: 50%;
+            cursor: col-resize;
+        }
+        
+        .gutter:hover {
+            background-color: #d1d5db;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.2s;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 0.75rem;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Scrollbar Styles */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Tab animation */
+        .tab-button {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #3b82f6;
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .tab-button.active::after {
+            transform: scaleX(1);
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+        
+        .tooltip::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .tooltip:hover::before {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 overflow-hidden h-screen">
+    <!-- Main Application Container -->
+    <div id="app" class="flex flex-col h-full">
+        
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b flex-shrink-0">
+            <div class="px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                        SS Prompt Manager
+                    </h1>
+                    <span class="text-sm text-gray-500">v2.0</span>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <!-- Status Indicator -->
+                    <div class="flex items-center gap-2">
+                        <div id="status-indicator" class="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span id="status-text" class="text-sm text-gray-600">Ready</span>
+                    </div>
+                    
+                    <!-- Settings Button -->
+                    <button onclick="App.showSettings()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors tooltip" data-tooltip="設定">
+                        <i class="fas fa-cog text-xl text-gray-600"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Tab Navigation -->
+        <nav class="bg-white border-b flex-shrink-0">
+            <div class="px-4">
+                <div class="flex gap-2">
+                    <button class="tab-button active py-3 px-6 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                            onclick="App.setTab('text')" id="tab-text">
+                        <i class="fas fa-file-alt mr-2"></i>
+                        Text to Prompt
+                    </button>
+                    <button class="tab-button py-3 px-6 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                            onclick="App.setTab('image')" id="tab-image">
+                        <i class="fas fa-image mr-2"></i>
+                        Image to Prompt
+                    </button>
+                    <button class="tab-button py-3 px-6 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                            onclick="App.setTab('batch')" id="tab-batch">
+                        <i class="fas fa-layer-group mr-2"></i>
+                        Batch Processing
+                    </button>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-hidden">
+            <!-- Text Tab Content -->
+            <div id="content-text" class="h-full p-4">
+                <div id="split-container" class="flex gap-4 h-full">
+                    <!-- Left Panel: Main Editor -->
+                    <div id="left-panel" class="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar" style="max-height: calc(100vh - 100px);">
+                        
+                        <!-- Input Section -->
+                        <section class="bg-white rounded-lg shadow-sm p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h2 class="text-lg font-semibold text-gray-700">
+                                    <i class="fas fa-keyboard mr-2 text-blue-500"></i>
+                                    Input
+                                </h2>
+                                <div class="flex gap-2">
+                                    <button onclick="App.pasteFromClipboard()" 
+                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                        <i class="fas fa-paste mr-1"></i>Paste
+                                    </button>
+                                    <button onclick="App.clearInput()" 
+                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                        <i class="fas fa-eraser mr-1"></i>Clear
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <textarea id="input-text" 
+                                      placeholder="Enter your prompt, description, or idea here..."
+                                      class="w-full h-24 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"></textarea>
+                            
+                            <!-- Action Buttons - Redesigned -->
+                            <div class="flex items-center gap-3 mt-3 justify-between">
+                                <!-- Left side: Split and AI Generate -->
+                                <div class="flex items-center gap-3">
+                                    <!-- Split Button -->
+                                    <button onclick="App.splitText()" 
+                                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors border-2 border-blue-600">
+                                        <i class="fas fa-cut mr-2"></i>Split to Tags
+                                    </button>
+                                    
+                                    <!-- AI Generate Button -->
+                                    <button onclick="App.generateOptimized()" 
+                                            class="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all border-2 border-purple-600 shadow-md">
+                                        <i class="fas fa-magic mr-2"></i>AI Generate
+                                    </button>
+                                </div>
+                                
+                                <!-- Right side: Controls -->
+                                <div class="flex items-center gap-4">
+                                    <!-- Format Selection -->
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-sm text-gray-600 font-medium">Format:</label>
+                                        <select id="output-format" onchange="App.updateOutputFormat()" 
+                                                class="px-3 py-2 border rounded-lg text-sm min-w-[120px]">
+                                            <option value="sdxl">SDXL Tags</option>
+                                            <option value="flux">Flux Phrases</option>
+                                            <option value="imagefx">ImageFX</option>
+                                            <option value="imagefx-natural">ImageFX Natural</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- Tool Buttons -->
+                                    <div class="flex items-center gap-1">
+                                        <button onclick="App.showPromptEditor()" 
+                                                class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                                                title="Edit System Prompt">
+                                            <i class="fas fa-cog"></i>
+                                        </button>
+                                        <button onclick="App.addCustomFormat()" 
+                                                class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+                                                title="Add Custom Format">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                        <button onclick="App.aiCategorizeAllTags()" 
+                                                class="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-lg transition-colors"
+                                                title="AI Categorize All Tags">
+                                            <i class="fas fa-brain"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Model Selection -->
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-sm text-gray-600 font-medium">Model:</label>
+                                        <select id="text-model-selector" onchange="App.updateTextModelFromTab()" 
+                                                class="px-3 py-2 border rounded-lg text-sm min-w-[200px]">
+                                            <option value="">Select a model...</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <!-- Tag Editor Section -->
+                        <section class="bg-white rounded-lg shadow-sm p-4 flex-1 flex flex-col min-h-0 overflow-hidden">
+                            <div class="flex items-center justify-between mb-3">
+                                <h2 class="text-lg font-semibold text-gray-700">
+                                    <i class="fas fa-tags mr-2 text-green-500"></i>
+                                    Tag Editor
+                                </h2>
+                                <div class="flex gap-2">
+                                    <button onclick="App.sortTags('category')" 
+                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
+                                            data-tooltip="Sort by Category">
+                                        <i class="fas fa-sort-alpha-down"></i>
+                                    </button>
+                                    <button onclick="App.sortTags('weight')" 
+                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
+                                            data-tooltip="Sort by Weight">
+                                        <i class="fas fa-sort-numeric-down"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Bilingual Tag Columns -->
+                            <div class="grid grid-cols-2 gap-4 flex-1 min-h-0 overflow-hidden">
+                                <!-- English Column -->
+                                <div class="flex flex-col min-h-0">
+                                    <div class="flex items-center justify-between mb-2 pb-2 border-b">
+                                        <h3 class="font-medium text-gray-700">
+                                            <i class="fas fa-globe mr-1 text-blue-500"></i>English
+                                        </h3>
+                                        <button onclick="App.translateAll('en-to-ja')" 
+                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors">
+                                            Translate All →
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Add New Tag -->
+                                    <div class="flex gap-1 mb-3">
+                                        <input type="text" id="new-tag-en" 
+                                               placeholder="Add new tag..." 
+                                               class="flex-1 px-2 py-1 text-sm border rounded"
+                                               onkeydown="if(event.key==='Enter') App.addNewTag('en')">
+                                        <button onclick="App.addNewTag('en')" 
+                                                class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Tag List -->
+                                    <div id="tags-en" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-0">
+                                        <!-- Tags will be dynamically inserted here -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Japanese Column -->
+                                <div class="flex flex-col min-h-0">
+                                    <div class="flex items-center justify-between mb-2 pb-2 border-b">
+                                        <h3 class="font-medium text-gray-700">
+                                            <i class="fas fa-torii-gate mr-1 text-red-500"></i>日本語
+                                        </h3>
+                                        <button onclick="App.translateAll('ja-to-en')" 
+                                                class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded transition-colors">
+                                            ← Translate All
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Add New Tag -->
+                                    <div class="flex gap-1 mb-3">
+                                        <input type="text" id="new-tag-ja" 
+                                               placeholder="新しいタグを追加..." 
+                                               class="flex-1 px-2 py-1 text-sm border rounded"
+                                               onkeydown="if(event.key==='Enter') App.addNewTag('ja')">
+                                        <button onclick="App.addNewTag('ja')" 
+                                                class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Tag List -->
+                                    <div id="tags-ja" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-0">
+                                        <!-- Tags will be dynamically inserted here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <!-- Output Section -->
+                        <section class="bg-white rounded-lg shadow-sm p-4 flex-shrink-0">
+                            <div class="flex items-center justify-between mb-3">
+                                <h2 class="text-lg font-semibold text-gray-700">
+                                    <i class="fas fa-file-export mr-2 text-orange-500"></i>
+                                    Final Output
+                                </h2>
+                                <div class="flex items-center gap-2">
+                                    <label class="text-sm text-gray-600">Format:</label>
+                                    <select id="final-output-format" onchange="App.updateFinalOutputFormat()" 
+                                            class="px-2 py-1 border rounded text-sm">
+                                        <option value="sdxl">SDXL Tags</option>
+                                        <option value="flux">Flux Phrases</option>
+                                        <option value="imagefx">ImageFX</option>
+                                        <option value="imagefx-natural">ImageFX Natural</option>
+                                    </select>
+                                    <div class="flex gap-1 ml-2">
+                                        <button onclick="App.copyOutput()" 
+                                                class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                            <i class="fas fa-copy mr-1"></i>Copy
+                                        </button>
+                                        <button onclick="App.downloadOutput()" 
+                                                class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                            <i class="fas fa-download mr-1"></i>Download
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <pre id="output-text" class="whitespace-pre-wrap text-sm font-mono text-gray-700">No output generated yet...</pre>
+                            </div>
+                        </section>
+                    </div>
+                    
+                    <!-- Right Panel: Image Generation -->
+                    <div id="right-panel" class="w-96 bg-white rounded-lg shadow-sm p-4 overflow-y-auto custom-scrollbar">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-4">
+                            <i class="fas fa-image mr-2 text-indigo-500"></i>
+                            Image Generation
+                        </h2>
+                        
+                        <!-- Prompt Preview -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Prompt Preview</label>
+                            <div id="image-prompt-preview" class="bg-gray-50 rounded-lg p-3 text-sm max-h-32 overflow-y-auto custom-scrollbar">
+                                No prompt available
+                            </div>
+                        </div>
+                        
+                        <!-- Generation Settings -->
+                        <div class="space-y-3 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-600 mb-1">Model</label>
+                                <select id="image-model" class="w-full px-3 py-2 border rounded-lg text-sm">
+                                    <option value="sdxl">SDXL 1.0</option>
+                                    <option value="flux-dev">Flux.1 Dev</option>
+                                    <option value="flux-pro">Flux.1 Pro</option>
+                                    <option value="dalle3">DALL-E 3</option>
+                                    <option value="midjourney">Midjourney v6</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-600 mb-1">Aspect Ratio</label>
+                                <select id="aspect-ratio" class="w-full px-3 py-2 border rounded-lg text-sm">
+                                    <option value="1:1">1:1 (Square)</option>
+                                    <option value="16:9">16:9 (Landscape)</option>
+                                    <option value="9:16">9:16 (Portrait)</option>
+                                    <option value="4:3">4:3 (Classic)</option>
+                                    <option value="3:4">3:4 (Classic Portrait)</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-600 mb-1">Quality</label>
+                                <select id="image-quality" class="w-full px-3 py-2 border rounded-lg text-sm">
+                                    <option value="standard">Standard</option>
+                                    <option value="hd">HD</option>
+                                    <option value="ultra">Ultra HD</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Generate Button -->
+                        <button onclick="App.generateImage()" 
+                                class="w-full py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-all">
+                            <i class="fas fa-magic mr-2"></i>Generate Image
+                        </button>
+                        
+                        <!-- Generated Image Display -->
+                        <div id="generated-image" class="mt-4">
+                            <!-- Images will be displayed here -->
+                        </div>
+                        
+                        <!-- Image History -->
+                        <div class="mt-6 pt-4 border-t">
+                            <h3 class="text-sm font-medium text-gray-600 mb-2">History</h3>
+                            <div id="image-history" class="space-y-2">
+                                <!-- History items will be displayed here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Image Tab Content -->
+            <div id="content-image" class="h-full p-4 hidden">
+                <div id="image-split-container" class="flex flex-col gap-2 h-full">
+                    <!-- Top Section: Image Input and AI Output side by side - Compressed -->
+                    <div class="flex gap-2 h-[160px] flex-shrink-0">
+                        <!-- Left: Image Input - Compact -->
+                        <section class="bg-white rounded-lg shadow-sm p-2 flex-1">
+                            <div class="flex items-center justify-between mb-2">
+                                <h2 class="text-sm font-semibold text-gray-700">
+                                    <i class="fas fa-image mr-1 text-purple-500"></i>
+                                    Input
+                                </h2>
+                                <button onclick="App.clearImage()" 
+                                        class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
+                                    <i class="fas fa-trash mr-1"></i>Clear
+                                </button>
+                            </div>
+                            
+                            <!-- Compact Image Drop Zone -->
+                            <div id="image-drop-zone" 
+                                 class="border-2 border-dashed border-gray-300 rounded p-2 text-center hover:border-blue-400 transition-colors cursor-pointer h-[100px] flex items-center justify-center"
+                                 ondrop="App.handleImageDrop(event)"
+                                 ondragover="App.handleDragOver(event)"
+                                 ondragleave="App.handleDragLeave(event)"
+                                 onclick="document.getElementById('image-file-input').click()">
+                                
+                                <div id="image-preview-container" class="hidden w-full h-full">
+                                    <img id="image-preview" class="max-w-full max-h-full object-contain rounded" />
+                                </div>
+                                
+                                <div id="image-upload-prompt">
+                                    <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-1"></i>
+                                    <p class="text-xs text-gray-600">Drop image or click</p>
+                                </div>
+                            </div>
+                            
+                            <input type="file" id="image-file-input" accept="image/*" class="hidden" onchange="App.handleImageUpload(event)">
+                        </section>
+                        
+                        <!-- Right: AI Format Output - Compact -->
+                        <section class="bg-white rounded-lg shadow-sm p-2 flex-1">
+                            <div class="flex items-center justify-between mb-2">
+                                <h2 class="text-sm font-semibold text-gray-700">
+                                    <i class="fas fa-sparkles mr-1 text-cyan-500"></i>
+                                    AI Format Prompt
+                                </h2>
+                                <button onclick="App.copyImagePrompt()" 
+                                        class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
+                                    <i class="fas fa-copy mr-1"></i>Copy
+                                </button>
+                            </div>
+                            
+                            <!-- AI Generated Prompt Display -->
+                            <textarea id="image-generated-prompt" 
+                                      placeholder="AI formatted prompt will appear here..."
+                                      class="w-full h-[80px] p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-xs"
+                                      onchange="App.updateImagePromptOutput()"></textarea>
+                            
+                            <!-- Split to Tags Button -->
+                            <div class="mt-2">
+                                <button onclick="App.splitImagePrompt()" 
+                                        class="w-full px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors border border-blue-600">
+                                    <i class="fas fa-cut mr-1"></i>Split
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+                    
+                    <!-- Middle Section: Controls and Actions - Compact -->
+                    <div class="bg-white rounded-lg shadow-sm p-2 flex-shrink-0">
+                        <div class="flex items-center gap-2 flex-wrap text-sm">
+                            <!-- AI Analysis Toggle -->
+                            <button onclick="App.toggleAnalysisResult()" 
+                                    class="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors flex items-center gap-1"
+                                    id="toggle-analysis-btn">
+                                <i class="fas fa-eye text-xs"></i>
+                                <span id="toggle-analysis-text" class="text-xs">Analysis</span>
+                                <i class="fas fa-chevron-down text-xs" id="toggle-analysis-icon"></i>
+                            </button>
+                            
+                            <!-- Format Selection -->
+                            <div class="flex items-center gap-1">
+                                <label class="text-xs text-gray-600">Format:</label>
+                                <select id="image-output-format" onchange="App.updateImageOutputFormat()" 
+                                        class="px-2 py-1 border rounded text-xs min-w-[100px]">
+                                    <option value="sdxl">SDXL Tags</option>
+                                    <option value="flux">Flux Phrases</option>
+                                    <option value="imagefx">ImageFX Commands</option>
+                                    <option value="natural">Natural Language</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Tool Buttons -->
+                            <div class="flex items-center gap-1">
+                                <button onclick="App.showImagePromptEditor()" 
+                                        class="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+                                        title="Edit System Prompt">
+                                    <i class="fas fa-cog text-xs"></i>
+                                </button>
+                                <button onclick="App.addImageCustomFormat()" 
+                                        class="p-1 text-green-600 hover:text-green-800 hover:bg-green-100 rounded transition-colors"
+                                        title="Add Custom Format">
+                                    <i class="fas fa-plus text-xs"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Model Selection -->
+                            <div class="flex items-center gap-1">
+                                <label class="text-xs text-gray-600">Model:</label>
+                                <select id="image-model-selector" onchange="App.updateImageModelFromTab()" 
+                                        class="px-2 py-1 border rounded text-xs min-w-[180px]">
+                                    <option value="">Select a model...</option>
+                                </select>
+                            </div>
+                            
+                            <!-- AI Generate Button -->
+                            <button onclick="App.generateFromImage()" 
+                                    class="px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-purple-600 shadow-sm"
+                                    id="image-ai-generate-btn" disabled>
+                                <i class="fas fa-magic mr-1 text-xs"></i><span class="text-xs">AI Generate</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Collapsible AI Analysis Result -->
+                        <div id="analysis-result-container" class="mt-2 hidden">
+                            <div class="border-t pt-2">
+                                <div class="flex items-center justify-between mb-1">
+                                    <h3 class="text-xs font-semibold text-gray-700">
+                                        <i class="fas fa-brain mr-1 text-blue-500"></i>
+                                        AI Analysis Result
+                                    </h3>
+                                    <button onclick="App.copyAnalysisResult()" 
+                                            class="px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
+                                        <i class="fas fa-copy mr-1"></i>Copy
+                                    </button>
+                                </div>
+                                <div id="image-analysis-result" class="p-2 bg-gray-50 rounded max-h-20 overflow-y-auto custom-scrollbar text-xs">
+                                    <p class="text-gray-500 text-xs italic">No analysis yet...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    
+                    <!-- Bottom Section: Tag Editor and Final Output - Enhanced -->
+                    <div class="flex gap-2 flex-1 min-h-0">
+                        <!-- Tag Editor Section - Expanded with better scrolling -->
+                        <section class="bg-white rounded-lg shadow-sm p-3 flex-1 flex flex-col min-h-0">
+                            <div class="flex items-center justify-between mb-2 flex-shrink-0">
+                                <h2 class="text-base font-semibold text-gray-700">
+                                    <i class="fas fa-tags mr-1 text-green-500"></i>
+                                    Tag Editor
+                                </h2>
+                                <div class="flex gap-1">
+                                    <button onclick="App.sortImageTags('category')" 
+                                            class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors tooltip" 
+                                            data-tooltip="Sort by Category">
+                                        <i class="fas fa-sort-alpha-down"></i>
+                                    </button>
+                                    <button onclick="App.sortImageTags('weight')" 
+                                            class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors tooltip" 
+                                            data-tooltip="Sort by Weight">
+                                        <i class="fas fa-sort-numeric-down"></i>
+                                    </button>
+                                    <button onclick="App.aiCategorizeImageTags()" 
+                                            class="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded transition-colors tooltip" 
+                                            data-tooltip="AI Categorize Tags">
+                                        <i class="fas fa-brain text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Bilingual Tag Columns for Image Tab -->
+                            <div class="grid grid-cols-2 gap-3 flex-1 min-h-0">
+                                <!-- English Column -->
+                                <div class="flex flex-col min-h-0">
+                                    <div class="flex items-center justify-between mb-2 pb-1 border-b flex-shrink-0">
+                                        <h3 class="text-sm font-medium text-gray-700">
+                                            <i class="fas fa-globe mr-1 text-blue-500"></i>English
+                                        </h3>
+                                        <button onclick="App.translateImageTags('en-to-ja')" 
+                                                class="text-xs px-2 py-0.5 bg-blue-100 hover:bg-blue-200 rounded transition-colors">
+                                            Translate All →
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Add New Tag -->
+                                    <div class="flex gap-1 mb-2 flex-shrink-0">
+                                        <input type="text" id="new-image-tag-en" 
+                                               placeholder="Add new tag..." 
+                                               class="flex-1 px-2 py-1 text-xs border rounded"
+                                               onkeydown="if(event.key==='Enter') App.addNewImageTag('en')">
+                                        <button onclick="App.addNewImageTag('en')" 
+                                                class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Tag List with proper scrolling -->
+                                    <div id="image-tags-en" class="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0" style="max-height: 100%;">
+                                        <!-- Tags will be dynamically inserted here -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Japanese Column -->
+                                <div class="flex flex-col min-h-0">
+                                    <div class="flex items-center justify-between mb-2 pb-1 border-b flex-shrink-0">
+                                        <h3 class="text-sm font-medium text-gray-700">
+                                            <i class="fas fa-torii-gate mr-1 text-red-500"></i>日本語
+                                        </h3>
+                                        <button onclick="App.translateImageTags('ja-to-en')" 
+                                                class="text-xs px-2 py-0.5 bg-red-100 hover:bg-red-200 rounded transition-colors">
+                                            ← Translate All
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Add New Tag -->
+                                    <div class="flex gap-1 mb-2 flex-shrink-0">
+                                        <input type="text" id="new-image-tag-ja" 
+                                               placeholder="新しいタグを追加..." 
+                                               class="flex-1 px-2 py-1 text-xs border rounded"
+                                               onkeydown="if(event.key==='Enter') App.addNewImageTag('ja')">
+                                        <button onclick="App.addNewImageTag('ja')" 
+                                                class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Tag List with proper scrolling -->
+                                    <div id="image-tags-ja" class="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0" style="max-height: 100%;">
+                                        <!-- Tags will be dynamically inserted here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <!-- Final Output Section - Compact -->
+                        <section class="bg-white rounded-lg shadow-sm p-3 w-80 flex flex-col">
+                            <div class="flex items-center justify-between mb-2">
+                                <h2 class="text-base font-semibold text-gray-700">
+                                    <i class="fas fa-file-export mr-1 text-orange-500"></i>
+                                    Final Output
+                                </h2>
+                                <div class="flex items-center gap-1">
+                                    <label class="text-xs text-gray-600">Format:</label>
+                                    <select id="image-final-output-format" onchange="App.updateImageFinalFormat()" 
+                                            class="px-2 py-1 border rounded text-xs">
+                                        <option value="sdxl">SDXL Tags</option>
+                                        <option value="flux">Flux Phrases</option>
+                                        <option value="imagefx">ImageFX</option>
+                                        <option value="imagefx-natural">ImageFX Natural</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <textarea id="image-final-output" 
+                                      placeholder="Final formatted output will appear here..."
+                                      class="w-full h-24 p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-xs"
+                                      readonly></textarea>
+                            
+                            <div class="flex gap-1 mt-2">
+                                <button onclick="App.copyImageFinalOutput()" 
+                                        class="flex-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                    <i class="fas fa-copy mr-1"></i>Copy
+                                </button>
+                                <button onclick="App.downloadImageOutput()" 
+                                        class="flex-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                    <i class="fas fa-download mr-1"></i>Download
+                                </button>
+                                <button onclick="App.sendImageToMainEditor()" 
+                                        class="flex-1 px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                    <i class="fas fa-arrow-right mr-1"></i>Send
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Batch Tab Content -->
+            <div id="content-batch" class="h-full p-4 hidden">
+                <div class="bg-white rounded-lg shadow-sm p-8 h-full">
+                    <div class="max-w-2xl mx-auto">
+                        <h2 class="text-2xl font-semibold text-gray-700 mb-4">
+                            <i class="fas fa-layer-group mr-2 text-green-500"></i>
+                            Batch Processing
+                        </h2>
+                        <p class="text-gray-600 mb-6">Process multiple prompts at once</p>
+                        
+                        <textarea id="batch-input" 
+                                  placeholder="Enter multiple prompts, one per line..."
+                                  class="w-full h-64 p-4 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"></textarea>
+                        
+                        <div class="flex gap-2 mt-4">
+                            <button onclick="App.processBatch()" 
+                                    class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                                <i class="fas fa-play mr-2"></i>Process All
+                            </button>
+                            <button onclick="App.clearBatch()" 
+                                    class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-trash mr-2"></i>Clear
+                            </button>
+                        </div>
+                        
+                        <div id="batch-results" class="mt-6">
+                            <!-- Batch results will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl font-semibold text-gray-800">
+                        <i class="fas fa-cog mr-2"></i>Settings
+                    </h2>
+                    <button onclick="App.closeSettings()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <!-- Settings Tabs -->
+                <div class="border-b mb-4">
+                    <div class="flex gap-4">
+                        <button class="py-2 px-4 border-b-2 border-blue-500 text-blue-600" 
+                                data-settings-tab="api"
+                                onclick="App.setSettingsTab('api')">API Keys</button>
+                        <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
+                                data-settings-tab="formats"
+                                onclick="App.setSettingsTab('formats')">Custom Formats</button>
+                        <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
+                                data-settings-tab="preferences"
+                                onclick="App.setSettingsTab('preferences')">Preferences</button>
+                        <button class="py-2 px-4 border-b-2 border-transparent text-gray-600" 
+                                data-settings-tab="ai-instructions"
+                                onclick="App.setSettingsTab('ai-instructions')">AI Instructions</button>
+                    </div>
+                </div>
+                
+                <!-- API Settings -->
+                <div id="settings-api" class="space-y-4">
+                    <!-- OpenRouter API Key -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-key mr-1 text-blue-500"></i>
+                            OpenRouter API Key
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="password" id="openrouter-api-key" 
+                                   placeholder="sk-or-v1-..." 
+                                   class="flex-1 px-3 py-2 border rounded-lg"
+                                   onchange="App.updateOpenRouterKey(this.value)">
+                            <button onclick="App.testOpenRouterKey()" 
+                                    class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
+                                <i class="fas fa-check-circle mr-1"></i>Test
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Get your API key from <a href="https://openrouter.ai/keys" target="_blank" class="text-blue-500 hover:underline">OpenRouter</a>
+                        </p>
+                    </div>
+                    
+                    <!-- Text to Prompt Model Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-robot mr-1 text-purple-500"></i>
+                            Text to Prompt Model
+                        </label>
+                        <p class="text-xs text-gray-500 mb-2">
+                            テキストからプロンプト生成に使用するAIモデル
+                        </p>
+                        <div class="flex gap-2 items-start">
+                            <select id="settings-text-model" class="flex-1 px-3 py-2 border rounded-lg"
+                                    onchange="App.updateTextModelFromSettings(this.value)">
+                                <option value="">Loading models...</option>
+                            </select>
+                            <button onclick="App.refreshModelList()" 
+                                    class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                                    title="Refresh model list">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                        </div>
+                        <div id="model-info" class="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600 hidden">
+                            <!-- Model information will be displayed here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Model Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-star mr-1 text-yellow-500"></i>
+                            Quick Select
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="App.selectRecommendedModel('general')" 
+                                    class="px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg text-sm transition-colors">
+                                <i class="fas fa-globe mr-1"></i>General
+                            </button>
+                            <button onclick="App.selectRecommendedModel('creative')" 
+                                    class="px-3 py-2 bg-purple-100 hover:bg-purple-200 rounded-lg text-sm transition-colors">
+                                <i class="fas fa-palette mr-1"></i>Creative
+                            </button>
+                            <button onclick="App.selectRecommendedModel('translation')" 
+                                    class="px-3 py-2 bg-green-100 hover:bg-green-200 rounded-lg text-sm transition-colors">
+                                <i class="fas fa-language mr-1"></i>Translation
+                            </button>
+                            <button onclick="App.selectRecommendedModel('free')" 
+                                    class="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 rounded-lg text-sm transition-colors">
+                                <i class="fas fa-gift mr-1"></i>Free
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- API Status -->
+                    <div id="api-status" class="p-3 rounded-lg hidden">
+                        <!-- API status will be displayed here -->
+                    </div>
+                    
+                    <!-- Image Generation API (Optional) -->
+                    <div class="pt-4 border-t">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-image mr-1 text-indigo-500"></i>
+                            Image Generation API Key (Optional)
+                        </label>
+                        <input type="password" id="image-api-key" 
+                               placeholder="Your image generation API key..." 
+                               class="w-full px-3 py-2 border rounded-lg">
+                        <p class="text-xs text-gray-500 mt-1">
+                            For connecting to DALL-E, Midjourney, or other image APIs
+                        </p>
+                    </div>
+                    
+                    <!-- Image to Prompt Model Selection -->
+                    <div class="pt-4 border-t">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-eye mr-1 text-purple-500"></i>
+                            Image to Prompt Model
+                        </label>
+                        <p class="text-xs text-gray-500 mb-2">
+                            画像からプロンプト生成に使用するVision モデル
+                        </p>
+                        <div class="flex gap-2 items-start">
+                            <select id="settings-image-model" 
+                                    onchange="App.updateImageModelFromSettings(this.value)"
+                                    class="flex-1 px-3 py-2 border rounded-lg">
+                                <option value="">Select a model...</option>
+                            </select>
+                            <button onclick="App.refreshModelList()" 
+                                    class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                                    title="Refresh model list">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Prompts Settings -->
+                <div id="settings-prompts" class="space-y-4 hidden">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                        <p class="text-sm text-yellow-800">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            System Prompts control how AI processes your inputs. Edit carefully.
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">SDXL Optimization Prompt</label>
+                        <textarea id="sp-sdxl" rows="4" 
+                                  class="w-full px-3 py-2 border rounded-lg text-sm font-mono"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Flux Optimization Prompt</label>
+                        <textarea id="sp-flux" rows="4" 
+                                  class="w-full px-3 py-2 border rounded-lg text-sm font-mono"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Translation Prompt</label>
+                        <textarea id="sp-translate" rows="4" 
+                                  class="w-full px-3 py-2 border rounded-lg text-sm font-mono"></textarea>
+                    </div>
+                </div>
+                
+                <!-- Custom Formats Tab -->
+                <div id="settings-formats" class="space-y-4 hidden">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-medium text-gray-700">
+                                <i class="fas fa-palette mr-2 text-purple-500"></i>
+                                Custom Output Formats
+                            </h3>
+                            <button onclick="App.addCustomFormat()" 
+                                    class="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-plus mr-1"></i>Add New Format
+                            </button>
+                        </div>
+                        
+                        <p class="text-sm text-gray-600 mb-4">
+                            Create custom formats with your own system prompts for AI generation.
+                            These formats will appear in AI Format and Final Output dropdowns.
+                        </p>
+                        
+                        <!-- Text to Prompt Custom Formats -->
+                        <div class="mb-6">
+                            <h4 class="font-medium text-gray-800 mb-3 flex items-center">
+                                <i class="fas fa-file-text mr-2 text-blue-500"></i>
+                                Text to Prompt Formats
+                            </h4>
+                            <div id="custom-formats-list" class="space-y-2">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
+                        
+                        <!-- Image to Prompt Custom Formats -->
+                        <div class="mb-6">
+                            <h4 class="font-medium text-gray-800 mb-3 flex items-center">
+                                <i class="fas fa-image mr-2 text-purple-500"></i>
+                                Image to Prompt Formats
+                            </h4>
+                            <div id="image-custom-formats-list" class="space-y-2">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
+                        
+                        <!-- Default Formats Info -->
+                        <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                            <h4 class="font-medium text-blue-900 mb-2">Default Formats</h4>
+                            <div class="space-y-1 text-sm text-blue-700">
+                                <div class="flex items-center justify-between">
+                                    <span><i class="fas fa-tag mr-1"></i> SDXL Tags</span>
+                                    <button onclick="App.showPromptEditor('sdxl')" 
+                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                        <i class="fas fa-edit"></i> View/Edit
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span><i class="fas fa-tag mr-1"></i> Flux Phrases</span>
+                                    <button onclick="App.showPromptEditor('flux')" 
+                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                        <i class="fas fa-edit"></i> View/Edit
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span><i class="fas fa-tag mr-1"></i> ImageFX</span>
+                                    <button onclick="App.showPromptEditor('imagefx')" 
+                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                        <i class="fas fa-edit"></i> View/Edit
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span><i class="fas fa-tag mr-1"></i> ImageFX Natural</span>
+                                    <button onclick="App.showPromptEditor('imagefx-natural')" 
+                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                        <i class="fas fa-edit"></i> View/Edit
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-blue-600 mt-2">
+                                Default formats can be edited but not deleted. Use "Reset to Default" to restore original prompts.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Preferences -->
+                <div id="settings-preferences" class="space-y-4 hidden">
+                    <div>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="auto-translate" class="rounded">
+                            <span class="text-sm">Auto-translate when adding tags</span>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="auto-categorize" class="rounded">
+                            <span class="text-sm">Auto-categorize new tags</span>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="preserve-special" class="rounded" checked>
+                            <span class="text-sm">Preserve special tags (e.g., "Anko")</span>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Theme</label>
+                        <select id="theme" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                            <option value="auto">Auto (System)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- AI Instructions Settings -->
+                <div id="settings-ai-instructions" class="space-y-4 hidden">
+                    <div class="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 mb-6">
+                        <h3 class="font-semibold text-purple-900 mb-2 flex items-center">
+                            <i class="fas fa-brain mr-2"></i>AI指示・システムプロンプト統合管理
+                        </h3>
+                        <p class="text-sm text-purple-700 mb-2">
+                            すべてのAI機能のシステムプロンプトと指示をここで一元管理できます。
+                        </p>
+                        <div class="text-xs text-purple-600 space-y-1">
+                            <div>• <strong>Text to Prompt生成</strong>: 自然言語からタグ生成</div>
+                            <div>• <strong>Image to Prompt生成</strong>: 画像解析とタグ抽出</div>
+                            <div>• <strong>翻訳処理</strong>: 英日双方向翻訳</div>
+                            <div>• <strong>カスタムフォーマット</strong>: 独自形式の指示</div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Instructions Categories -->
+                    <div class="border-b mb-4">
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="py-2 px-3 border-b-2 border-purple-500 text-purple-600 text-sm" 
+                                    data-ai-tab="text-generation"
+                                    onclick="App.setAIInstructionsTab('text-generation')">Text生成</button>
+                            <button class="py-2 px-3 border-b-2 border-transparent text-gray-600 text-sm" 
+                                    data-ai-tab="image-processing"
+                                    onclick="App.setAIInstructionsTab('image-processing')">Image処理</button>
+                            <button class="py-2 px-3 border-b-2 border-transparent text-gray-600 text-sm" 
+                                    data-ai-tab="translation"
+                                    onclick="App.setAIInstructionsTab('translation')">翻訳処理</button>
+                            <button class="py-2 px-3 border-b-2 border-transparent text-gray-600 text-sm" 
+                                    data-ai-tab="advanced"
+                                    onclick="App.setAIInstructionsTab('advanced')">高度な設定</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Text Generation Instructions -->
+                    <div id="ai-instructions-text-generation" class="space-y-6">
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-medium text-blue-900 mb-2">
+                                <i class="fas fa-file-text mr-2"></i>Text to Prompt 生成指示
+                            </h4>
+                            <p class="text-sm text-blue-700 mb-3">
+                                自然言語入力からプロンプトを生成する際のAI指示を設定します。
+                            </p>
+                            
+                            <!-- SDXL Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-tag mr-1 text-orange-500"></i>
+                                    SDXL タグ生成指示
+                                </label>
+                                <textarea id="ai-sdxl-prompt" 
+                                          rows="12"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="SDXL用のタグ生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('sdxl')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('sdxl')" 
+                                            class="px-3 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Flux Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-quote-right mr-1 text-green-500"></i>
+                                    Flux フレーズ生成指示
+                                </label>
+                                <textarea id="ai-flux-prompt" 
+                                          rows="12"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="Flux用のフレーズ生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('flux')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('flux')" 
+                                            class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- ImageFX Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-terminal mr-1 text-purple-500"></i>
+                                    ImageFX コマンド生成指示
+                                </label>
+                                <textarea id="ai-imagefx-prompt" 
+                                          rows="8"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="ImageFX用のコマンド生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('imagefx')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('imagefx')" 
+                                            class="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- ImageFX Natural Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-leaf mr-1 text-teal-500"></i>
+                                    ImageFX Natural 生成指示
+                                </label>
+                                <textarea id="ai-imagefx-natural-prompt" 
+                                          rows="8"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="ImageFX Natural用の生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('imagefx-natural')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('imagefx-natural')" 
+                                            class="px-3 py-1 text-xs bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Image Processing Instructions -->
+                    <div id="ai-instructions-image-processing" class="space-y-6 hidden">
+                        <div class="bg-purple-50 rounded-lg p-4">
+                            <h4 class="font-medium text-purple-900 mb-2">
+                                <i class="fas fa-image mr-2"></i>Image to Prompt 処理指示
+                            </h4>
+                            <p class="text-sm text-purple-700 mb-3">
+                                画像解析とタグ生成の際のAI指示を設定します。
+                            </p>
+                            
+                            <!-- Image Analysis Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-eye mr-1 text-indigo-500"></i>
+                                    画像解析指示 (Vision AI)
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    画像から何を抽出するか、どのように分析するかの指示
+                                </p>
+                                <textarea id="ai-image-analysis-prompt" 
+                                          rows="10"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="画像解析用の指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('image-analysis')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('image-analysis')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Image Tag Generation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-tags mr-1 text-pink-500"></i>
+                                    画像タグ生成指示 (JSON Schema)
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    解析結果からJSON形式のタグを生成する指示
+                                </p>
+                                <textarea id="ai-image-tag-generation-prompt" 
+                                          rows="12"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="画像タグ生成用の指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('image-tag-generation')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('image-tag-generation')" 
+                                            class="px-3 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Translation Instructions -->
+                    <div id="ai-instructions-translation" class="space-y-6 hidden">
+                        <div class="bg-emerald-50 rounded-lg p-4">
+                            <h4 class="font-medium text-emerald-900 mb-2">
+                                <i class="fas fa-language mr-2"></i>翻訳処理指示
+                            </h4>
+                            <p class="text-sm text-emerald-700 mb-3">
+                                英日双方向翻訳とカスタムフォーマット翻訳の指示を設定します。
+                            </p>
+                            
+                            <!-- Standard Translation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-exchange-alt mr-1 text-blue-500"></i>
+                                    標準翻訳指示 (英→日)
+                                </label>
+                                <textarea id="ai-translation-en-ja-prompt" 
+                                          rows="6"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="英語から日本語への翻訳指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('translation-en-ja')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('translation-en-ja')" 
+                                            class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Reverse Translation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-exchange-alt fa-flip-horizontal mr-1 text-red-500"></i>
+                                    逆翻訳指示 (日→英)
+                                </label>
+                                <textarea id="ai-translation-ja-en-prompt" 
+                                          rows="6"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="日本語から英語への翻訳指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('translation-ja-en')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('translation-ja-en')" 
+                                            class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Custom Format Translation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-magic mr-1 text-purple-500"></i>
+                                    カスタムフォーマット翻訳指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    特殊な接尾辞や書式を保持する翻訳指示（例："nyan", "nyaa" 等）
+                                </p>
+                                <textarea id="ai-custom-translation-prompt" 
+                                          rows="8"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="カスタムフォーマット翻訳指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('translation-custom')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('translation-custom')" 
+                                            class="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Advanced Settings -->
+                    <div id="ai-instructions-advanced" class="space-y-6 hidden">
+                        <div class="bg-red-50 rounded-lg p-4">
+                            <h4 class="font-medium text-red-900 mb-2">
+                                <i class="fas fa-cogs mr-2"></i>高度なAI設定
+                            </h4>
+                            <p class="text-sm text-red-700 mb-3">
+                                JSONスキーマ定義、出力フォーマット制御、エラーハンドリング、カテゴリ分類等の設定
+                            </p>
+                            
+                            <!-- 🎯 UNIFIED UTILITY PROMPTS MANAGEMENT -->
+                            
+                            <!-- AI Categorizer Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-tags mr-1 text-indigo-500"></i>
+                                    AIカテゴリ分類指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    AI Analyze機能でタグを自動分類する際の指示（person、appearance、clothing等）
+                                </p>
+                                <textarea id="ai-categorizer-prompt" 
+                                          rows="12"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="AIカテゴリ分類指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('categorizer')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('categorizer')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Tag Normalizer Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-code mr-1 text-green-500"></i>
+                                    タグ正規化指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    画像解析テキストから構造化JSONタグを生成する際の指示
+                                </p>
+                                <textarea id="ai-tag-normalizer-prompt" 
+                                          rows="10"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="タグ正規化指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('tag-normalizer')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('tag-normalizer')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Structured Tags Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-list mr-1 text-purple-500"></i>
+                                    構造化タグ生成指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    ユーザー入力を構造化されたタグに変換する際の指示
+                                </p>
+                                <textarea id="ai-structured-tags-prompt" 
+                                          rows="8"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="構造化タグ生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('structured-tags')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('structured-tags')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Backend Translation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-server mr-1 text-red-500"></i>
+                                    バックエンド翻訳指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    API経由での翻訳処理に使用される指示（高度設定）
+                                </p>
+                                <textarea id="ai-backend-translation-prompt" 
+                                          rows="6"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="バックエンド翻訳指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('backend-translation')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('backend-translation')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- JSON Output Schema -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-code mr-1 text-amber-500"></i>
+                                    JSON出力スキーマ定義
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    AIが生成するJSONの厳密な構造定義
+                                </p>
+                                <textarea id="ai-json-schema-prompt" 
+                                          rows="10"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="JSON出力スキーマの定義を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('json-schema')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('json-schema')" 
+                                            class="px-3 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Error Handling Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-exclamation-triangle mr-1 text-yellow-500"></i>
+                                    エラーハンドリング指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    AI応答エラー時の再試行・フォールバック処理指示
+                                </p>
+                                <textarea id="ai-error-handling-prompt" 
+                                          rows="6"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="エラーハンドリング指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetAIPrompt('error-handling')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveAIPrompt('error-handling')" 
+                                            class="px-3 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Global AI Parameters -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-sliders-h mr-1 text-cyan-500"></i>
+                                    グローバルAIパラメータ
+                                </label>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">Temperature (創造性)</label>
+                                        <input type="range" id="ai-temperature" min="0" max="1" step="0.1" value="0.3" 
+                                               class="w-full" onchange="App.updateAIParameter('temperature', this.value)">
+                                        <span class="text-xs text-gray-500" id="temperature-value">0.3</span>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">Max Tokens (最大トークン数)</label>
+                                        <input type="number" id="ai-max-tokens" min="100" max="4000" value="1000" 
+                                               class="w-full px-2 py-1 border rounded text-xs" 
+                                               onchange="App.updateAIParameter('maxTokens', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="mt-8 p-4 bg-gray-50 rounded-lg">
+                        <h4 class="font-medium text-gray-900 mb-3">
+                            <i class="fas fa-tools mr-2"></i>一括操作
+                        </h4>
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="App.resetAllAIPrompts()" 
+                                    class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                                <i class="fas fa-refresh mr-1"></i>全ての指示をリセット
+                            </button>
+                            <button onclick="App.exportAIPrompts()" 
+                                    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                <i class="fas fa-download mr-1"></i>指示をエクスポート
+                            </button>
+                            <button onclick="App.importAIPrompts()" 
+                                    class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                                <i class="fas fa-upload mr-1"></i>指示をインポート
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+
+                
+                <!-- Save Button -->
+                <div class="mt-6 flex justify-end gap-2">
+                    <button onclick="App.resetSettings()" 
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                        Reset to Defaults
+                    </button>
+                    <button onclick="App.saveSettings()" 
+                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 flex flex-col items-center">
+            <div class="spinner mb-4"></div>
+            <p id="loading-text" class="text-gray-700">Processing...</p>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="/static/app-main.js?v=${Date.now()}"></script>
+</body>
+</html>
