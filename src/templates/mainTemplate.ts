@@ -1436,6 +1436,7 @@ export function getMainHtml(): string {
     
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="/static/systemPromptsHelp.js?v=${timestamp}"></script>
     <script src="/static/app-main.js?v=${timestamp}"></script>
 </body>
 </html>`
