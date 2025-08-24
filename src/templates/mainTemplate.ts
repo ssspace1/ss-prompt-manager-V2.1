@@ -475,6 +475,11 @@ export function getMainHtml(): string {
                         <span id="status-text" class="text-sm text-gray-600">Ready</span>
                     </div>
                     
+                    <!-- Help Button -->
+                    <button onclick="App.showSystemHelp()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors tooltip" data-tooltip="ヘルプ">
+                        <i class="fas fa-question-circle text-xl text-gray-600"></i>
+                    </button>
+                    
                     <!-- Settings Button -->
                     <button onclick="App.showSettings()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors tooltip" data-tooltip="設定">
                         <i class="fas fa-cog text-xl text-gray-600"></i>
@@ -1298,31 +1303,59 @@ export function getMainHtml(): string {
                             <div class="space-y-1 text-sm text-blue-700">
                                 <div class="flex items-center justify-between">
                                     <span><i class="fas fa-tag mr-1"></i> SDXL Tags</span>
-                                    <button onclick="App.showPromptEditor('sdxl')" 
-                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
-                                        <i class="fas fa-edit"></i> View/Edit
-                                    </button>
+                                    <div class="flex gap-1">
+                                        <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('sdxl')" 
+                                                class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded"
+                                                title="Help documentation for SDXL format">
+                                            <i class="fas fa-question-circle"></i> Help
+                                        </button>
+                                        <button onclick="App.showPromptEditor('sdxl')" 
+                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span><i class="fas fa-tag mr-1"></i> Flux Phrases</span>
-                                    <button onclick="App.showPromptEditor('flux')" 
-                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
-                                        <i class="fas fa-edit"></i> View/Edit
-                                    </button>
+                                    <div class="flex gap-1">
+                                        <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('flux')" 
+                                                class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded"
+                                                title="Help documentation for Flux format">
+                                            <i class="fas fa-question-circle"></i> Help
+                                        </button>
+                                        <button onclick="App.showPromptEditor('flux')" 
+                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span><i class="fas fa-tag mr-1"></i> ImageFX</span>
-                                    <button onclick="App.showPromptEditor('imagefx')" 
-                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
-                                        <i class="fas fa-edit"></i> View/Edit
-                                    </button>
+                                    <div class="flex gap-1">
+                                        <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('imagefx')" 
+                                                class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded"
+                                                title="Help documentation for ImageFX format">
+                                            <i class="fas fa-question-circle"></i> Help
+                                        </button>
+                                        <button onclick="App.showPromptEditor('imagefx')" 
+                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span><i class="fas fa-tag mr-1"></i> ImageFX Natural</span>
-                                    <button onclick="App.showPromptEditor('imagefx-natural')" 
-                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
-                                        <i class="fas fa-edit"></i> View/Edit
-                                    </button>
+                                    <div class="flex gap-1">
+                                        <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('imagefx-natural')" 
+                                                class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded"
+                                                title="Help documentation for ImageFX Natural format">
+                                            <i class="fas fa-question-circle"></i> Help
+                                        </button>
+                                        <button onclick="App.showPromptEditor('imagefx-natural')" 
+                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <p class="text-xs text-blue-600 mt-2">

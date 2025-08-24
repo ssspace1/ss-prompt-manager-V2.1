@@ -2549,6 +2549,163 @@ Output ONLY the JSON, no explanations.`;
     }
   },
   
+  showSystemHelp: () => {
+    // Create a general help overview modal
+    const modal = document.createElement('div');
+    modal.id = 'system-help-modal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center';
+    modal.style.zIndex = '10000';
+    
+    modal.innerHTML = `
+      <div class="bg-gray-900 text-white rounded-xl shadow-2xl p-6 max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-700">
+          <h2 class="text-2xl font-bold flex items-center">
+            <i class="fas fa-info-circle mr-3 text-blue-400"></i>
+            SS Prompt Manager ヘルプガイド
+          </h2>
+          <button onclick="document.getElementById('system-help-modal').remove()" class="text-gray-400 hover:text-white">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        
+        <div class="space-y-6">
+          <!-- Overview -->
+          <div>
+            <h3 class="text-lg font-semibold text-blue-400 mb-2">📋 概要</h3>
+            <p class="text-gray-300">
+              SS Prompt Managerは、画像生成AI用のプロンプトを管理・最適化するツールです。
+              テキストや画像から各種フォーマット（SDXL、Flux、ImageFX等）のプロンプトを生成できます。
+            </p>
+          </div>
+          
+          <!-- Main Features -->
+          <div>
+            <h3 class="text-lg font-semibold text-green-400 mb-2">🎯 主要機能</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-gray-800 p-4 rounded-lg">
+                <h4 class="font-semibold text-yellow-300 mb-2">
+                  <i class="fas fa-file-text mr-1"></i> Text to Prompt
+                </h4>
+                <ul class="text-sm text-gray-300 space-y-1">
+                  <li>• テキストからAIプロンプトを生成</li>
+                  <li>• 複数のフォーマットに対応</li>
+                  <li>• タグの編集・重み付け機能</li>
+                  <li>• 日英翻訳機能付き</li>
+                </ul>
+              </div>
+              
+              <div class="bg-gray-800 p-4 rounded-lg">
+                <h4 class="font-semibold text-purple-300 mb-2">
+                  <i class="fas fa-image mr-1"></i> Image to Prompt
+                </h4>
+                <ul class="text-sm text-gray-300 space-y-1">
+                  <li>• 画像を解析してプロンプト生成</li>
+                  <li>• Vision AI (GPT-4o、Gemini等)使用</li>
+                  <li>• 詳細な画像分析機能</li>
+                  <li>• 複数フォーマットへの変換</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          <!-- System Prompts -->
+          <div>
+            <h3 class="text-lg font-semibold text-orange-400 mb-2">🔧 システムプロンプト</h3>
+            <p class="text-gray-300 mb-3">
+              各フォーマットには編集可能なシステムプロンプトがあります。詳細なヘルプを見るには：
+            </p>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+              ${['sdxl', 'flux', 'imagefx', 'imagefx-natural'].map(format => `
+                <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('${format}')" 
+                        class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg transition-colors">
+                  <i class="fas fa-tag mr-1 text-blue-400"></i>
+                  ${format.toUpperCase().replace('-', ' ')}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          
+          <!-- Workflow -->
+          <div>
+            <h3 class="text-lg font-semibold text-pink-400 mb-2">🔄 基本的なワークフロー</h3>
+            <ol class="list-decimal list-inside text-gray-300 space-y-2">
+              <li><strong>入力:</strong> テキストまたは画像を入力</li>
+              <li><strong>AI生成:</strong> AIフォーマットを選択して生成</li>
+              <li><strong>編集:</strong> Tag Editorでタグを調整</li>
+              <li><strong>変換:</strong> Final Outputで最終フォーマットに変換</li>
+              <li><strong>コピー:</strong> 結果をコピーして使用</li>
+            </ol>
+          </div>
+          
+          <!-- Tips -->
+          <div>
+            <h3 class="text-lg font-semibold text-cyan-400 mb-2">💡 ヒント</h3>
+            <ul class="list-disc list-inside text-gray-300 space-y-1">
+              <li>OpenRouter APIキーを設定すると、より多くのAIモデルが使用可能</li>
+              <li>タグはドラッグ&ドロップで並べ替え可能</li>
+              <li>重み付け: (tag:1.2) で強調、[tag:0.8] で抑制</li>
+              <li>カスタムフォーマットを作成して独自のプロンプトスタイルを定義</li>
+              <li>設定は自動的にブラウザに保存されます</li>
+            </ul>
+          </div>
+          
+          <!-- Shortcuts -->
+          <div>
+            <h3 class="text-lg font-semibold text-indigo-400 mb-2">⌨️ ショートカット</h3>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <div class="bg-gray-800 p-2 rounded">
+                <kbd class="bg-gray-700 px-2 py-1 rounded">ESC</kbd> モーダルを閉じる
+              </div>
+              <div class="bg-gray-800 p-2 rounded">
+                <kbd class="bg-gray-700 px-2 py-1 rounded">Ctrl+S</kbd> プロンプトを保存
+              </div>
+              <div class="bg-gray-800 p-2 rounded">
+                <kbd class="bg-gray-700 px-2 py-1 rounded">Tab</kbd> 次の入力フィールド
+              </div>
+              <div class="bg-gray-800 p-2 rounded">
+                <kbd class="bg-gray-700 px-2 py-1 rounded">Shift+Tab</kbd> 前の入力フィールド
+              </div>
+            </div>
+          </div>
+          
+          <!-- Support -->
+          <div>
+            <h3 class="text-lg font-semibold text-red-400 mb-2">🆘 サポート</h3>
+            <p class="text-gray-300">
+              問題が発生した場合は、ブラウザのコンソールでエラーを確認してください。
+              設定のリセットが必要な場合は、設定画面の「Reset to Defaults」ボタンを使用してください。
+            </p>
+          </div>
+        </div>
+        
+        <div class="mt-6 pt-4 border-t border-gray-700 flex justify-between items-center">
+          <span class="text-xs text-gray-500">Version 2.1 - Enhanced System Prompts</span>
+          <button onclick="document.getElementById('system-help-modal').remove()" 
+                  class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all">
+            閉じる
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+    
+    // ESC key to close
+    document.addEventListener('keydown', function closeOnEsc(e) {
+      if (e.key === 'Escape' && document.getElementById('system-help-modal')) {
+        document.getElementById('system-help-modal').remove();
+        document.removeEventListener('keydown', closeOnEsc);
+      }
+    });
+    
+    document.body.appendChild(modal);
+  },
+
   showSettings: () => {
     const modal = document.getElementById('settings-modal');
     if (modal) {
@@ -2591,6 +2748,11 @@ Output ONLY the JSON, no explanations.`;
               <div class="text-xs text-gray-500">Text to Prompt format</div>
             </div>
             <div class="flex gap-2">
+              <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('${format}')" 
+                      class="px-3 py-1 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors"
+                      title="Show help for this format">
+                <i class="fas fa-question-circle mr-1"></i>Help
+              </button>
               <button onclick="App.showPromptEditor('${format}')" 
                       class="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors">
                 <i class="fas fa-edit mr-1"></i>Edit
