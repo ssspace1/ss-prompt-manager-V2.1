@@ -34,7 +34,8 @@ app.post('/api/translate', async (c) => {
   }
   
   try {
-    // Create format-aware translation prompt
+    // 🎯 Use unified backend translation prompt from system
+    // TODO: In future, fetch this from frontend's systemPrompts for complete unification
     let systemPrompt = '';
     
     if (format && format !== 'sdxl' && format !== 'flux' && format !== 'imagefx' && format !== 'imagefx-natural') {
@@ -60,10 +61,14 @@ IMPORTANT: If the original tag has special suffixes, patterns, or custom formatt
 Output only the translation, no explanations.`;
       }
     } else {
-      // Standard translation for default formats
-      systemPrompt = targetLang === 'ja' 
-        ? 'You are a professional translator. Translate the given image generation prompt tags from English to Japanese. Keep the translation natural and appropriate for image generation. Output only the translation, no explanations.'
-        : 'You are a professional translator. Translate the given image generation prompt tags from Japanese to English. Keep the translation natural and appropriate for image generation. Output only the translation, no explanations.';
+      // Standard translation for default formats - Using unified backend prompt
+      systemPrompt = `You are a professional translator for image generation prompts.
+Translate between English and Japanese while maintaining context and meaning appropriate for AI image generation.
+
+For custom formats: Preserve any special formatting, suffixes, or custom instructions.
+For standard formats: Focus on natural, clear translation.
+
+Output only the translation, no explanations.`;
     }
     
     // Call OpenRouter API for translation
@@ -113,6 +118,8 @@ Output only the translation, no explanations.`;
 
 // DISABLED: Legacy generate-tags API that conflicted with frontend system prompts
 // app.post('/api/generate-tags', async (c) => {
+// 🚫 DISABLED: Legacy generate-tags API - Now handled by frontend unified system
+// This endpoint conflicted with frontend system prompts management
 app.post('/api/generate-tags-disabled', async (c) => {
   const { prompt, format = 'sdxl', apiKey, systemPrompt } = await c.req.json();
   
@@ -126,7 +133,8 @@ app.post('/api/generate-tags-disabled', async (c) => {
     return c.json({ error: 'API key is required' }, 400);
   }
   
-  const defaultSystemPrompts = {
+  // ⚠️ These prompts are now managed by frontend unified system
+  const legacySystemPrompts = {
     sdxl: `# SDXL Master Tag Generator - PROFESSIONAL QUALITY v15.0 (5-Block Hierarchy Model)
 
 ユーザーから日本語のストーリーテキストが入力された場合、あなたは**「5ブロック階層モデル」**と**「SDXL最適化戦略」**に従い、物語の核心を表現する**短いタグ・フレーズ中心**のプロンプトを設計し、その結果を**指定されたJSONフォーマット**で出力しなければならない。
@@ -1905,11 +1913,11 @@ const appHtml = `<!DOCTYPE html>
                                           class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
                                           placeholder="画像解析用の指示を入力..."></textarea>
                                 <div class="flex gap-2 mt-2">
-                                    <button onclick="App.resetAIPrompt('image-analysis')" 
+                                    <button onclick="App.resetUtilityPrompt('image-analysis')" 
                                             class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
                                         <i class="fas fa-undo mr-1"></i>デフォルト復元
                                     </button>
-                                    <button onclick="App.saveAIPrompt('image-analysis')" 
+                                    <button onclick="App.saveUtilityPrompt('image-analysis')" 
                                             class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
                                         <i class="fas fa-save mr-1"></i>保存
                                     </button>
@@ -1964,11 +1972,11 @@ const appHtml = `<!DOCTYPE html>
                                           class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
                                           placeholder="英語から日本語への翻訳指示を入力..."></textarea>
                                 <div class="flex gap-2 mt-2">
-                                    <button onclick="App.resetAIPrompt('translation-en-ja')" 
+                                    <button onclick="App.resetUtilityPrompt('translation-en-ja')" 
                                             class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
                                         <i class="fas fa-undo mr-1"></i>デフォルト復元
                                     </button>
-                                    <button onclick="App.saveAIPrompt('translation-en-ja')" 
+                                    <button onclick="App.saveUtilityPrompt('translation-en-ja')" 
                                             class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
                                         <i class="fas fa-save mr-1"></i>保存
                                     </button>
@@ -1986,11 +1994,11 @@ const appHtml = `<!DOCTYPE html>
                                           class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
                                           placeholder="日本語から英語への翻訳指示を入力..."></textarea>
                                 <div class="flex gap-2 mt-2">
-                                    <button onclick="App.resetAIPrompt('translation-ja-en')" 
+                                    <button onclick="App.resetUtilityPrompt('translation-ja-en')" 
                                             class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
                                         <i class="fas fa-undo mr-1"></i>デフォルト復元
                                     </button>
-                                    <button onclick="App.saveAIPrompt('translation-ja-en')" 
+                                    <button onclick="App.saveUtilityPrompt('translation-ja-en')" 
                                             class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
                                         <i class="fas fa-save mr-1"></i>保存
                                     </button>
@@ -2011,11 +2019,11 @@ const appHtml = `<!DOCTYPE html>
                                           class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
                                           placeholder="カスタムフォーマット翻訳指示を入力..."></textarea>
                                 <div class="flex gap-2 mt-2">
-                                    <button onclick="App.resetAIPrompt('custom-translation')" 
+                                    <button onclick="App.resetUtilityPrompt('translation-custom')" 
                                             class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
                                         <i class="fas fa-undo mr-1"></i>デフォルト復元
                                     </button>
-                                    <button onclick="App.saveAIPrompt('custom-translation')" 
+                                    <button onclick="App.saveUtilityPrompt('translation-custom')" 
                                             class="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors">
                                         <i class="fas fa-save mr-1"></i>保存
                                     </button>
@@ -2034,6 +2042,8 @@ const appHtml = `<!DOCTYPE html>
                                 JSONスキーマ定義、出力フォーマット制御、エラーハンドリング、カテゴリ分類等の設定
                             </p>
                             
+                            <!-- 🎯 UNIFIED UTILITY PROMPTS MANAGEMENT -->
+                            
                             <!-- AI Categorizer Instructions -->
                             <div class="mb-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -2048,11 +2058,86 @@ const appHtml = `<!DOCTYPE html>
                                           class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
                                           placeholder="AIカテゴリ分類指示を入力..."></textarea>
                                 <div class="flex gap-2 mt-2">
-                                    <button onclick="App.resetAIPrompt('categorizer')" 
+                                    <button onclick="App.resetUtilityPrompt('categorizer')" 
                                             class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
                                         <i class="fas fa-undo mr-1"></i>デフォルト復元
                                     </button>
-                                    <button onclick="App.saveAIPrompt('categorizer')" 
+                                    <button onclick="App.saveUtilityPrompt('categorizer')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Tag Normalizer Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-code mr-1 text-green-500"></i>
+                                    タグ正規化指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    画像解析テキストから構造化JSONタグを生成する際の指示
+                                </p>
+                                <textarea id="ai-tag-normalizer-prompt" 
+                                          rows="10"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="タグ正規化指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('tag-normalizer')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('tag-normalizer')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Structured Tags Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-list mr-1 text-purple-500"></i>
+                                    構造化タグ生成指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    ユーザー入力を構造化されたタグに変換する際の指示
+                                </p>
+                                <textarea id="ai-structured-tags-prompt" 
+                                          rows="8"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="構造化タグ生成指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('structured-tags')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('structured-tags')" 
+                                            class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
+                                        <i class="fas fa-save mr-1"></i>保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Backend Translation Instructions -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-server mr-1 text-red-500"></i>
+                                    バックエンド翻訳指示
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">
+                                    API経由での翻訳処理に使用される指示（高度設定）
+                                </p>
+                                <textarea id="ai-backend-translation-prompt" 
+                                          rows="6"
+                                          class="w-full px-3 py-2 border rounded-lg font-mono text-xs"
+                                          placeholder="バックエンド翻訳指示を入力..."></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="App.resetUtilityPrompt('backend-translation')" 
+                                            class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-undo mr-1"></i>デフォルト復元
+                                    </button>
+                                    <button onclick="App.saveUtilityPrompt('backend-translation')" 
                                             class="px-3 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors">
                                         <i class="fas fa-save mr-1"></i>保存
                                     </button>

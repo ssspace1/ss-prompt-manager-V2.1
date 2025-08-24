@@ -75,8 +75,11 @@ const translationDict = {
   'sharp focus': 'シャープフォーカス'
 };
 
-// Default system prompts - Enhanced with 5-Block Hierarchy Model (moved to top to fix hoisting issue)
-const defaultSystemPrompts = {
+// 🎯 UNIFIED SYSTEM PROMPTS MANAGEMENT
+// All prompts are now user-editable via Settings UI with default fallback capability
+
+// Default system prompts for main AI generation - Enhanced with 5-Block Hierarchy Model (moved to top to fix hoisting issue)
+const defaultMainSystemPrompts = {
   sdxl: `# SDXL Master Tag Generator - PROFESSIONAL QUALITY v15.0 (5-Block Hierarchy Model)
 
 ユーザーから日本語のストーリーテキストが入力された場合、あなたは**「5ブロック階層モデル」**と**「SDXL最適化戦略」**に従い、物語の核心を表現する**短いタグ・フレーズ中心**のプロンプトを設計し、その結果を**指定されたJSONフォーマット**で出力しなければならない。
@@ -235,6 +238,114 @@ Output MUST be valid JSON:
 }
 
 Categories: person, appearance, clothing, pose, background, quality, style, action, object, other`
+};
+
+// 🔧 DEFAULT UTILITY PROMPTS - All user-editable via Settings
+// These prompts handle translation, categorization, and image processing
+const defaultUtilityPrompts = {
+  // Translation prompts
+  'translation-en-ja': `You are a professional translator for image generation prompts.
+Translate the given English image generation tag to Japanese while keeping it natural and appropriate for image generation contexts.
+
+Output only the translation, no explanations.`,
+  
+  'translation-ja-en': `You are a professional translator for image generation prompts.
+Translate the given Japanese image generation tag to English while keeping it natural and appropriate for image generation contexts.
+
+Output only the translation, no explanations.`,
+  
+  'translation-custom': `You are a professional translator for custom image generation prompts.
+Translate the given text while preserving any special formatting or custom instructions.
+
+IMPORTANT: If the original text has special suffixes, patterns, or custom formatting (like "nyan", "nyaa", special characters, etc.), maintain them in the translation.
+
+Examples:
+- "1girl nyan" → "1人の女の子 nyan"
+- "hot spring nyan" → "温泉 nyan"
+- "ultra-detailed 8K nyan" → "超詳細 8K nyan"
+
+Output only the translation, no explanations.`,
+  
+  // Categorization prompt
+  'categorizer': `You are an AI tag categorizer for image generation prompts. Analyze each tag and categorize it into one of these categories:
+
+- person: Characters, people, gender, age (1girl, boy, woman, etc.)
+- appearance: Physical features, hair, eyes, facial expressions, beauty
+- clothing: Outfits, uniforms, accessories, fashion items
+- action: Poses, movements, activities, gestures
+- background: Environments, scenery, lighting, settings, weather
+- quality: Image quality enhancers, resolution, detail level
+- style: Art styles, techniques, artist names, aesthetic choices
+- composition: Camera angles, views, shots, framing, perspectives (full body, close-up, low angle, etc.)
+- object: Items, props, tools, decorative elements
+- other: Anything that doesn't fit the above categories
+
+Output format:
+{
+  "tags": [
+    {"text": "tag content", "category": "category_name"}
+  ]
+}
+
+Output only JSON, no explanations.`,
+  
+  // Image analysis prompt
+  'image-analysis': `You are an expert image analyst. Analyze the provided image and describe:
+1. Main subjects and their appearance
+2. Background and environment details
+3. Colors, lighting, and atmosphere
+4. Composition and style
+5. Any text or symbols visible
+6. Overall mood and artistic qualities
+
+Be detailed and specific in your description.`,
+  
+  // Tag processing prompts
+  'tag-normalizer': `You are a tag normalizer & bilingual mapper for image prompts.
+
+Input: Image analysis text
+Output ONLY JSON in this exact format:
+{
+  "pairs": [
+    {
+      "en": "...",
+      "ja": "...",
+      "weight": number,
+      "category": "person|appearance|clothes|pose|background|quality|style|other"
+    }
+  ]
+}
+
+必ず完全なJSONフォーマット厳守で出力してください。`,
+  
+  'structured-tags': `You are a professional image prompt optimizer.
+Convert the user's input into clean, structured English tags for image generation.
+
+CRITICAL: Output ONLY valid JSON with multiple separate tags:
+{
+  "tags": [
+    {"text": "1girl", "weight": 1.2},
+    {"text": "natural hot spring", "weight": 1.1},
+    {"text": "forest setting", "weight": 1.0}
+  ]
+}
+
+Output only JSON, no explanations.`,
+  
+  // Backend translation prompt (used by API)
+  'backend-translation': `You are a professional translator for image generation prompts.
+Translate between English and Japanese while maintaining context and meaning appropriate for AI image generation.
+
+For custom formats: Preserve any special formatting, suffixes, or custom instructions.
+For standard formats: Focus on natural, clear translation.
+
+Output only the translation, no explanations.`
+};
+
+// 🔄 COMBINED DEFAULT PROMPTS - Union of main and utility prompts
+const defaultSystemPrompts = {
+  ...defaultMainSystemPrompts,
+  ...defaultUtilityPrompts
 };
 
 // STRICT JSON FORMAT for AI outputs
@@ -1058,9 +1169,10 @@ const JsonProcessor = {
   }
 };
 
-// Merge defaults with saved prompts to ensure all formats have prompts
-// Force update outdated prompts
-for (const [format, defaultPrompt] of Object.entries(defaultSystemPrompts)) {
+// 🔧 Ensure latest system prompts are loaded and updated (main formats only)
+// Utility prompts are managed separately to avoid overriding user customizations
+const mainFormats = Object.keys(defaultMainSystemPrompts);
+for (const [format, defaultPrompt] of Object.entries(defaultMainSystemPrompts)) {
   if (!appState.systemPrompts[format] || 
       (format === 'sdxl' && !appState.systemPrompts[format].includes('PROFESSIONAL QUALITY v15.0')) ||
       (format === 'flux' && !appState.systemPrompts[format].includes('CINEMATIC STORYTELLING v14.0'))) {
@@ -1068,6 +1180,15 @@ for (const [format, defaultPrompt] of Object.entries(defaultSystemPrompts)) {
     appState.systemPrompts[format] = defaultPrompt;
   }
 }
+
+// 🎯 Initialize utility prompts if they don't exist (preserve user customizations)
+for (const [promptKey, defaultPrompt] of Object.entries(defaultUtilityPrompts)) {
+  if (!appState.systemPrompts[promptKey]) {
+    console.log(`Adding missing utility prompt: ${promptKey}`);
+    appState.systemPrompts[promptKey] = defaultPrompt;
+  }
+}
+
 // Save merged prompts
 localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
 
@@ -6211,35 +6332,23 @@ Examples:
 Output only the translation, no explanations.`;
   },
   
+  getCategorizerPrompt: () => {
+    return appState.systemPrompts['categorizer'] || defaultUtilityPrompts['categorizer'];
+  },
+  
   getDefaultCategorizerPrompt: () => {
-    return `You are an AI tag categorizer for image generation prompts. Analyze each tag and categorize it into one of these categories:
-
-- person: Characters, people, gender, age (1girl, boy, woman, etc.)
-- appearance: Physical features, hair, eyes, facial expressions, beauty
-- clothing: Outfits, uniforms, accessories, fashion items
-- action: Poses, movements, activities, gestures
-- background: Environments, scenery, lighting, settings, weather
-- quality: Image quality enhancers, resolution, detail level
-- style: Art styles, techniques, artist names, aesthetic choices
-- composition: Camera angles, views, shots, framing, perspectives (full body, close-up, low angle, etc.)
-- object: Items, props, tools, decorative elements
-- other: Anything that doesn't fit the above categories
-
-Respond ONLY with valid JSON format:
-{
-  "categories": [
-    {"tag": "tag_name", "category": "category_name"},
-    ...
-  ]
-}
-
-Do not include any explanations or additional text.`;
+    return defaultUtilityPrompts['categorizer'];
   },
   
   // Get AI categorizer prompt from settings (with fallback to default)
+  // 🎯 UNIFIED UTILITY PROMPTS MANAGEMENT
+  // Get utility prompts from unified system (with fallback to default)
+  getUtilityPrompt: (promptKey) => {
+    return appState.systemPrompts[promptKey] || defaultUtilityPrompts[promptKey];
+  },
+  
   getAICategorizerPrompt: () => {
-    const prompts = JSON.parse(localStorage.getItem('ai-instructions-prompts') || '{}');
-    return prompts['categorizer'] || App.getDefaultCategorizerPrompt();
+    return App.getUtilityPrompt('categorizer');
   },
   
   getDefaultJSONSchemaPrompt: () => {
