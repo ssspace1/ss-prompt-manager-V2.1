@@ -1271,8 +1271,12 @@ export function getMainHtml(): string {
                         </div>
                         
                         <p class="text-sm text-gray-600 mb-4">
-                            Create custom formats with your own system prompts for AI generation.
-                            These formats will appear in AI Format and Final Output dropdowns.
+                            Create custom output formats with specialized system prompts for specific use cases.
+                            These user-created formats will appear in AI Format and Final Output dropdowns.
+                            <br><span class="text-xs text-blue-600 mt-1 block">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                System prompts (categorizer, translation, etc.) are managed in the AI Instructions tab.
+                            </span>
                         </p>
                         
                         <!-- Text to Prompt Custom Formats -->
@@ -1409,82 +1413,184 @@ export function getMainHtml(): string {
                         </p>
                     </div>
                     
-                    <!-- Categorizer System Prompt -->
-                    <div class="border border-gray-200 rounded-lg p-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-medium text-gray-800 flex items-center">
-                                <i class="fas fa-tags mr-2 text-orange-500"></i>
-                                Tag Categorizer (色分けシステム)
-                            </h4>
-                            <div class="flex gap-2">
-                                <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('categorizer')" 
-                                        class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded"
-                                        title="Help for categorizer">
-                                    <i class="fas fa-question-circle"></i> Help
-                                </button>
-                                <button onclick="App.showPromptEditor('categorizer')" 
-                                        class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded">
-                                    <i class="fas fa-edit"></i> Edit
-                                </button>
+                    <!-- Core AI System Prompts Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        
+                        <!-- Tag Categorization System -->
+                        <div class="bg-gradient-to-br from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center mr-3">
+                                        <i class="fas fa-palette text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-orange-900">Tag Categorizer</h4>
+                                        <p class="text-xs text-orange-700">色分けシステム</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('categorizer')" 
+                                            class="p-1 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded transition-colors"
+                                            title="Help">
+                                        <i class="fas fa-question-circle text-xs"></i>
+                                    </button>
+                                    <button onclick="App.showPromptEditor('categorizer')" 
+                                            class="p-1 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                                            title="Edit">
+                                        <i class="fas fa-edit text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-orange-800 mb-3">
+                                Controls tag color-coding for both Text and Image prompts
+                            </p>
+                            <div class="grid grid-cols-5 gap-1 text-xs">
+                                <span class="bg-orange-200 text-orange-900 px-1.5 py-0.5 rounded text-center">person</span>
+                                <span class="bg-blue-200 text-blue-900 px-1.5 py-0.5 rounded text-center">appearance</span>
+                                <span class="bg-pink-200 text-pink-900 px-1.5 py-0.5 rounded text-center">clothing</span>
+                                <span class="bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded text-center">action</span>
+                                <span class="bg-green-200 text-green-900 px-1.5 py-0.5 rounded text-center">background</span>
+                                <span class="bg-yellow-200 text-yellow-900 px-1.5 py-0.5 rounded text-center">quality</span>
+                                <span class="bg-indigo-200 text-indigo-900 px-1.5 py-0.5 rounded text-center">style</span>
+                                <span class="bg-cyan-200 text-cyan-900 px-1.5 py-0.5 rounded text-center">composition</span>
+                                <span class="bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded text-center">object</span>
+                                <span class="bg-gray-200 text-gray-900 px-1.5 py-0.5 rounded text-center">other</span>
                             </div>
                         </div>
-                        <p class="text-xs text-gray-600 mb-2">
-                            Controls how tags are categorized and color-coded. Used by both Text to Prompt and Image to Prompt.
-                        </p>
-                        <div class="grid grid-cols-5 gap-1 text-xs">
-                            <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded">person</span>
-                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">appearance</span>
-                            <span class="bg-pink-100 text-pink-800 px-2 py-1 rounded">clothing</span>
-                            <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded">action</span>
-                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded">background</span>
-                            <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">quality</span>
-                            <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded">style</span>
-                            <span class="bg-cyan-100 text-cyan-800 px-2 py-1 rounded">composition</span>
-                            <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded">object</span>
-                            <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded">other</span>
+                        
+                        <!-- Image Analysis System -->
+                        <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
+                                        <i class="fas fa-eye text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-purple-900">Image Analysis</h4>
+                                        <p class="text-xs text-purple-700">Vision AI システム</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('image-analysis')" 
+                                            class="p-1 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded transition-colors"
+                                            title="Help">
+                                        <i class="fas fa-question-circle text-xs"></i>
+                                    </button>
+                                    <button onclick="App.showPromptEditor('image-analysis')" 
+                                            class="p-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors"
+                                            title="Edit">
+                                        <i class="fas fa-edit text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-purple-800 mb-3">
+                                Controls how images are analyzed in Image to Prompt feature
+                            </p>
+                            <div class="flex flex-wrap gap-1 text-xs">
+                                <span class="bg-purple-200 text-purple-900 px-2 py-1 rounded">GPT-4o</span>
+                                <span class="bg-purple-200 text-purple-900 px-2 py-1 rounded">Gemini</span>
+                                <span class="bg-purple-200 text-purple-900 px-2 py-1 rounded">Claude</span>
+                            </div>
                         </div>
+                        
+                        <!-- Translation System -->
+                        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+                                        <i class="fas fa-language text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-blue-900">Translation System</h4>
+                                        <p class="text-xs text-blue-700">英日翻訳システム</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('translation-en-ja')" 
+                                            class="p-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors"
+                                            title="Help">
+                                        <i class="fas fa-question-circle text-xs"></i>
+                                    </button>
+                                    <button onclick="App.showPromptEditor('translation-en-ja')" 
+                                            class="p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                                            title="Edit EN→JA">
+                                        <i class="fas fa-edit text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-blue-800 mb-3">
+                                Controls tag translation between English and Japanese
+                            </p>
+                            <div class="flex items-center text-xs text-blue-700">
+                                <span class="bg-blue-200 px-2 py-1 rounded mr-2">EN → JA</span>
+                                <span class="bg-blue-200 px-2 py-1 rounded">JA → EN</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Tag Processing System -->
+                        <div class="bg-gradient-to-br from-green-50 to-teal-50 border border-green-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                                        <i class="fas fa-cogs text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-green-900">Tag Processing</h4>
+                                        <p class="text-xs text-green-700">タグ処理システム</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('tag-normalizer')" 
+                                            class="p-1 bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors"
+                                            title="Help">
+                                        <i class="fas fa-question-circle text-xs"></i>
+                                    </button>
+                                    <button onclick="App.showPromptEditor('tag-normalizer')" 
+                                            class="p-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                                            title="Edit">
+                                        <i class="fas fa-edit text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-green-800 mb-3">
+                                Normalizes and structures tags for optimal generation
+                            </p>
+                            <div class="flex flex-wrap gap-1 text-xs">
+                                <span class="bg-green-200 text-green-900 px-2 py-1 rounded">Normalize</span>
+                                <span class="bg-green-200 text-green-900 px-2 py-1 rounded">Structure</span>
+                                <span class="bg-green-200 text-green-900 px-2 py-1 rounded">JSON</span>
+                            </div>
+                        </div>
+                        
                     </div>
                     
-                    <!-- Translation System Prompts -->
-                    <div class="border border-gray-200 rounded-lg p-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-medium text-gray-800 flex items-center">
-                                <i class="fas fa-language mr-2 text-blue-500"></i>
-                                Translation Prompts
-                            </h4>
-                            <div class="flex gap-2">
-                                <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('translation-en-ja')" 
-                                        class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded">
-                                    <i class="fas fa-question-circle"></i> Help
-                                </button>
-                            </div>
-                        </div>
-                        <p class="text-xs text-gray-600">
-                            Configure how tags are translated between English and Japanese.
+                    <!-- Advanced Settings -->
+                    <div class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <h4 class="font-medium text-gray-800 mb-2 flex items-center">
+                            <i class="fas fa-sliders-h mr-2 text-gray-600"></i>
+                            Advanced System Settings
+                        </h4>
+                        <p class="text-xs text-gray-600 mb-3">
+                            Fine-tune system behavior and processing parameters
                         </p>
-                    </div>
-                    
-                    <!-- Image Analysis Prompt -->
-                    <div class="border border-gray-200 rounded-lg p-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-medium text-gray-800 flex items-center">
-                                <i class="fas fa-image mr-2 text-purple-500"></i>
-                                Image Analysis Prompt
-                            </h4>
-                            <div class="flex gap-2">
-                                <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('image-analysis')" 
-                                        class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded">
-                                    <i class="fas fa-question-circle"></i> Help
-                                </button>
-                                <button onclick="App.showPromptEditor('image-analysis')" 
-                                        class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded">
-                                    <i class="fas fa-edit"></i> Edit
-                                </button>
-                            </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <button onclick="App.showPromptEditor('backend-translation')" 
+                                    class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors">
+                                <i class="fas fa-server mr-1"></i>Backend Translation
+                            </button>
+                            <button onclick="App.showPromptEditor('structured-tags')" 
+                                    class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors">
+                                <i class="fas fa-code mr-1"></i>Structured Tags
+                            </button>
+                            <button onclick="App.showPromptEditor('translation-custom')" 
+                                    class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors">
+                                <i class="fas fa-wrench mr-1"></i>Custom Translation
+                            </button>
+                            <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('categorizer')" 
+                                    class="text-xs px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors">
+                                <i class="fas fa-info-circle mr-1"></i>System Help
+                            </button>
                         </div>
-                        <p class="text-xs text-gray-600">
-                            Controls how images are analyzed in Image to Prompt feature.
-                        </p>
                     </div>
                 </div>
                 

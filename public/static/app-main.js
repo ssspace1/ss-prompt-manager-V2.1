@@ -2734,8 +2734,16 @@ Output ONLY the JSON, no explanations.`;
     // Update Text to Prompt custom formats
     const container = document.getElementById('custom-formats-list');
     if (container) {
+      // Only show TRUE custom formats - exclude default formats and utility prompts
+      const utilityPrompts = [
+        'categorizer', 'image-analysis', 'tag-normalizer', 'structured-tags', 
+        'backend-translation', 'translation-en-ja', 'translation-ja-en', 'translation-custom'
+      ];
+      const defaultFormats = ['sdxl', 'flux', 'imagefx', 'imagefx-natural', 'test'];
+      const excludedKeys = [...defaultFormats, ...utilityPrompts];
+      
       const customFormats = Object.keys(appState.systemPrompts).filter(
-        key => !['sdxl', 'flux', 'imagefx', 'imagefx-natural', 'test'].includes(key)
+        key => !excludedKeys.includes(key)
       );
       
       if (customFormats.length === 0) {
