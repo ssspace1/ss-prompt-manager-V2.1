@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help System Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">SS Prompt Manager - Help System Test</h1>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Test Help Buttons</h2>
+            <p class="text-gray-600 mb-4">Click any button below to test the help system:</p>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="testHelp('sdxl')" class="bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded">
+                    <i class="fas fa-question-circle mr-2"></i>SDXL Tags Help
+                </button>
+                
+                <button onclick="testHelp('flux')" class="bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded">
+                    <i class="fas fa-question-circle mr-2"></i>Flux Phrases Help
+                </button>
+                
+                <button onclick="testHelp('imagefx')" class="bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded">
+                    <i class="fas fa-question-circle mr-2"></i>ImageFX Help
+                </button>
+                
+                <button onclick="testHelp('image-analysis')" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-2 rounded">
+                    <i class="fas fa-question-circle mr-2"></i>Image Analysis Help
+                </button>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4">Console Output</h2>
+            <div id="console" class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm h-48 overflow-auto">
+                <div>Ready to test help system...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const consoleDiv = document.getElementById('console');
+        
+        function log(message, type = 'info') {
+            const colors = {
+                info: 'text-green-400',
+                error: 'text-red-400',
+                success: 'text-blue-400'
+            };
+            
+            const line = document.createElement('div');
+            line.className = colors[type] || 'text-green-400';
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        async function testHelp(promptId) {
+            log(`Testing help for: ${promptId}`);
+            
+            try {
+                // Load the help script if not already loaded
+                if (!window.showSystemPromptHelp) {
+                    log('Loading help system script...');
+                    const script = document.createElement('script');
+                    script.src = '/static/systemPromptsHelp.js';
+                    script.onload = () => {
+                        log('Help system loaded successfully', 'success');
+                        if (window.showSystemPromptHelp) {
+                            window.showSystemPromptHelp(promptId);
+                            log(`Help modal displayed for: ${promptId}`, 'success');
+                        }
+                    };
+                    script.onerror = () => {
+                        log('Failed to load help system', 'error');
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    window.showSystemPromptHelp(promptId);
+                    log(`Help modal displayed for: ${promptId}`, 'success');
+                }
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Try to load help system on page load
+        window.addEventListener('load', () => {
+            const script = document.createElement('script');
+            script.src = '/static/systemPromptsHelp.js';
+            script.onload = () => {
+                log('Help system pre-loaded', 'success');
+                log(`Available prompts: ${Object.keys(window.SYSTEM_PROMPTS_HELP || {}).length}`, 'info');
+            };
+            document.head.appendChild(script);
+        });
+    </script>
+</body>
+</html>
