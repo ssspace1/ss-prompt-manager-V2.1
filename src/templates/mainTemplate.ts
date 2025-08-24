@@ -507,6 +507,11 @@ export function getMainHtml(): string {
                         <i class="fas fa-layer-group mr-2"></i>
                         Batch Processing
                     </button>
+                    <button class="tab-button py-3 px-6 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                            onclick="App.setTab('system-flow')" id="tab-system-flow">
+                        <i class="fas fa-project-diagram mr-2"></i>
+                        System Flow
+                    </button>
                 </div>
             </div>
         </nav>
@@ -1101,6 +1106,358 @@ export function getMainHtml(): string {
                         
                         <div id="batch-results" class="mt-6">
                             <!-- Batch results will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Flow Tab Content -->
+            <div id="content-system-flow" class="h-full p-4 hidden">
+                <div class="bg-white rounded-lg shadow-sm p-6 h-full overflow-y-auto">
+                    <div class="max-w-7xl mx-auto">
+                        <div class="text-center mb-8">
+                            <h2 class="text-3xl font-bold text-gray-800 mb-2">
+                                <i class="fas fa-project-diagram mr-3 text-blue-500"></i>
+                                System Flow Diagram
+                            </h2>
+                            <p class="text-gray-600">Visual guide to understand and edit all AI instruction routes</p>
+                        </div>
+
+                        <!-- Text to Prompt Flow -->
+                        <div class="mb-12">
+                            <h3 class="text-2xl font-semibold text-blue-700 mb-6 flex items-center">
+                                <i class="fas fa-file-text mr-3"></i>
+                                Text to Prompt Flow
+                            </h3>
+                            
+                            <div class="relative">
+                                <!-- Flow Container -->
+                                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border-2 border-blue-200">
+                                    
+                                    <!-- Step 1: Input -->
+                                    <div class="flex items-center mb-8">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg">1</div>
+                                        </div>
+                                        <div class="ml-6 flex-1">
+                                            <div class="bg-white rounded-lg p-4 shadow-md border-l-4 border-blue-500">
+                                                <h4 class="font-semibold text-gray-800 mb-2">User Input</h4>
+                                                <p class="text-sm text-gray-600 mb-3">テキスト入力 → AI Format選択</p>
+                                                <div class="text-xs text-blue-600">📍 Location: Text to Prompt Tab</div>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4 text-3xl text-gray-300">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 2: Format Selection & AI Generation -->
+                                    <div class="flex items-center mb-8">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">2</div>
+                                        </div>
+                                        <div class="ml-6 flex-1">
+                                            <div class="bg-white rounded-lg p-4 shadow-md border-l-4 border-purple-500">
+                                                <h4 class="font-semibold text-gray-800 mb-2">AI Generation</h4>
+                                                <p class="text-sm text-gray-600 mb-3">Selected format system prompt processes input</p>
+                                                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+                                                    <button onclick="App.showPromptEditor('sdxl')" 
+                                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded border-2 border-transparent hover:border-blue-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>SDXL
+                                                    </button>
+                                                    <button onclick="App.showPromptEditor('flux')" 
+                                                            class="text-xs px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded border-2 border-transparent hover:border-purple-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>Flux
+                                                    </button>
+                                                    <button onclick="App.showPromptEditor('imagefx')" 
+                                                            class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded border-2 border-transparent hover:border-green-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>ImageFX
+                                                    </button>
+                                                    <button onclick="App.showPromptEditor('imagefx-natural')" 
+                                                            class="text-xs px-2 py-1 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded border-2 border-transparent hover:border-teal-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>Natural
+                                                    </button>
+                                                </div>
+                                                <div class="text-xs text-purple-600">🎯 Edit: Click format buttons above</div>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4 text-3xl text-gray-300">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 3: Tag Processing -->
+                                    <div class="flex items-center mb-8">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-lg">3</div>
+                                        </div>
+                                        <div class="ml-6 flex-1">
+                                            <div class="bg-white rounded-lg p-4 shadow-md border-l-4 border-green-500">
+                                                <h4 class="font-semibold text-gray-800 mb-2">Tag Processing</h4>
+                                                <p class="text-sm text-gray-600 mb-3">Normalize → Categorize → Translate</p>
+                                                <div class="flex flex-wrap gap-2 mb-3">
+                                                    <button onclick="App.showPromptEditor('tag-normalizer')" 
+                                                            class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded border-2 border-transparent hover:border-green-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>Normalizer
+                                                    </button>
+                                                    <button onclick="App.showPromptEditor('categorizer')" 
+                                                            class="text-xs px-2 py-1 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded border-2 border-transparent hover:border-orange-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>Categorizer
+                                                    </button>
+                                                    <button onclick="App.showPromptEditor('translation-en-ja')" 
+                                                            class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded border-2 border-transparent hover:border-blue-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>EN→JA
+                                                    </button>
+                                                    <button onclick="App.showPromptEditor('translation-ja-en')" 
+                                                            class="text-xs px-2 py-1 bg-cyan-100 hover:bg-cyan-200 text-cyan-700 rounded border-2 border-transparent hover:border-cyan-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>JA→EN
+                                                    </button>
+                                                </div>
+                                                <div class="text-xs text-green-600">⚙️ Edit: Settings → AI Instructions</div>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4 text-3xl text-gray-300">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 4: Final Output -->
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-lg">4</div>
+                                        </div>
+                                        <div class="ml-6 flex-1">
+                                            <div class="bg-white rounded-lg p-4 shadow-md border-l-4 border-yellow-500">
+                                                <h4 class="font-semibold text-gray-800 mb-2">Final Output</h4>
+                                                <p class="text-sm text-gray-600 mb-3">Tag Editor → Copy to Clipboard</p>
+                                                <div class="flex flex-wrap gap-1 text-xs mb-3">
+                                                    <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded">person</span>
+                                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">appearance</span>
+                                                    <span class="bg-pink-100 text-pink-800 px-2 py-1 rounded">clothing</span>
+                                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded">background</span>
+                                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">quality</span>
+                                                </div>
+                                                <div class="text-xs text-yellow-600">📋 Result: Color-coded tags ready for use</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Image to Prompt Flow -->
+                        <div class="mb-12">
+                            <h3 class="text-2xl font-semibold text-purple-700 mb-6 flex items-center">
+                                <i class="fas fa-image mr-3"></i>
+                                Image to Prompt Flow
+                            </h3>
+                            
+                            <div class="relative">
+                                <!-- Flow Container -->
+                                <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border-2 border-purple-200">
+                                    
+                                    <!-- Step 1: Image Upload -->
+                                    <div class="flex items-center mb-8">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">1</div>
+                                        </div>
+                                        <div class="ml-6 flex-1">
+                                            <div class="bg-white rounded-lg p-4 shadow-md border-l-4 border-purple-500">
+                                                <h4 class="font-semibold text-gray-800 mb-2">Image Upload</h4>
+                                                <p class="text-sm text-gray-600 mb-3">Upload or drag & drop image</p>
+                                                <div class="text-xs text-purple-600">📍 Location: Image to Prompt Tab</div>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4 text-3xl text-gray-300">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 2: Vision AI Analysis -->
+                                    <div class="flex items-center mb-8">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-16 h-16 bg-pink-500 rounded-full flex items-center justify-center text-white font-bold text-lg">2</div>
+                                        </div>
+                                        <div class="ml-6 flex-1">
+                                            <div class="bg-white rounded-lg p-4 shadow-md border-l-4 border-pink-500">
+                                                <h4 class="font-semibold text-gray-800 mb-2">Vision AI Analysis</h4>
+                                                <p class="text-sm text-gray-600 mb-3">GPT-4o, Gemini, or Claude analyzes image</p>
+                                                <div class="flex gap-2 mb-3">
+                                                    <button onclick="App.showPromptEditor('image-analysis')" 
+                                                            class="text-xs px-3 py-2 bg-pink-100 hover:bg-pink-200 text-pink-700 rounded border-2 border-transparent hover:border-pink-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>Edit Analysis Prompt
+                                                    </button>
+                                                </div>
+                                                <div class="text-xs text-pink-600">👁️ Edit: Settings → AI Instructions → Image Analysis</div>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4 text-3xl text-gray-300">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 3: Structured Tag Generation -->
+                                    <div class="flex items-center mb-8">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-16 h-16 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">3</div>
+                                        </div>
+                                        <div class="ml-6 flex-1">
+                                            <div class="bg-white rounded-lg p-4 shadow-md border-l-4 border-indigo-500">
+                                                <h4 class="font-semibold text-gray-800 mb-2">Structured Tag Generation</h4>
+                                                <p class="text-sm text-gray-600 mb-3">Analysis → JSON Tags with categories</p>
+                                                <div class="flex gap-2 mb-3">
+                                                    <button onclick="App.showPromptEditor('structured-tags')" 
+                                                            class="text-xs px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded border-2 border-transparent hover:border-indigo-300 transition-all">
+                                                        <i class="fas fa-edit mr-1"></i>JSON Structure
+                                                    </button>
+                                                </div>
+                                                <div class="text-xs text-indigo-600">🔧 AI directly assigns categories during generation</div>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4 text-3xl text-gray-300">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 4: Final Tags -->
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-16 h-16 bg-teal-500 rounded-full flex items-center justify-center text-white font-bold text-lg">4</div>
+                                        </div>
+                                        <div class="ml-6 flex-1">
+                                            <div class="bg-white rounded-lg p-4 shadow-md border-l-4 border-teal-500">
+                                                <h4 class="font-semibold text-gray-800 mb-2">Ready Tags</h4>
+                                                <p class="text-sm text-gray-600 mb-3">Pre-categorized bilingual tags</p>
+                                                <div class="text-xs text-teal-600">🎨 Tags already have colors from AI categorization</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Architecture Overview -->
+                        <div class="mb-8">
+                            <h3 class="text-2xl font-semibold text-gray-700 mb-6 flex items-center">
+                                <i class="fas fa-cogs mr-3"></i>
+                                System Architecture
+                            </h3>
+                            
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <!-- Core Systems -->
+                                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border-2 border-blue-200">
+                                    <h4 class="font-semibold text-blue-800 mb-4 flex items-center">
+                                        <i class="fas fa-microchip mr-2"></i>
+                                        Core AI Systems
+                                    </h4>
+                                    <div class="space-y-2">
+                                        <button onclick="App.showPromptEditor('categorizer')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-blue-300 transition-all text-sm">
+                                            <i class="fas fa-palette mr-2 text-orange-500"></i>Tag Categorizer
+                                        </button>
+                                        <button onclick="App.showPromptEditor('image-analysis')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-blue-300 transition-all text-sm">
+                                            <i class="fas fa-eye mr-2 text-purple-500"></i>Image Analysis
+                                        </button>
+                                        <button onclick="App.showPromptEditor('tag-normalizer')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-blue-300 transition-all text-sm">
+                                            <i class="fas fa-tools mr-2 text-green-500"></i>Tag Normalizer
+                                        </button>
+                                        <button onclick="App.showPromptEditor('structured-tags')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-blue-300 transition-all text-sm">
+                                            <i class="fas fa-code mr-2 text-indigo-500"></i>Structured Tags
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Generation Formats -->
+                                <div class="bg-gradient-to-br from-green-50 to-teal-50 rounded-lg p-6 border-2 border-green-200">
+                                    <h4 class="font-semibold text-green-800 mb-4 flex items-center">
+                                        <i class="fas fa-magic mr-2"></i>
+                                        Generation Formats
+                                    </h4>
+                                    <div class="space-y-2">
+                                        <button onclick="App.showPromptEditor('sdxl')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-green-300 transition-all text-sm">
+                                            <i class="fas fa-tag mr-2 text-blue-500"></i>SDXL Tags
+                                        </button>
+                                        <button onclick="App.showPromptEditor('flux')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-green-300 transition-all text-sm">
+                                            <i class="fas fa-stream mr-2 text-purple-500"></i>Flux Phrases
+                                        </button>
+                                        <button onclick="App.showPromptEditor('imagefx')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-green-300 transition-all text-sm">
+                                            <i class="fas fa-image mr-2 text-green-500"></i>ImageFX
+                                        </button>
+                                        <button onclick="App.showPromptEditor('imagefx-natural')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-green-300 transition-all text-sm">
+                                            <i class="fas fa-leaf mr-2 text-teal-500"></i>ImageFX Natural
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Translation & Utilities -->
+                                <div class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg p-6 border-2 border-yellow-200">
+                                    <h4 class="font-semibold text-yellow-800 mb-4 flex items-center">
+                                        <i class="fas fa-language mr-2"></i>
+                                        Translation & Utilities
+                                    </h4>
+                                    <div class="space-y-2">
+                                        <button onclick="App.showPromptEditor('translation-en-ja')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-yellow-300 transition-all text-sm">
+                                            <i class="fas fa-arrow-right mr-2 text-blue-500"></i>EN → JA
+                                        </button>
+                                        <button onclick="App.showPromptEditor('translation-ja-en')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-yellow-300 transition-all text-sm">
+                                            <i class="fas fa-arrow-left mr-2 text-cyan-500"></i>JA → EN
+                                        </button>
+                                        <button onclick="App.showPromptEditor('translation-custom')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-yellow-300 transition-all text-sm">
+                                            <i class="fas fa-wrench mr-2 text-teal-500"></i>Custom Translation
+                                        </button>
+                                        <button onclick="App.showPromptEditor('backend-translation')" 
+                                                class="w-full text-left p-2 bg-white rounded border hover:border-yellow-300 transition-all text-sm">
+                                            <i class="fas fa-server mr-2 text-gray-500"></i>Backend Translation
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Edit Panel -->
+                        <div class="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 border-2 border-gray-200">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
+                                <i class="fas fa-bolt mr-3 text-yellow-500"></i>
+                                Quick Edit Access
+                            </h3>
+                            <p class="text-gray-600 mb-4">Click any system component above or use these quick links:</p>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                <button onclick="App.showSettings(); App.setSettingsTab('formats')" 
+                                        class="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm">
+                                    <i class="fas fa-cog mr-2"></i>Settings
+                                </button>
+                                <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('categorizer')" 
+                                        class="px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm">
+                                    <i class="fas fa-question-circle mr-2"></i>Help
+                                </button>
+                                <button onclick="App.showSystemHelp()" 
+                                        class="px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors text-sm">
+                                    <i class="fas fa-info-circle mr-2"></i>Guide
+                                </button>
+                                <button onclick="window.location.href='/static/test-all-prompts.html'" 
+                                        class="px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm">
+                                    <i class="fas fa-flask mr-2"></i>Test
+                                </button>
+                                <button onclick="App.setTab('text')" 
+                                        class="px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors text-sm">
+                                    <i class="fas fa-file-text mr-2"></i>Text
+                                </button>
+                                <button onclick="App.setTab('image')" 
+                                        class="px-4 py-3 bg-pink-500 hover:bg-pink-600 text-white rounded-lg transition-colors text-sm">
+                                    <i class="fas fa-image mr-2"></i>Image
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

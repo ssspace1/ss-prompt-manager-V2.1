@@ -2987,7 +2987,7 @@ Output ONLY the JSON, no explanations.`;
   
   setTab: (tab) => {
     // Hide all tabs
-    ['text', 'image', 'batch'].forEach(t => {
+    ['text', 'image', 'batch', 'system-flow'].forEach(t => {
       const content = document.getElementById(`content-${t}`);
       const tabBtn = document.getElementById(`tab-${t}`);
       if (content) content.classList.add('hidden');
