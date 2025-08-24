@@ -2113,6 +2113,7 @@ Output ONLY the JSON, no explanations.`;
   },
   
   showPromptEditor: (format) => {
+    console.log('Opening prompt editor for format:', format);
     appState.editingPrompt = format || appState.outputFormat;
     
     // Check if modal already exists and remove it
@@ -2123,7 +2124,8 @@ Output ONLY the JSON, no explanations.`;
     
     const modal = document.createElement('div');
     modal.id = 'prompt-editor-modal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[2000] animate-fadeIn';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center';
+    modal.style.zIndex = '9999';  // Use inline style to ensure it takes precedence
     
     // Force refresh to latest default prompts if outdated
     const formatKey = appState.editingPrompt;
