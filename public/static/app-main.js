@@ -2114,9 +2114,16 @@ Output ONLY the JSON, no explanations.`;
   
   showPromptEditor: (format) => {
     appState.editingPrompt = format || appState.outputFormat;
+    
+    // Check if modal already exists and remove it
+    const existingModal = document.getElementById('prompt-editor-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
     const modal = document.createElement('div');
     modal.id = 'prompt-editor-modal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[2000] animate-fadeIn';
     
     // Force refresh to latest default prompts if outdated
     const formatKey = appState.editingPrompt;
@@ -2132,40 +2139,41 @@ Output ONLY the JSON, no explanations.`;
     const isDefault = defaultSystemPrompts[appState.editingPrompt] === prompt;
     
     modal.innerHTML = `
-      <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold">
-            <i class="fas fa-edit mr-2"></i>
-            Edit System Prompt: ${appState.editingPrompt.toUpperCase()}
+      <div class="bg-gray-900 text-white rounded-xl shadow-2xl p-6 max-w-3xl w-full mx-4 max-h-[85vh] overflow-hidden flex flex-col animate-slideIn">
+        <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-700">
+          <h2 class="text-xl font-bold flex items-center">
+            <i class="fas fa-edit mr-3 text-blue-400"></i>
+            Edit System Prompt: <span class="ml-2 text-blue-400">${appState.editingPrompt.toUpperCase()}</span>
           </h2>
-          <button onclick="App.closePromptEditor()" class="text-gray-500 hover:text-gray-700">
+          <button onclick="App.closePromptEditor()" class="text-gray-400 hover:text-white transition-colors p-1">
             <i class="fas fa-times text-xl"></i>
           </button>
         </div>
         
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            System Prompt for ${appState.editingPrompt} format:
+        <div class="flex-1 mb-4 overflow-hidden flex flex-col">
+          <label class="block text-sm font-medium text-gray-300 mb-2">
+            System Prompt for <span class="text-blue-400">${appState.editingPrompt}</span> format:
           </label>
           <textarea 
             id="prompt-editor-text" 
-            class="w-full h-64 p-3 border rounded-lg font-mono text-sm"
-            placeholder="Enter system prompt for AI generation...">${prompt}</textarea>
+            class="flex-1 w-full p-4 bg-gray-800 text-gray-100 border border-gray-700 rounded-lg font-mono text-sm resize-none focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-all"
+            placeholder="Enter system prompt for AI generation..."
+            style="min-height: 300px;">${prompt}</textarea>
         </div>
         
-        <div class="flex justify-between">
+        <div class="flex justify-between items-center pt-4 border-t border-gray-700">
           <div>
             ${!isDefault ? `
-              <button onclick="App.resetPromptToDefault()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">
+              <button onclick="App.resetPromptToDefault()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-all hover:shadow-lg flex items-center">
                 <i class="fas fa-undo mr-2"></i>Reset to Default
               </button>
-            ` : ''}
+            ` : '<span class="text-gray-500 text-sm italic">Using default prompt</span>'}
           </div>
-          <div class="space-x-2">
-            <button onclick="App.closePromptEditor()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">
+          <div class="flex gap-3">
+            <button onclick="App.closePromptEditor()" class="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-all hover:shadow-lg">
               Cancel
             </button>
-            <button onclick="App.savePrompt()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
+            <button onclick="App.savePrompt()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all hover:shadow-lg flex items-center">
               <i class="fas fa-save mr-2"></i>Save Prompt
             </button>
           </div>
@@ -2173,7 +2181,32 @@ Output ONLY the JSON, no explanations.`;
       </div>
     `;
     
+    // Add click handler to close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        App.closePromptEditor();
+      }
+    });
+    
+    // Add escape key handler
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        App.closePromptEditor();
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
+    
     document.body.appendChild(modal);
+    
+    // Focus the textarea after modal is rendered
+    setTimeout(() => {
+      const textarea = document.getElementById('prompt-editor-text');
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(0, 0); // Move cursor to beginning
+      }
+    }, 100);
   },
   
   // Force refresh all system prompts to latest defaults
@@ -2215,18 +2248,52 @@ Output ONLY the JSON, no explanations.`;
   savePrompt: () => {
     const textarea = document.getElementById('prompt-editor-text');
     if (textarea && appState.editingPrompt) {
-      appState.systemPrompts[appState.editingPrompt] = textarea.value;
-      localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
-      showNotification(`System prompt for ${appState.editingPrompt} saved!`);
-      App.closePromptEditor();
+      const newPrompt = textarea.value.trim();
+      
+      // Validate prompt is not empty
+      if (!newPrompt) {
+        showNotification('System prompt cannot be empty!', 'error');
+        return;
+      }
+      
+      appState.systemPrompts[appState.editingPrompt] = newPrompt;
+      
+      // Save through system prompts manager if available
+      if (window.systemPromptsManager) {
+        window.systemPromptsManager.setPrompt(appState.editingPrompt, newPrompt);
+      } else {
+        localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+      }
+      
+      // Show success notification with format name
+      showNotification(`✅ System prompt for ${appState.editingPrompt.toUpperCase()} saved successfully!`, 'success');
+      
+      // Close modal with slight delay for visual feedback
+      setTimeout(() => {
+        App.closePromptEditor();
+      }, 200);
     }
   },
   
   resetPromptToDefault: () => {
-    if (appState.editingPrompt && defaultSystemPrompts[appState.editingPrompt]) {
-      const textarea = document.getElementById('prompt-editor-text');
-      if (textarea) {
-        textarea.value = defaultSystemPrompts[appState.editingPrompt];
+    if (appState.editingPrompt) {
+      const defaultPrompt = window.systemPromptsManager 
+        ? window.systemPromptsManager.getPrompt(appState.editingPrompt) 
+        : defaultSystemPrompts[appState.editingPrompt];
+        
+      if (defaultPrompt) {
+        const textarea = document.getElementById('prompt-editor-text');
+        if (textarea) {
+          textarea.value = defaultPrompt;
+          showNotification('Reset to default prompt', 'info');
+          
+          // Add visual feedback
+          textarea.style.transition = 'background-color 0.3s';
+          textarea.style.backgroundColor = '#1f2937';
+          setTimeout(() => {
+            textarea.style.backgroundColor = '';
+          }, 300);
+        }
       }
     }
   },

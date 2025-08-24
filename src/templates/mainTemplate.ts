@@ -356,6 +356,20 @@ export function getMainHtml(): string {
             }
         }
         
+        /* Tailwind-like animation classes for modals */
+        .animate-fadeIn {
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .animate-slideIn {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        /* Ensure prompt editor modal is always on top */
+        #prompt-editor-modal {
+            z-index: 2000 !important;
+        }
+        
         /* Loading spinner */
         .spinner {
             border: 3px solid #f3f3f3;
