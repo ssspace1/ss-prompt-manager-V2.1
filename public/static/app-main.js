@@ -1211,13 +1211,22 @@ function translateToJapanese(text) {
   return text;
 }
 
-// AI Translation function
+// AI Translation function - Now supports custom prompts from UI settings
 async function translateWithAI(text, targetLang = 'ja', sourceLang = 'en', format = null) {
   if (!appState.apiKey) {
     return targetLang === 'ja' ? translateToJapanese(text) : translateToEnglish(text);
   }
   
   try {
+    // 🎯 Get custom translation prompt from UI settings
+    // UI設定からカスタム翻訳プロンプトを取得
+    let customPrompt = null;
+    if (targetLang === 'ja') {
+      customPrompt = appState.systemPrompts['translation-en-ja'];
+    } else {
+      customPrompt = appState.systemPrompts['translation-ja-en'];
+    }
+    
     const response = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1227,7 +1236,8 @@ async function translateWithAI(text, targetLang = 'ja', sourceLang = 'en', forma
         targetLang,
         model: appState.selectedModel || 'openai/gpt-4o-mini',
         apiKey: appState.apiKey,
-        format: format // カスタムフォーマット情報を送信
+        format: format, // カスタムフォーマット情報を送信
+        customPrompt: customPrompt // 🆕 UI設定からのカスタムプロンプト
       })
     });
     
@@ -6390,6 +6400,135 @@ person, appearance, clothing, pose, background, quality, style, action, object, 
 ## 最大再試行回数: 2回
 ## フォールバック方法: 既存の翻訳辞書を使用
 ## ユーザー通知: エラー内容をわかりやすく表示`;
+  },
+
+  // 🆕 AI指示管理機能 - UIで不足していた関数を実装
+  
+  // AI指示を保存
+  saveAIPrompt: (promptType) => {
+    const textarea = document.getElementById(`ai-${promptType}-prompt`);
+    if (textarea) {
+      const content = textarea.value.trim();
+      if (content) {
+        appState.systemPrompts[promptType] = content;
+        localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+        showNotification(`${promptType}のAI指示を保存しました`, 'success');
+      }
+    }
+  },
+
+  // AI指示をデフォルトに復元
+  resetAIPrompt: (promptType) => {
+    if (confirm(`${promptType}のAI指示をデフォルトに戻しますか？`)) {
+      const defaultPrompt = defaultMainSystemPrompts[promptType];
+      if (defaultPrompt) {
+        appState.systemPrompts[promptType] = defaultPrompt;
+        localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+        
+        const textarea = document.getElementById(`ai-${promptType}-prompt`);
+        if (textarea) {
+          textarea.value = defaultPrompt;
+        }
+        
+        showNotification(`${promptType}のAI指示をデフォルトに復元しました`, 'success');
+      }
+    }
+  },
+
+  // ユーティリティプロンプトを保存
+  saveUtilityPrompt: (promptType) => {
+    const textarea = document.getElementById(`ai-${promptType}-prompt`);
+    if (textarea) {
+      const content = textarea.value.trim();
+      if (content) {
+        appState.systemPrompts[promptType] = content;
+        localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+        showNotification(`${promptType}のユーティリティプロンプトを保存しました`, 'success');
+      }
+    }
+  },
+
+  // ユーティリティプロンプトをデフォルトに復元
+  resetUtilityPrompt: (promptType) => {
+    if (confirm(`${promptType}のプロンプトをデフォルトに戻しますか？`)) {
+      const defaultPrompt = defaultUtilityPrompts[promptType];
+      if (defaultPrompt) {
+        appState.systemPrompts[promptType] = defaultPrompt;
+        localStorage.setItem('system-prompts', JSON.stringify(appState.systemPrompts));
+        
+        const textarea = document.getElementById(`ai-${promptType}-prompt`);
+        if (textarea) {
+          textarea.value = defaultPrompt;
+        }
+        
+        showNotification(`${promptType}のプロンプトをデフォルトに復元しました`, 'success');
+      }
+    }
+  },
+
+  // AI指示タブを切り替え
+  setAIInstructionsTab: (tabName) => {
+    // タブボタンの状態更新
+    document.querySelectorAll('[data-ai-tab]').forEach(btn => {
+      btn.classList.remove('border-purple-500', 'text-purple-600');
+      btn.classList.add('border-transparent', 'text-gray-600');
+    });
+    
+    const activeBtn = document.querySelector(`[data-ai-tab="${tabName}"]`);
+    if (activeBtn) {
+      activeBtn.classList.add('border-purple-500', 'text-purple-600');
+      activeBtn.classList.remove('border-transparent', 'text-gray-600');
+    }
+
+    // パネルの表示切り替え
+    document.querySelectorAll('[id^="ai-instructions-"]').forEach(panel => {
+      panel.classList.add('hidden');
+    });
+    
+    const activePanel = document.getElementById(`ai-instructions-${tabName}`);
+    if (activePanel) {
+      activePanel.classList.remove('hidden');
+    }
+
+    // テキストエリアに現在の設定を読み込み
+    App.loadAIPromptsForTab(tabName);
+  },
+
+  // AI指示タブの内容を読み込み
+  loadAIPromptsForTab: (tabName) => {
+    if (tabName === 'text-generation') {
+      // Text generation prompts
+      ['sdxl', 'flux', 'imagefx', 'imagefx-natural'].forEach(format => {
+        const textarea = document.getElementById(`ai-${format}-prompt`);
+        if (textarea) {
+          textarea.value = appState.systemPrompts[format] || defaultMainSystemPrompts[format] || '';
+        }
+      });
+    } else if (tabName === 'image-processing') {
+      // Image processing prompts
+      ['image-analysis', 'image-tag-generation'].forEach(promptType => {
+        const textarea = document.getElementById(`ai-${promptType}-prompt`);
+        if (textarea) {
+          textarea.value = appState.systemPrompts[promptType] || defaultUtilityPrompts[promptType] || '';
+        }
+      });
+    } else if (tabName === 'translation') {
+      // Translation prompts
+      ['translation-en-ja', 'translation-ja-en', 'translation-custom'].forEach(promptType => {
+        const textarea = document.getElementById(`ai-${promptType}-prompt`);
+        if (textarea) {
+          textarea.value = appState.systemPrompts[promptType] || defaultUtilityPrompts[promptType] || '';
+        }
+      });
+    } else if (tabName === 'advanced') {
+      // Advanced prompts
+      ['categorizer', 'json-schema', 'error-handling'].forEach(promptType => {
+        const textarea = document.getElementById(`ai-${promptType}-prompt`);
+        if (textarea) {
+          textarea.value = appState.systemPrompts[promptType] || defaultUtilityPrompts[promptType] || '';
+        }
+      });
+    }
   }
 });
 
