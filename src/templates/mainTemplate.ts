@@ -1521,9 +1521,19 @@ export function getMainHtml(): string {
                             <p class="text-xs text-blue-800 mb-3">
                                 Controls tag translation between English and Japanese
                             </p>
-                            <div class="flex items-center text-xs text-blue-700">
-                                <span class="bg-blue-200 px-2 py-1 rounded mr-2">EN → JA</span>
-                                <span class="bg-blue-200 px-2 py-1 rounded">JA → EN</span>
+                            <div class="flex items-center justify-between text-xs text-blue-700">
+                                <div class="flex gap-2">
+                                    <button onclick="App.showPromptEditor('translation-en-ja')" 
+                                            class="bg-blue-200 hover:bg-blue-300 px-2 py-1 rounded transition-colors"
+                                            title="Edit EN→JA Translation">
+                                        <i class="fas fa-edit mr-1"></i>EN → JA
+                                    </button>
+                                    <button onclick="App.showPromptEditor('translation-ja-en')" 
+                                            class="bg-blue-200 hover:bg-blue-300 px-2 py-1 rounded transition-colors"
+                                            title="Edit JA→EN Translation">
+                                        <i class="fas fa-edit mr-1"></i>JA → EN
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
@@ -1556,8 +1566,16 @@ export function getMainHtml(): string {
                                 Normalizes and structures tags for optimal generation
                             </p>
                             <div class="flex flex-wrap gap-1 text-xs">
-                                <span class="bg-green-200 text-green-900 px-2 py-1 rounded">Normalize</span>
-                                <span class="bg-green-200 text-green-900 px-2 py-1 rounded">Structure</span>
+                                <button onclick="App.showPromptEditor('tag-normalizer')" 
+                                        class="bg-green-200 hover:bg-green-300 text-green-900 px-2 py-1 rounded transition-colors"
+                                        title="Edit Tag Normalizer">
+                                    <i class="fas fa-edit mr-1"></i>Normalize
+                                </button>
+                                <button onclick="App.showPromptEditor('structured-tags')" 
+                                        class="bg-green-200 hover:bg-green-300 text-green-900 px-2 py-1 rounded transition-colors"
+                                        title="Edit Structured Tags">
+                                    <i class="fas fa-edit mr-1"></i>Structure
+                                </button>
                                 <span class="bg-green-200 text-green-900 px-2 py-1 rounded">JSON</span>
                             </div>
                         </div>
@@ -1573,23 +1591,57 @@ export function getMainHtml(): string {
                         <p class="text-xs text-gray-600 mb-3">
                             Fine-tune system behavior and processing parameters
                         </p>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            <button onclick="App.showPromptEditor('backend-translation')" 
-                                    class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors">
-                                <i class="fas fa-server mr-1"></i>Backend Translation
-                            </button>
-                            <button onclick="App.showPromptEditor('structured-tags')" 
-                                    class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors">
-                                <i class="fas fa-code mr-1"></i>Structured Tags
-                            </button>
-                            <button onclick="App.showPromptEditor('translation-custom')" 
-                                    class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors">
-                                <i class="fas fa-wrench mr-1"></i>Custom Translation
-                            </button>
-                            <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('categorizer')" 
-                                    class="text-xs px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors">
-                                <i class="fas fa-info-circle mr-1"></i>System Help
-                            </button>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div class="bg-white rounded-lg border border-gray-300 p-3">
+                                <h5 class="font-medium text-gray-800 text-xs mb-2">
+                                    <i class="fas fa-server mr-1 text-gray-600"></i>Backend Translation
+                                </h5>
+                                <div class="flex gap-1">
+                                    <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('backend-translation')" 
+                                            class="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded">
+                                        <i class="fas fa-question-circle"></i>
+                                    </button>
+                                    <button onclick="App.showPromptEditor('backend-translation')" 
+                                            class="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg border border-gray-300 p-3">
+                                <h5 class="font-medium text-gray-800 text-xs mb-2">
+                                    <i class="fas fa-wrench mr-1 text-gray-600"></i>Custom Translation
+                                </h5>
+                                <div class="flex gap-1">
+                                    <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('translation-custom')" 
+                                            class="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded">
+                                        <i class="fas fa-question-circle"></i>
+                                    </button>
+                                    <button onclick="App.showPromptEditor('translation-custom')" 
+                                            class="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg border border-gray-300 p-3">
+                                <h5 class="font-medium text-gray-800 text-xs mb-2">
+                                    <i class="fas fa-info-circle mr-1 text-blue-600"></i>System Help
+                                </h5>
+                                <button onclick="window.showSystemPromptHelp && showSystemPromptHelp('categorizer')" 
+                                        class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded w-full">
+                                    <i class="fas fa-question-circle mr-1"></i>Help Guide
+                                </button>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg border border-gray-300 p-3">
+                                <h5 class="font-medium text-gray-800 text-xs mb-2">
+                                    <i class="fas fa-cog mr-1 text-gray-600"></i>System Status
+                                </h5>
+                                <div class="text-xs text-green-600">
+                                    <i class="fas fa-check-circle mr-1"></i>All Systems Active
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
