@@ -7340,12 +7340,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`✅ Restored ${savedTaggingEngine} tagging engine`);
   }
   
-  // Set up tagging engine radio based on saved setting
-  const savedTaggingEngine = appState.selectedTaggingEngine || 'deepseek';
-  const taggingRadio = document.getElementById(`tagging-engine-${savedTaggingEngine}`);
-  if (taggingRadio) {
-    taggingRadio.checked = true;
-  }
+
   
   // Update UI counters
   App.updateAnalysisEngines();
