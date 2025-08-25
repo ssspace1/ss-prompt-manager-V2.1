@@ -1831,6 +1831,7 @@ window.App = {
     // STEP 0: Validation
     console.log('🔑 Checking API key:', appState.apiKey ? 'API key exists' : 'No API key found');
     console.log('🔑 API key from localStorage:', localStorage.getItem('openrouter-api-key') ? 'Key found in localStorage' : 'No key in localStorage');
+    console.log('🤖 Selected model:', appState.selectedModel || 'No model selected, will use default');
     
     if (!appState.apiKey) {
       alert('❌ OpenRouter APIキーが設定されていません。\n\n設定方法:\n1. 右上の⚙️設定ボタンをクリック\n2. "API Keys"タブを選択\n3. OpenRouter APIキーを入力\n4. "Test"ボタンで確認\n\nAPIキーの取得: https://openrouter.ai/keys');
@@ -3228,10 +3229,24 @@ Output ONLY the JSON, no explanations.`;
     populateModelSelect(textTabSelect, false);
     populateModelSelect(imageTabSelect, true);
     
+    // Set currently selected models
+    if (textModelSelect && appState.selectedModel) {
+      textModelSelect.value = appState.selectedModel;
+    }
+    if (textTabSelect && appState.selectedModel) {
+      textTabSelect.value = appState.selectedModel;
+    }
+    if (imageModelSelect && App.imageState.visionModel) {
+      imageModelSelect.value = App.imageState.visionModel;
+    }
+    if (imageTabSelect && App.imageState.visionModel) {
+      imageTabSelect.value = App.imageState.visionModel;
+    }
+    
     // Update model indicator
     const modelIndicator = document.getElementById('current-model-indicator');
     if (modelIndicator) {
-      modelIndicator.textContent = textModels.length > 0 ? 'Models loaded' : 'No models';
+      modelIndicator.textContent = models.length > 0 ? 'Models loaded' : 'No models';
     }
   },
   
@@ -3282,6 +3297,76 @@ Output ONLY the JSON, no explanations.`;
     // Update model indicator
     const modelIndicator = document.getElementById('current-model-indicator');
     const modelSelect = document.getElementById('openrouter-model');
+  },
+
+  // Update text model from settings panel
+  updateTextModelFromSettings: (model) => {
+    console.log('🔄 Updating text model from settings:', model);
+    appState.selectedModel = model;
+    localStorage.setItem('selected-model', model);
+    localStorage.setItem('openrouter-model', model);
+    
+    // Update tab selectors as well
+    const textModelTab = document.getElementById('text-model-selector');
+    if (textModelTab) {
+      textModelTab.value = model;
+    }
+    
+    showNotification(`Text model updated to: ${model}`, 'success');
+  },
+  
+  // Update image model from settings panel  
+  updateImageModelFromSettings: (model) => {
+    console.log('🔄 Updating image model from settings:', model);
+    App.imageState.visionModel = model;
+    localStorage.setItem('image-vision-model', model);
+    
+    // Update tab selectors as well
+    const imageModelTab = document.getElementById('image-model-selector');
+    if (imageModelTab) {
+      imageModelTab.value = model;
+    }
+    
+    showNotification(`Image model updated to: ${model}`, 'success');
+  },
+  
+  // Update model from Text to Prompt tab selector
+  updateTextModelFromTab: () => {
+    const selector = document.getElementById('text-model-selector');
+    if (selector && selector.value) {
+      const model = selector.value;
+      console.log('🔄 Updating text model from tab:', model);
+      appState.selectedModel = model;
+      localStorage.setItem('selected-model', model);
+      localStorage.setItem('openrouter-model', model);
+      
+      // Sync with settings panel
+      const settingsSelector = document.getElementById('settings-text-model');
+      if (settingsSelector) {
+        settingsSelector.value = model;
+      }
+      
+      showNotification(`Model changed to: ${model.split('/').pop()}`, 'info');
+    }
+  },
+  
+  // Update model from Image to Prompt tab selector
+  updateImageModelFromTab: () => {
+    const selector = document.getElementById('image-model-selector');
+    if (selector && selector.value) {
+      const model = selector.value;
+      console.log('🔄 Updating image model from tab:', model);
+      App.imageState.visionModel = model;
+      localStorage.setItem('image-vision-model', model);
+      
+      // Sync with settings panel
+      const settingsSelector = document.getElementById('settings-image-model');
+      if (settingsSelector) {
+        settingsSelector.value = model;
+      }
+      
+      showNotification(`Image model changed to: ${model.split('/').pop()}`, 'info');
+    }
     
     if (modelIndicator && modelSelect) {
       const selectedOption = modelSelect.options[modelSelect.selectedIndex];
@@ -3724,7 +3809,7 @@ Object.assign(App, {
   imageState: {
     imageData: null,
     analysisResult: null,
-    visionModel: 'gemini-2.0-flash-exp',
+    visionModel: localStorage.getItem('image-vision-model') || 'gemini-2.0-flash-exp',
     imageOutputFormat: 'sdxl',
     imageFinalFormat: 'sdxl',  // Separate format for final output
     imageTags: [],  // Separate tags for image tab
@@ -4861,6 +4946,8 @@ Rules:
     }
     
     console.log('🔑 Checking API key for image generation:', appState.apiKey ? 'API key exists' : 'No API key found');
+    console.log('🤖 Vision model for analysis:', App.imageState.visionModel || 'Using default');
+    console.log('🤖 Text model for tag generation:', appState.selectedModel || 'Using default');
     
     if (!appState.apiKey) {
       showNotification('❌ OpenRouter APIキーが設定されていません。設定 → API Keys → OpenRouter API Keyを入力してください。', 'error');
