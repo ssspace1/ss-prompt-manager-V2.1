@@ -436,10 +436,14 @@ let appState = {
   taggerThreshold: parseFloat(localStorage.getItem('tagger-threshold') || '0.35'),
   sourceAttribution: localStorage.getItem('source-attribution') === 'true' || true,
   
-  // Multi-Engine Analysis Settings
-  selectedEngines: JSON.parse(localStorage.getItem('selected-engines') || '["llm"]'), // Default to LLM only
+  // Multi-Engine Analysis Settings (New System)
+  selectedAnalysisEngines: JSON.parse(localStorage.getItem('selected-analysis-engines') || '[]'), // Default: no engines
+  selectedTaggingEngine: localStorage.getItem('selected-tagging-engine') || 'deepseek', // Default: DeepSeek
   analysisResults: {}, // Store results from different engines
-  analysisPrompt: localStorage.getItem('analysis-prompt') || 'Analyze this image in detail, describing objects, people, settings, colors, artistic style, and any notable features.'
+  analysisPrompt: localStorage.getItem('analysis-prompt') || 'Analyze this image in detail, describing objects, people, settings, colors, artistic style, and any notable features.',
+  
+  // Legacy compatibility (will be removed later)
+  selectedEngines: JSON.parse(localStorage.getItem('selected-engines') || '["llm"]') // For backward compatibility
 };
 
 
@@ -5989,7 +5993,7 @@ Rules:
     }
   },
 
-  // Enhanced AI Generate tags with Hybrid Analysis (LLM + Specialized Tagger)
+  // Enhanced Multi-Engine Analysis: Image Analysis → Tag Generation
   generateImageTagsFromAI: async () => {
     // 画像がアップロードされているか確認
     if (!App.imageState.imageData) {
@@ -6001,10 +6005,16 @@ Rules:
     console.log('📊 System status:');
     console.log('  - OpenRouter:', appState.apiKey ? '✅' : '❌');
     console.log('  - Replicate:', appState.replicateApiKey ? '✅' : '❌');
-    console.log('🤖 Selected engines:', appState.selectedEngines);
+    console.log('🤖 Selected analysis engines:', appState.selectedAnalysisEngines);
+    console.log('🏷️ Selected tagging engine:', appState.selectedTaggingEngine);
     
-    if (appState.selectedEngines.length === 0) {
-      showNotification('❌ 少なくとも1つの解析エンジンを選択してください。', 'error');
+    if (!appState.selectedAnalysisEngines || appState.selectedAnalysisEngines.length === 0) {
+      showNotification('❌ 少なくとも1つの画像解析エンジンを選択してください。', 'error');
+      return;
+    }
+
+    if (!appState.selectedTaggingEngine) {
+      showNotification('❌ タグ生成エンジンを選択してください。', 'error');
       return;
     }
 
@@ -6012,142 +6022,351 @@ Rules:
     
     if (generateBtn) {
       generateBtn.disabled = true;
-      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>ハイブリッド解析中...';
+      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>マルチエンジン解析中...';
     }
 
     try {
       const startTime = performance.now();
       
-      // 🚀 HYBRID ANALYSIS: Parallel execution of LLM and Tagger
-      showLoading('🔬 ハイブリッド解析を開始しています...');
+      // 🔍 STEP 1: Image Analysis with selected engines
+      showLoading('🔬 画像解析を開始しています...');
       
-      console.log('🔄 Starting parallel analysis...');
-      const [llmResult, taggerResult] = await Promise.allSettled([
-        App.performLLMAnalysis(App.imageState.imageData),
-        App.callSpecializedTagger(App.imageState.imageData)
-      ]);
+      console.log('🔄 Starting multi-engine image analysis...');
       
-      // Process results and handle failures gracefully
-      let llmTags = [];
-      let taggerTags = [];
-      let processingStats = {
-        llm_success: false,
-        tagger_success: false,
-        llm_processing_time: 0,
-        tagger_processing_time: 0,
-        total_processing_time: 0
-      };
+      const analysisResults = {};
+      const analysisPromises = [];
       
-      // Process LLM results
-      if (llmResult.status === 'fulfilled' && llmResult.value) {
-        console.log('✅ LLM analysis succeeded');
-        llmTags = llmResult.value.tags || [];
-        processingStats.llm_success = true;
-        App.imageState.analysisResult = llmResult.value.analysis;
+      // Execute analysis engines in parallel
+      for (const engine of appState.selectedAnalysisEngines) {
+        console.log(`🚀 Starting ${engine} analysis...`);
+        analysisPromises.push(
+          App.runAnalysisEngine(engine, App.imageState.imageData)
+            .then(result => ({ engine, result }))
+            .catch(error => ({ engine, error }))
+        );
+      }
+      
+      // Wait for all analysis engines to complete
+      const analysisResultsArray = await Promise.allSettled(analysisPromises);
+      
+      // Process analysis results
+      for (const promiseResult of analysisResultsArray) {
+        if (promiseResult.status === 'fulfilled' && promiseResult.value.result) {
+          const { engine, result } = promiseResult.value;
+          analysisResults[engine] = result;
+          console.log(`✅ ${engine} analysis completed:`, result.slice(0, 100) + '...');
+          
+          // Display individual analysis result
+          App.displayEngineResult(engine, result, 'success');
+        } else if (promiseResult.status === 'fulfilled' && promiseResult.value.error) {
+          const { engine, error } = promiseResult.value;
+          console.error(`❌ ${engine} analysis failed:`, error);
+          App.displayEngineResult(engine, `Error: ${error.message}`, 'error');
+        }
+      }
+      
+      // Check if we have any successful analysis results
+      const successfulAnalyses = Object.keys(analysisResults);
+      if (successfulAnalyses.length === 0) {
+        throw new Error('すべての解析エンジンが失敗しました');
+      }
+      
+      console.log(`✅ Analysis completed with ${successfulAnalyses.length} successful results`);
+      
+      // 🏷️ STEP 2: Tag Generation using selected tagging engine
+      showLoading('🏷️ タグ生成中...');
+      
+      // Combine all analysis results into a comprehensive description
+      const combinedAnalysis = successfulAnalyses
+        .map(engine => `${engine.toUpperCase()} Analysis:\n${analysisResults[engine]}`)
+        .join('\n\n');
+      
+      console.log('🔄 Starting tag generation with combined analysis...');
+      const generatedTags = await App.runTaggingEngine(appState.selectedTaggingEngine, combinedAnalysis);
+      
+      if (generatedTags && generatedTags.length > 0) {
+        console.log('✅ Tag generation completed:', generatedTags);
         
-        // Display analysis result
-        const resultDiv = document.getElementById('image-analysis-result');
-        if (resultDiv) {
-          resultDiv.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${App.imageState.analysisResult}</pre>`;
+        // Add generated tags to the current tag set
+        for (const tag of generatedTags) {
+          App.addImageTag(tag);
         }
         
-        const analysisContainer = document.getElementById('analysis-result-container');
-        if (analysisContainer) {
-          analysisContainer.classList.remove('hidden');
-        }
+        // Update displays
+        App.renderImageTags();
+        App.updateImagePromptOutput();
+        
+        const endTime = performance.now();
+        const totalTime = Math.round(endTime - startTime);
+        
+        showNotification(`🎉 マルチエンジン解析完了！解析: ${successfulAnalyses.length}エンジン, タグ: ${generatedTags.length}個 (${totalTime}ms)`, 'success');
       } else {
-        console.warn('❌ LLM analysis failed:', llmResult.reason);
+        throw new Error('タグ生成に失敗しました');
       }
-      
-      // Process Tagger results
-      if (taggerResult.status === 'fulfilled' && taggerResult.value) {
-        console.log('✅ Tagger analysis succeeded');
-        taggerTags = App.processTaggerOutput(taggerResult.value);
-        processingStats.tagger_success = true;
-        App.imageState.taggerResult = taggerResult.value;
-        
-        // Display tagger result
-        const taggerResultDiv = document.getElementById('image-tagger-result');
-        if (taggerResultDiv) {
-          let formattedTaggerResult = '';
-          if (typeof taggerResult.value === 'object') {
-            if (taggerResult.value.tags && Array.isArray(taggerResult.value.tags)) {
-              // Format as tag list with confidence
-              formattedTaggerResult = taggerResult.value.tags
-                .filter(tag => tag.confidence >= appState.taggerThreshold)
-                .map(tag => `${tag.tag}: ${(tag.confidence * 100).toFixed(1)}%`)
-                .join(', ');
-            } else {
-              // Format as object entries
-              formattedTaggerResult = Object.entries(taggerResult.value)
-                .filter(([tag, confidence]) => confidence >= appState.taggerThreshold)
-                .map(([tag, confidence]) => `${tag}: ${(confidence * 100).toFixed(1)}%`)
-                .join(', ');
-            }
-          } else {
-            formattedTaggerResult = taggerResult.value;
-          }
-          taggerResultDiv.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${formattedTaggerResult}</pre>`;
-        }
-        
-        const taggerContainer = document.getElementById('tagger-result-container');
-        if (taggerContainer) {
-          taggerContainer.classList.remove('hidden');
-        }
-      } else {
-        console.warn('⚠️ Tagger analysis failed or disabled:', taggerResult.reason);
-      }
-      
-      // 🔀 INTELLIGENT FUSION
-      if (generateBtn) {
-        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>結果を統合中...';
-      }
-      showLoading('🔀 結果を統合しています...');
-      
-      console.log(`📊 Fusion input: ${llmTags.length} LLM tags + ${taggerTags.length} tagger tags`);
-      const fusedTags = App.fuseTagResults(llmTags, taggerTags, appState.fusionMode);
-      
-      // Update final tags
-      App.imageState.imageTags = fusedTags;
-      processingStats.total_processing_time = performance.now() - startTime;
-      processingStats.final_tag_count = fusedTags.length;
-      
-      // Update UI
-      TagEditor.renderTags('image');
-      App.updateImagePromptOutput();
-      
-      // Save to history with hybrid metadata
-      HistoryManager.addSession('image', {
-        imageUrl: App.imageState.imageData,
-        analysisResult: App.imageState.analysisResult,
-        tags: App.imageState.imageTags,
-        format: App.imageState.imageOutputFormat,
-        model: `${App.imageState.visionModel || 'default'} + ${appState.taggerModel || 'LLM-only'}`,
-        hybrid: true,
-        processingStats: processingStats
-      });
-      
-      hideLoading();
-      
-      // Success notification with details
-      const successMsg = processingStats.llm_success && processingStats.tagger_success 
-        ? `🎯 ハイブリッド解析完了！LLM + Tagger → ${fusedTags.length}個のタグ`
-        : processingStats.llm_success 
-          ? `✅ LLM解析完了 → ${fusedTags.length}個のタグ (Tagger無効)`
-          : `⚠️ 部分的な解析 → ${fusedTags.length}個のタグ`;
-      
-      showNotification(successMsg, 'success');
-      
     } catch (error) {
-      console.error('❌ Hybrid analysis error:', error);
-      hideLoading();
-      showNotification(`処理に失敗しました: ${error.message}`, 'error');
+      console.error('🚨 Multi-engine analysis error:', error);
+      showNotification(`❌ 解析エラー: ${error.message}`, 'error');
     } finally {
+      // Always restore the generate button
       if (generateBtn) {
         generateBtn.disabled = false;
         generateBtn.innerHTML = '<i class="fas fa-sparkles mr-2"></i>AI Generate';
       }
+      hideLoading();
     }
+  },
+
+  // 🚀 New Multi-Engine Helper Functions
+
+  // Initialize analysis and tagging engine settings
+  initializeEngineSettings: () => {
+    // Initialize analysis engines (for image analysis)
+    if (!appState.selectedAnalysisEngines) {
+      appState.selectedAnalysisEngines = []; // Default: no engines selected
+    }
+    
+    // Initialize tagging engine (for converting analysis to tags)
+    if (!appState.selectedTaggingEngine) {
+      appState.selectedTaggingEngine = 'deepseek'; // Default: DeepSeek
+    }
+    
+    console.log('🚀 Engine settings initialized:', {
+      analysis: appState.selectedAnalysisEngines,
+      tagging: appState.selectedTaggingEngine
+    });
+  },
+
+  // Update analysis engines selection
+  updateAnalysisEngines: () => {
+    const engines = [];
+    
+    // Check WD-EVA02
+    if (document.getElementById('analysis-engine-wd-eva02')?.checked) {
+      engines.push('wd-eva02');
+    }
+    
+    // Check Janus Pro 7B
+    if (document.getElementById('analysis-engine-janus')?.checked) {
+      engines.push('janus');
+    }
+    
+    appState.selectedAnalysisEngines = engines;
+    
+    // Save to localStorage
+    localStorage.setItem('selected-analysis-engines', JSON.stringify(engines));
+    
+    // Update UI counter
+    const counter = document.getElementById('analysis-engine-count');
+    if (counter) {
+      counter.textContent = `(${engines.length} selected)`;
+    }
+    
+    console.log('🔄 Updated analysis engines:', engines);
+  },
+
+  // Update tagging engine selection
+  updateTaggingEngine: () => {
+    const deepseek = document.getElementById('tagging-engine-deepseek');
+    const llm = document.getElementById('tagging-engine-llm');
+    
+    if (deepseek?.checked) {
+      appState.selectedTaggingEngine = 'deepseek';
+    } else if (llm?.checked) {
+      appState.selectedTaggingEngine = 'llm';
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('selected-tagging-engine', appState.selectedTaggingEngine);
+    
+    console.log('🔄 Updated tagging engine:', appState.selectedTaggingEngine);
+  },
+
+  // Run individual analysis engine
+  runAnalysisEngine: async (engine, imageData) => {
+    console.log(`🚀 Running ${engine} analysis...`);
+    
+    switch (engine) {
+      case 'wd-eva02':
+        return await App.runWDEVA02Analysis(imageData);
+      
+      case 'janus':
+        return await App.runJanusAnalysis(imageData);
+      
+      default:
+        throw new Error(`Unknown analysis engine: ${engine}`);
+    }
+  },
+
+  // Run WD-EVA02 analysis
+  runWDEVA02Analysis: async (imageData) => {
+    if (!appState.replicateApiKey) {
+      throw new Error('Replicate API key is required for WD-EVA02 analysis');
+    }
+    
+    const response = await fetch('/api/multi-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: appState.replicateApiKey,
+        engines: ['wd-eva02'],
+        imageData: imageData,
+        threshold: appState.taggerThreshold || 0.35
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `WD-EVA02 API error: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    return result.results['wd-eva02'] || 'No WD-EVA02 result available';
+  },
+
+  // Run Janus Pro 7B analysis  
+  runJanusAnalysis: async (imageData) => {
+    if (!appState.replicateApiKey) {
+      throw new Error('Replicate API key is required for Janus analysis');
+    }
+    
+    const response = await fetch('/api/multi-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: appState.replicateApiKey,
+        engines: ['janus'],
+        imageData: imageData,
+        analysisPrompt: appState.analysisPrompt || 'Describe this image in detail.'
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Janus API error: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    return result.results['janus'] || 'No Janus result available';
+  },
+
+  // Run tagging engine to convert analysis results to tags
+  runTaggingEngine: async (engine, analysisText) => {
+    console.log(`🏷️ Running ${engine} tagging engine...`);
+    
+    switch (engine) {
+      case 'deepseek':
+        return await App.runDeepSeekTagging(analysisText);
+      
+      case 'llm':
+        return await App.runLLMTagging(analysisText);
+      
+      default:
+        throw new Error(`Unknown tagging engine: ${engine}`);
+    }
+  },
+
+  // Run DeepSeek tagging (convert analysis to tags)
+  runDeepSeekTagging: async (analysisText) => {
+    if (!appState.apiKey) {
+      throw new Error('OpenRouter API key is required for DeepSeek tagging');
+    }
+    
+    const taggingPrompt = `以下の画像解析結果を読んで、適切なタグを生成してください。
+    
+解析結果:
+${analysisText}
+
+以下の形式でタグを生成してください：
+- 1つのタグは1-3単語
+- 具体的で有用なタグ
+- 15-25個のタグ
+- カンマ区切り
+- 例: "anime girl, blue hair, school uniform, outdoor, cherry blossoms"
+
+タグ:`;
+    
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: appState.apiKey,
+        model: 'deepseek/deepseek-chat',
+        messages: [
+          { role: 'user', content: taggingPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 500
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `DeepSeek tagging error: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    const tagsText = result.content || '';
+    
+    // Parse tags from response
+    const tags = tagsText
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+      .slice(0, 25); // Limit to 25 tags
+    
+    return tags;
+  },
+
+  // Run LLM tagging (direct image to tags)
+  runLLMTagging: async (analysisText) => {
+    if (!appState.apiKey) {
+      throw new Error('OpenRouter API key is required for LLM tagging');
+    }
+    
+    const taggingPrompt = `Convert the following image analysis into concise tags suitable for image generation:
+
+Analysis:
+${analysisText}
+
+Generate 15-25 specific, useful tags in this format:
+- One tag per concept (1-3 words each)
+- Focus on visual elements
+- Include style, subjects, environment, mood
+- Comma separated
+- Example: "anime style, blonde hair, school uniform, happy expression, cherry blossoms, outdoor"
+
+Tags:`;
+    
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: appState.apiKey,
+        model: appState.chatModel,
+        messages: [
+          { role: 'user', content: taggingPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 400
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `LLM tagging error: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    const tagsText = result.content || '';
+    
+    // Parse tags from response
+    const tags = tagsText
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+      .slice(0, 25); // Limit to 25 tags
+    
+    return tags;
   },
   
   // 画像解析用システムプロンプトを取得
@@ -7023,6 +7242,30 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     TagEditor.renderTags('image');
   }
+  
+  // Initialize multi-engine analysis settings
+  console.log('🚀 Initializing multi-engine analysis settings...');
+  App.initializeEngineSettings();
+  
+  // Set up UI checkboxes based on saved settings
+  const savedAnalysisEngines = appState.selectedAnalysisEngines || [];
+  savedAnalysisEngines.forEach(engine => {
+    const checkbox = document.getElementById(`analysis-engine-${engine}`);
+    if (checkbox) {
+      checkbox.checked = true;
+    }
+  });
+  
+  // Set up tagging engine radio based on saved setting
+  const savedTaggingEngine = appState.selectedTaggingEngine || 'deepseek';
+  const taggingRadio = document.getElementById(`tagging-engine-${savedTaggingEngine}`);
+  if (taggingRadio) {
+    taggingRadio.checked = true;
+  }
+  
+  // Update UI counters
+  App.updateAnalysisEngines();
+  console.log('✅ Engine selections initialized:', savedAnalysisEngines);
   
   // Load saved vision model
   const savedVisionModel = localStorage.getItem('vision-model');
