@@ -4407,6 +4407,12 @@ Object.assign(App, {
       if (toggleBtn) toggleBtn.classList.replace('bg-gray-500', 'bg-green-500');
       if (toggleBtn) toggleBtn.classList.replace('hover:bg-gray-600', 'hover:bg-green-600');
     }
+    
+    // Force visibility of multi-analysis-container when toggling
+    if (App.imageState.analysisVisible && multiContainer) {
+      console.log('🔍 Ensuring multi-analysis-container is visible');
+      multiContainer.style.display = 'block';
+    }
   },
   
   // Translate all image tags
@@ -4759,9 +4765,16 @@ Object.assign(App, {
   },
   
   displayEngineResult: (engineKey, result, success) => {
-    const sectionId = `${engineKey}-result-section`;
-    const contentId = `${engineKey}-analysis-result`;
-    const badgeId = `${engineKey}-status-badge`;
+    // Map engine keys to UI section IDs
+    const engineMapping = {
+      'wd-eva02-large-tagger-v3': 'wd-eva02',
+      'janus-pro-7b': 'janus'
+    };
+    
+    const uiEngineKey = engineMapping[engineKey] || engineKey;
+    const sectionId = `${uiEngineKey}-result-section`;
+    const contentId = `${uiEngineKey}-analysis-result`;
+    const badgeId = `${uiEngineKey}-status-badge`;
     
     const section = document.getElementById(sectionId);
     const content = document.getElementById(contentId);
@@ -4772,7 +4785,7 @@ Object.assign(App, {
     }
     
     if (badge) {
-      if (success) {
+      if (success === 'success' || success === true) {
         badge.textContent = '✅';
         badge.className = 'text-xs px-1 py-0.5 bg-green-200 text-green-800 rounded';
       } else {
@@ -6054,14 +6067,14 @@ Rules:
         if (promiseResult.status === 'fulfilled' && promiseResult.value.result) {
           const { engine, result } = promiseResult.value;
           analysisResults[engine] = result;
-          console.log(`✅ ${engine} analysis completed:`, result.slice(0, 100) + '...');
+          console.log(`✅ ${engine} analysis completed:`, typeof result === 'string' ? result.slice(0, 100) + '...' : result);
           
           // Display individual analysis result
           App.displayEngineResult(engine, result, 'success');
         } else if (promiseResult.status === 'fulfilled' && promiseResult.value.error) {
           const { engine, error } = promiseResult.value;
           console.error(`❌ ${engine} analysis failed:`, error);
-          App.displayEngineResult(engine, `Error: ${error.message}`, 'error');
+          App.displayEngineResult(engine, `Error: ${error.message || error}`, 'error');
         }
       }
       
@@ -6121,7 +6134,7 @@ Rules:
   // Initialize analysis and tagging engine settings
   initializeEngineSettings: () => {
     // Initialize analysis engines (for image analysis)
-    if (!appState.selectedAnalysisEngines) {
+    if (!appState.selectedAnalysisEngines || !Array.isArray(appState.selectedAnalysisEngines)) {
       appState.selectedAnalysisEngines = []; // Default: no engines selected
     }
     
@@ -6129,6 +6142,38 @@ Rules:
     if (!appState.selectedTaggingEngine) {
       appState.selectedTaggingEngine = 'deepseek'; // Default: DeepSeek
     }
+    
+    // Initialize multi-analysis results storage
+    if (!App.imageState.multiAnalysisResults) {
+      App.imageState.multiAnalysisResults = {};
+    }
+    
+    // Set up UI checkboxes based on saved settings
+    setTimeout(() => {
+      const wdCheckbox = document.getElementById('analysis-engine-wd-eva02');
+      const janusCheckbox = document.getElementById('analysis-engine-janus');
+      const deepseekRadio = document.getElementById('tagging-engine-deepseek');
+      const llmRadio = document.getElementById('tagging-engine-llm');
+      
+      if (wdCheckbox) {
+        wdCheckbox.checked = appState.selectedAnalysisEngines.includes('wd-eva02-large-tagger-v3');
+      }
+      if (janusCheckbox) {
+        janusCheckbox.checked = appState.selectedAnalysisEngines.includes('janus-pro-7b');
+      }
+      if (deepseekRadio) {
+        deepseekRadio.checked = appState.selectedTaggingEngine === 'deepseek';
+      }
+      if (llmRadio) {
+        llmRadio.checked = appState.selectedTaggingEngine === 'llm';
+      }
+      
+      // Update counter
+      const counter = document.getElementById('analysis-engine-count');
+      if (counter) {
+        counter.textContent = `(${appState.selectedAnalysisEngines.length} selected)`;
+      }
+    }, 100);
     
     console.log('🚀 Engine settings initialized:', {
       analysis: appState.selectedAnalysisEngines,
@@ -6142,12 +6187,12 @@ Rules:
     
     // Check WD-EVA02
     if (document.getElementById('analysis-engine-wd-eva02')?.checked) {
-      engines.push('wd-eva02');
+      engines.push('wd-eva02-large-tagger-v3');
     }
     
     // Check Janus Pro 7B
     if (document.getElementById('analysis-engine-janus')?.checked) {
-      engines.push('janus');
+      engines.push('janus-pro-7b');
     }
     
     appState.selectedAnalysisEngines = engines;
@@ -6208,7 +6253,7 @@ Rules:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         apiKey: appState.replicateApiKey,
-        engines: ['wd-eva02'],
+        engines: ['wd-eva02-large-tagger-v3'],
         imageData: imageData,
         threshold: appState.taggerThreshold || 0.35
       })
@@ -6220,7 +6265,17 @@ Rules:
     }
     
     const result = await response.json();
-    return result.results['wd-eva02'] || 'No WD-EVA02 result available';
+    
+    if (result.success && result.results['wd-eva02-large-tagger-v3']) {
+      const wdResult = result.results['wd-eva02-large-tagger-v3'];
+      if (wdResult.success) {
+        return wdResult.output || 'No WD-EVA02 result available';
+      } else {
+        throw new Error(wdResult.error || 'WD-EVA02 analysis failed');
+      }
+    } else {
+      throw new Error('No WD-EVA02 result in response');
+    }
   },
 
   // Run Janus Pro 7B analysis  
@@ -6234,9 +6289,9 @@ Rules:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         apiKey: appState.replicateApiKey,
-        engines: ['janus'],
+        engines: ['janus-pro-7b'],
         imageData: imageData,
-        analysisPrompt: appState.analysisPrompt || 'Describe this image in detail.'
+        analysisPrompt: appState.analysisPrompt || 'Analyze this image and describe what you see in detail, including objects, people, settings, colors, and artistic style.'
       })
     });
     
@@ -6246,7 +6301,17 @@ Rules:
     }
     
     const result = await response.json();
-    return result.results['janus'] || 'No Janus result available';
+    
+    if (result.success && result.results['janus-pro-7b']) {
+      const janusResult = result.results['janus-pro-7b'];
+      if (janusResult.success) {
+        return janusResult.output || 'No Janus result available';
+      } else {
+        throw new Error(janusResult.error || 'Janus analysis failed');
+      }
+    } else {
+      throw new Error('No Janus result in response');
+    }
   },
 
   // Run tagging engine to convert analysis results to tags
@@ -7247,14 +7312,33 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 Initializing multi-engine analysis settings...');
   App.initializeEngineSettings();
   
-  // Set up UI checkboxes based on saved settings
+  // Set up UI checkboxes based on saved settings - improved mapping
   const savedAnalysisEngines = appState.selectedAnalysisEngines || [];
+  
+  // Map full engine names to UI checkbox IDs
+  const engineUIMapping = {
+    'wd-eva02-large-tagger-v3': 'analysis-engine-wd-eva02',
+    'janus-pro-7b': 'analysis-engine-janus'
+  };
+  
   savedAnalysisEngines.forEach(engine => {
-    const checkbox = document.getElementById(`analysis-engine-${engine}`);
-    if (checkbox) {
-      checkbox.checked = true;
+    const checkboxId = engineUIMapping[engine];
+    if (checkboxId) {
+      const checkbox = document.getElementById(checkboxId);
+      if (checkbox) {
+        checkbox.checked = true;
+        console.log(`✅ Restored ${engine} selection`);
+      }
     }
   });
+  
+  // Set up tagging engine radio button
+  const savedTaggingEngine = appState.selectedTaggingEngine || 'deepseek';
+  const taggingRadio = document.getElementById(`tagging-engine-${savedTaggingEngine}`);
+  if (taggingRadio) {
+    taggingRadio.checked = true;
+    console.log(`✅ Restored ${savedTaggingEngine} tagging engine`);
+  }
   
   // Set up tagging engine radio based on saved setting
   const savedTaggingEngine = appState.selectedTaggingEngine || 'deepseek';
