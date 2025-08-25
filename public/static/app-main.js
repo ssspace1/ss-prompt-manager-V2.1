@@ -434,7 +434,12 @@ let appState = {
   taggerModel: localStorage.getItem('tagger-model') || '',
   fusionMode: localStorage.getItem('fusion-mode') || 'balanced',
   taggerThreshold: parseFloat(localStorage.getItem('tagger-threshold') || '0.35'),
-  sourceAttribution: localStorage.getItem('source-attribution') === 'true' || true
+  sourceAttribution: localStorage.getItem('source-attribution') === 'true' || true,
+  
+  // Multi-Engine Analysis Settings
+  selectedEngines: JSON.parse(localStorage.getItem('selected-engines') || '["llm"]'), // Default to LLM only
+  analysisResults: {}, // Store results from different engines
+  analysisPrompt: localStorage.getItem('analysis-prompt') || 'Analyze this image in detail, describing objects, people, settings, colors, artistic style, and any notable features.'
 };
 
 
@@ -3232,7 +3237,49 @@ Output ONLY the JSON, no explanations.`;
     }
   },
   
-  // Hybrid Analysis Settings Management
+  // Multi-Engine Analysis Management 🚀
+  updateAnalysisEngines: () => {
+    const engines = [];
+    
+    // Check each engine checkbox
+    if (document.getElementById('engine-llm')?.checked) engines.push('llm');
+    if (document.getElementById('engine-wd-eva02')?.checked) engines.push('wd-eva02-large-tagger-v3');
+    if (document.getElementById('engine-janus')?.checked) engines.push('janus-pro-7b');
+    if (document.getElementById('engine-wd-swinv2')?.checked) engines.push('wd-swinv2-tagger-v3');
+    if (document.getElementById('engine-wd-vit')?.checked) engines.push('wd-vit-tagger-v3');
+    
+    appState.selectedEngines = engines;
+    localStorage.setItem('selected-engines', JSON.stringify(engines));
+    
+    console.log('🔧 Analysis engines updated:', engines);
+    showNotification(`${engines.length} analysis engines selected`, 'info');
+  },
+  
+  initializeEngineSelections: () => {
+    // Load saved engine selections
+    const savedEngines = appState.selectedEngines || ['llm'];
+    
+    // Set checkboxes based on saved selections
+    const engineMap = {
+      'llm': 'engine-llm',
+      'wd-eva02-large-tagger-v3': 'engine-wd-eva02',
+      'janus-pro-7b': 'engine-janus',
+      'wd-swinv2-tagger-v3': 'engine-wd-swinv2',
+      'wd-vit-tagger-v3': 'engine-wd-vit'
+    };
+    
+    savedEngines.forEach(engine => {
+      const checkboxId = engineMap[engine];
+      const checkbox = document.getElementById(checkboxId);
+      if (checkbox) {
+        checkbox.checked = true;
+      }
+    });
+    
+    console.log('✅ Engine selections initialized:', savedEngines);
+  },
+
+  // Legacy compatibility  
   updateTaggerModel: (model) => {
     appState.taggerModel = model;
     localStorage.setItem('tagger-model', model);
@@ -3901,8 +3948,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
   
-  // Initialize Replicate API settings for specialized taggers
-  console.log('🤖 Initializing specialized tagger settings...');
+  // Initialize Multi-Engine Analysis settings
+  console.log('🚀 Initializing multi-engine analysis settings...');
   
   // Load saved Replicate API key
   const savedReplicateKey = localStorage.getItem('replicate-api-key');
@@ -3914,6 +3961,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     console.log('✅ Replicate API key loaded');
   }
+  
+  // Initialize engine selections
+  App.initializeEngineSelections();
   
   // Load saved tagger model selection
   const savedTaggerModel = localStorage.getItem('tagger-model');
@@ -3980,7 +4030,8 @@ Object.assign(App, {
   imageState: {
     imageData: null,
     analysisResult: null,
-    taggerResult: null,  // WD-EVA02 tagger result
+    taggerResult: null,  // WD-EVA02 tagger result (legacy)
+    multiAnalysisResults: {}, // Results from multiple engines: {engine: {success, output, ...}}
     visionModel: localStorage.getItem('image-vision-model') || 'gemini-2.0-flash-exp',
     imageOutputFormat: 'sdxl',
     imageFinalFormat: 'sdxl',  // Separate format for final output
@@ -4621,11 +4672,234 @@ Object.assign(App, {
     showNotification(`${App.imageState.imageTags.length}個のタグに分割しました（AI分類済み）`, 'success');
   },
   
-  // Copy functions
-  copyAnalysisResult: () => {
-    if (App.imageState.analysisResult) {
-      navigator.clipboard.writeText(App.imageState.analysisResult);
-      showNotification('Analysis copied to clipboard', 'success');
+  // 🚀 Multi-Engine Helper Functions
+  callMultiEngineAnalysis: async (engines) => {
+    if (!appState.replicateApiKey) {
+      throw new Error('Replicate API key is required for multi-engine analysis');
+    }
+    
+    console.log('🔄 Calling multi-engine API:', engines);
+    
+    const response = await fetch('/api/multi-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: appState.replicateApiKey,
+        engines: engines,
+        imageData: App.imageState.imageData,
+        analysisPrompt: appState.analysisPrompt,
+        threshold: appState.taggerThreshold
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+  
+  mapEngineNameToKey: (engineName) => {
+    const mappings = {
+      'wd-eva02-large-tagger-v3': 'wd-eva02',
+      'janus-pro-7b': 'janus',
+      'wd-swinv2-tagger-v3': 'wd-swinv2',
+      'wd-vit-tagger-v3': 'wd-vit'
+    };
+    return mappings[engineName] || engineName;
+  },
+  
+  processEngineOutput: (engineName, output) => {
+    if (engineName.startsWith('wd-')) {
+      // WD Tagger output processing
+      return App.processTaggerOutput(output);
+    } else if (engineName === 'janus-pro-7b') {
+      // Janus Pro 7B output processing
+      return App.processJanusOutput(output);
+    }
+    return [];
+  },
+  
+  processJanusOutput: (output) => {
+    // Process Janus Pro 7B output into tags
+    if (typeof output === 'string') {
+      // Convert analysis text to structured tags
+      const words = output.toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length > 2);
+      
+      const relevantWords = words.filter(word => 
+        !['the', 'and', 'with', 'this', 'that', 'from', 'they', 'have', 'been', 'were', 'are', 'was'].includes(word)
+      );
+      
+      return relevantWords.slice(0, 20).map((word, index) => ({
+        id: `janus-tag-${Date.now()}-${index}`,
+        en: word,
+        ja: translationDict[word.toLowerCase()] || App.simpleTranslate(word),
+        weight: 1.0,
+        category: categorizeTag(word),
+        source: 'janus',
+        confidence: 0.8
+      }));
+    }
+    return [];
+  },
+  
+  displayEngineResult: (engineKey, result, success) => {
+    const sectionId = `${engineKey}-result-section`;
+    const contentId = `${engineKey}-analysis-result`;
+    const badgeId = `${engineKey}-status-badge`;
+    
+    const section = document.getElementById(sectionId);
+    const content = document.getElementById(contentId);
+    const badge = document.getElementById(badgeId);
+    
+    if (section) {
+      section.classList.remove('hidden');
+    }
+    
+    if (badge) {
+      if (success) {
+        badge.textContent = '✅';
+        badge.className = 'text-xs px-1 py-0.5 bg-green-200 text-green-800 rounded';
+      } else {
+        badge.textContent = '❌';
+        badge.className = 'text-xs px-1 py-0.5 bg-red-200 text-red-800 rounded';
+      }
+    }
+    
+    if (content) {
+      if (typeof result === 'object') {
+        content.innerHTML = `<pre class="whitespace-pre-wrap text-xs">${JSON.stringify(result, null, 2)}</pre>`;
+      } else {
+        content.innerHTML = `<pre class="whitespace-pre-wrap text-xs">${result}</pre>`;
+      }
+    }
+  },
+  
+  toggleResultSection: (engineKey) => {
+    const contentId = `${engineKey}-result-content`;
+    const chevronId = `${engineKey}-chevron`;
+    
+    const content = document.getElementById(contentId);
+    const chevron = document.getElementById(chevronId);
+    
+    if (content && chevron) {
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotate-180');
+      } else {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotate-180');
+      }
+    }
+  },
+  
+  toggleAllAnalysisResults: () => {
+    const button = document.getElementById('toggle-all-results-btn');
+    const allContents = document.querySelectorAll('[id$="-result-content"]');
+    const allChevrons = document.querySelectorAll('[id$="-chevron"]');
+    
+    if (button && allContents.length > 0) {
+      const isExpanding = button.textContent.includes('Expand');
+      
+      allContents.forEach(content => {
+        if (isExpanding) {
+          content.classList.remove('hidden');
+        } else {
+          content.classList.add('hidden');
+        }
+      });
+      
+      allChevrons.forEach(chevron => {
+        if (isExpanding) {
+          chevron.classList.add('rotate-180');
+        } else {
+          chevron.classList.remove('rotate-180');
+        }
+      });
+      
+      if (isExpanding) {
+        button.innerHTML = '<i class="fas fa-compress mr-1"></i>Collapse';
+      } else {
+        button.innerHTML = '<i class="fas fa-expand mr-1"></i>Expand';
+      }
+    }
+  },
+  
+  fuseMultiEngineResults: (allTags, fusionMode) => {
+    // Enhanced fusion for multiple engines
+    console.log(`🔀 Fusing ${allTags.length} tags from multiple engines (mode: ${fusionMode})`);
+    
+    if (allTags.length === 0) return [];
+    
+    // Group tags by similar content
+    const tagGroups = {};
+    allTags.forEach(tag => {
+      const key = tag.en.toLowerCase().replace(/[-_\s]/g, '');
+      if (!tagGroups[key]) {
+        tagGroups[key] = [];
+      }
+      tagGroups[key].push(tag);
+    });
+    
+    // Merge similar tags
+    const fusedTags = Object.values(tagGroups).map(group => {
+      if (group.length === 1) {
+        return { ...group[0], fusion_method: 'single' };
+      }
+      
+      // Multiple tags with same content - merge them
+      const merged = { ...group[0] };
+      merged.confidence = Math.max(...group.map(t => t.confidence || 0.5));
+      merged.weight = Math.min(2.0, group.reduce((sum, t) => sum + (t.weight || 1.0), 0) / group.length);
+      merged.source = 'hybrid';
+      merged.fusion_method = 'merged';
+      merged.sourceEngines = [...new Set(group.map(t => t.source).filter(Boolean))];
+      
+      return merged;
+    });
+    
+    // Apply fusion mode filtering
+    return App.applyFusionModeFiltering(fusedTags, fusionMode);
+  },
+  
+  // Copy functions - Enhanced for multi-engine
+  copyAnalysisResult: (engineKey = 'llm') => {
+    let textToCopy = '';
+    
+    if (engineKey && App.imageState.multiAnalysisResults[engineKey]) {
+      const result = App.imageState.multiAnalysisResults[engineKey];
+      if (typeof result.output === 'object') {
+        textToCopy = JSON.stringify(result.output, null, 2);
+      } else {
+        textToCopy = result.output;
+      }
+    } else if (App.imageState.analysisResult) {
+      textToCopy = App.imageState.analysisResult;
+    }
+    
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy);
+      showNotification(`${engineKey.toUpperCase()} analysis copied to clipboard`, 'success');
+    }
+  },
+  
+  copyAllAnalysisResults: () => {
+    const results = Object.entries(App.imageState.multiAnalysisResults || {})
+      .map(([engine, result]) => {
+        const output = typeof result.output === 'object' 
+          ? JSON.stringify(result.output, null, 2) 
+          : result.output;
+        return `=== ${engine.toUpperCase()} Analysis ===\n${output}\n`;
+      })
+      .join('\n');
+    
+    if (results) {
+      navigator.clipboard.writeText(results);
+      showNotification('All analysis results copied to clipboard', 'success');
     }
   },
   
@@ -5524,17 +5798,14 @@ Rules:
       return;
     }
     
-    console.log('🔑 Checking API keys...');
+    console.log('🎯 Starting Multi-Engine Analysis...');
+    console.log('📊 System status:');
     console.log('  - OpenRouter:', appState.apiKey ? '✅' : '❌');
     console.log('  - Replicate:', appState.replicateApiKey ? '✅' : '❌');
-    console.log('🤖 Models:', {
-      vision: App.imageState.visionModel || 'default',
-      text: appState.selectedModel || 'default',
-      tagger: appState.taggerModel || 'disabled'
-    });
+    console.log('🤖 Selected engines:', appState.selectedEngines);
     
-    if (!appState.apiKey) {
-      showNotification('❌ OpenRouter APIキーが必要です。設定から入力してください。', 'error');
+    if (appState.selectedEngines.length === 0) {
+      showNotification('❌ 少なくとも1つの解析エンジンを選択してください。', 'error');
       return;
     }
 

@@ -1040,40 +1040,159 @@ export function getMainHtml(): string {
                             </button>
                         </div>
                         
-                        <!-- Collapsible AI Analysis Result -->
-                        <div id="analysis-result-container" class="mt-2 hidden">
+                        <!-- Multi-Engine Analysis Results -->
+                        <div id="multi-analysis-container" class="mt-2 hidden">
                             <div class="border-t pt-2">
-                                <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center justify-between mb-2">
                                     <h3 class="text-xs font-semibold text-gray-700">
-                                        <i class="fas fa-brain mr-1 text-blue-500"></i>
-                                        AI Analysis Result
+                                        <i class="fas fa-chart-bar mr-1 text-indigo-500"></i>
+                                        Multi-Engine Analysis Results
                                     </h3>
-                                    <button onclick="App.copyAnalysisResult()" 
-                                            class="px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
-                                        <i class="fas fa-copy mr-1"></i>Copy
-                                    </button>
+                                    <div class="flex gap-1">
+                                        <button onclick="App.copyAllAnalysisResults()" 
+                                                class="px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
+                                            <i class="fas fa-copy mr-1"></i>Copy All
+                                        </button>
+                                        <button onclick="App.toggleAllAnalysisResults()" 
+                                                id="toggle-all-results-btn"
+                                                class="px-1 py-0.5 text-xs bg-indigo-100 hover:bg-indigo-200 rounded transition-colors">
+                                            <i class="fas fa-expand mr-1"></i>Expand
+                                        </button>
+                                    </div>
                                 </div>
-                                <div id="image-analysis-result" class="p-2 bg-gray-50 rounded max-h-20 overflow-y-auto custom-scrollbar text-xs">
-                                    <p class="text-gray-500 text-xs italic">No analysis yet...</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Collapsible Tagger Analysis Result -->
-                        <div id="tagger-result-container" class="mt-2 hidden">
-                            <div class="border-t pt-2">
-                                <div class="flex items-center justify-between mb-1">
-                                    <h3 class="text-xs font-semibold text-gray-700">
-                                        <i class="fas fa-tags mr-1 text-green-500"></i>
-                                        WD-EVA02 Tagger Result
-                                    </h3>
-                                    <button onclick="App.copyTaggerResult()" 
-                                            class="px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
-                                        <i class="fas fa-copy mr-1"></i>Copy
-                                    </button>
-                                </div>
-                                <div id="image-tagger-result" class="p-2 bg-green-50 rounded max-h-20 overflow-y-auto custom-scrollbar text-xs">
-                                    <p class="text-gray-500 text-xs italic">Tagger disabled or no result yet...</p>
+                                
+                                <!-- Individual Engine Results -->
+                                <div class="space-y-2">
+                                    <!-- LLM Analysis Result -->
+                                    <div id="llm-result-section" class="hidden">
+                                        <div class="bg-blue-50 rounded-lg border border-blue-200">
+                                            <div class="flex items-center justify-between p-2 cursor-pointer" 
+                                                 onclick="App.toggleResultSection('llm')">
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fas fa-robot text-blue-500"></i>
+                                                    <span class="text-xs font-medium text-blue-800">LLM Analysis</span>
+                                                    <span id="llm-status-badge" class="text-xs px-1 py-0.5 bg-gray-200 rounded">●</span>
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="App.copyAnalysisResult('llm')" 
+                                                            class="px-1 py-0.5 text-xs bg-blue-200 hover:bg-blue-300 rounded transition-colors">
+                                                        <i class="fas fa-copy"></i>
+                                                    </button>
+                                                    <i class="fas fa-chevron-down text-blue-600 transition-transform" id="llm-chevron"></i>
+                                                </div>
+                                            </div>
+                                            <div id="llm-result-content" class="hidden p-2 pt-0">
+                                                <div id="llm-analysis-result" class="p-2 bg-white rounded text-xs max-h-24 overflow-y-auto custom-scrollbar">
+                                                    <p class="text-gray-500 italic">No LLM analysis yet...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- WD-EVA02 Tagger Result -->
+                                    <div id="wd-eva02-result-section" class="hidden">
+                                        <div class="bg-green-50 rounded-lg border border-green-200">
+                                            <div class="flex items-center justify-between p-2 cursor-pointer" 
+                                                 onclick="App.toggleResultSection('wd-eva02')">
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fas fa-tags text-green-500"></i>
+                                                    <span class="text-xs font-medium text-green-800">WD-EVA02 Tagger</span>
+                                                    <span id="wd-eva02-status-badge" class="text-xs px-1 py-0.5 bg-gray-200 rounded">●</span>
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="App.copyAnalysisResult('wd-eva02')" 
+                                                            class="px-1 py-0.5 text-xs bg-green-200 hover:bg-green-300 rounded transition-colors">
+                                                        <i class="fas fa-copy"></i>
+                                                    </button>
+                                                    <i class="fas fa-chevron-down text-green-600 transition-transform" id="wd-eva02-chevron"></i>
+                                                </div>
+                                            </div>
+                                            <div id="wd-eva02-result-content" class="hidden p-2 pt-0">
+                                                <div id="wd-eva02-analysis-result" class="p-2 bg-white rounded text-xs max-h-24 overflow-y-auto custom-scrollbar">
+                                                    <p class="text-gray-500 italic">No WD-EVA02 analysis yet...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Janus Pro 7B Result -->
+                                    <div id="janus-result-section" class="hidden">
+                                        <div class="bg-purple-50 rounded-lg border border-purple-200">
+                                            <div class="flex items-center justify-between p-2 cursor-pointer" 
+                                                 onclick="App.toggleResultSection('janus')">
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fas fa-eye text-purple-500"></i>
+                                                    <span class="text-xs font-medium text-purple-800">Janus Pro 7B</span>
+                                                    <span id="janus-status-badge" class="text-xs px-1 py-0.5 bg-gray-200 rounded">●</span>
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="App.copyAnalysisResult('janus')" 
+                                                            class="px-1 py-0.5 text-xs bg-purple-200 hover:bg-purple-300 rounded transition-colors">
+                                                        <i class="fas fa-copy"></i>
+                                                    </button>
+                                                    <i class="fas fa-chevron-down text-purple-600 transition-transform" id="janus-chevron"></i>
+                                                </div>
+                                            </div>
+                                            <div id="janus-result-content" class="hidden p-2 pt-0">
+                                                <div id="janus-analysis-result" class="p-2 bg-white rounded text-xs max-h-24 overflow-y-auto custom-scrollbar">
+                                                    <p class="text-gray-500 italic">No Janus analysis yet...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Additional WD Models (compact view) -->
+                                    <div id="additional-wd-results" class="hidden space-y-1">
+                                        <div id="wd-swinv2-result-section" class="hidden">
+                                            <div class="bg-gray-50 rounded border">
+                                                <div class="flex items-center justify-between p-2 cursor-pointer" 
+                                                     onclick="App.toggleResultSection('wd-swinv2')">
+                                                    <div class="flex items-center gap-2">
+                                                        <i class="fas fa-tags text-gray-500 text-xs"></i>
+                                                        <span class="text-xs text-gray-700">WD SwinV2</span>
+                                                        <span id="wd-swinv2-status-badge" class="text-xs px-1 bg-gray-200 rounded">●</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-1">
+                                                        <button onclick="App.copyAnalysisResult('wd-swinv2')" 
+                                                                class="px-1 text-xs bg-gray-200 hover:bg-gray-300 rounded">
+                                                            <i class="fas fa-copy text-xs"></i>
+                                                        </button>
+                                                        <i class="fas fa-chevron-down text-gray-500 text-xs" id="wd-swinv2-chevron"></i>
+                                                    </div>
+                                                </div>
+                                                <div id="wd-swinv2-result-content" class="hidden p-2 pt-0">
+                                                    <div id="wd-swinv2-analysis-result" class="p-1 bg-white rounded text-xs max-h-16 overflow-y-auto">
+                                                        <p class="text-gray-500 italic">No WD SwinV2 analysis yet...</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="wd-vit-result-section" class="hidden">
+                                            <div class="bg-gray-50 rounded border">
+                                                <div class="flex items-center justify-between p-2 cursor-pointer" 
+                                                     onclick="App.toggleResultSection('wd-vit')">
+                                                    <div class="flex items-center gap-2">
+                                                        <i class="fas fa-tags text-gray-500 text-xs"></i>
+                                                        <span class="text-xs text-gray-700">WD ViT</span>
+                                                        <span id="wd-vit-status-badge" class="text-xs px-1 bg-gray-200 rounded">●</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-1">
+                                                        <button onclick="App.copyAnalysisResult('wd-vit')" 
+                                                                class="px-1 text-xs bg-gray-200 hover:bg-gray-300 rounded">
+                                                            <i class="fas fa-copy text-xs"></i>
+                                                        </button>
+                                                        <i class="fas fa-chevron-down text-gray-500 text-xs" id="wd-vit-chevron"></i>
+                                                    </div>
+                                                </div>
+                                                <div id="wd-vit-result-content" class="hidden p-2 pt-0">
+                                                    <div id="wd-vit-analysis-result" class="p-1 bg-white rounded text-xs max-h-16 overflow-y-auto">
+                                                        <p class="text-gray-500 italic">No WD ViT analysis yet...</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1702,22 +1821,74 @@ export function getMainHtml(): string {
                             Required for wd-eva02-large-tagger-v3 specialized anime tagging.
                         </p>
                         
-                        <!-- Tagger Model Selection -->
+                        <!-- Multi-Engine Analysis Selection -->
                         <div class="mt-3">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
                                 <i class="fas fa-brain mr-1 text-green-500"></i>
-                                Specialized Tagger Model
+                                Analysis Engines (Select Multiple)
                             </label>
-                            <select id="tagger-model-selector" 
-                                    onchange="App.updateTaggerModel(this.value)"
-                                    class="w-full px-3 py-2 border rounded-lg">
-                                <option value="">Disabled (LLM Only)</option>
-                                <option value="wd-eva02-large-tagger-v3">WD EVA02-Large v3 (Recommended)</option>
-                                <option value="wd-swinv2-tagger-v3">WD SwinV2 Tagger v3</option>
-                                <option value="wd-vit-tagger-v3">WD ViT Tagger v3</option>
-                            </select>
-                            <p class="text-xs text-gray-500 mt-1">
-                                Specialized tagger for anime/art images. Combines with LLM analysis for better accuracy.
+                            
+                            <div class="space-y-2 p-3 bg-gray-50 rounded-lg">
+                                <!-- Traditional LLM Analysis -->
+                                <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="engine-llm" 
+                                           onchange="App.updateAnalysisEngines()"
+                                           class="w-4 h-4 text-blue-600 rounded">
+                                    <label for="engine-llm" class="text-sm text-gray-700">
+                                        <i class="fas fa-robot text-blue-500 mr-1"></i>
+                                        Traditional LLM (GPT-4o/Gemini/Claude)
+                                    </label>
+                                </div>
+                                
+                                <!-- WD EVA02 Tagger -->
+                                <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="engine-wd-eva02" 
+                                           onchange="App.updateAnalysisEngines()"
+                                           class="w-4 h-4 text-green-600 rounded">
+                                    <label for="engine-wd-eva02" class="text-sm text-gray-700">
+                                        <i class="fas fa-tags text-green-500 mr-1"></i>
+                                        WD EVA02-Large v3 (Anime/Art Specialist)
+                                    </label>
+                                </div>
+                                
+                                <!-- Janus Pro 7B -->
+                                <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="engine-janus" 
+                                           onchange="App.updateAnalysisEngines()"
+                                           class="w-4 h-4 text-purple-600 rounded">
+                                    <label for="engine-janus" class="text-sm text-gray-700">
+                                        <i class="fas fa-eye text-purple-500 mr-1"></i>
+                                        Janus Pro 7B (Vision Specialist) 
+                                        <span class="text-xs text-purple-600 font-medium">NEW!</span>
+                                    </label>
+                                </div>
+                                
+                                <!-- Additional WD Models -->
+                                <div class="border-t pt-2 mt-2">
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="engine-wd-swinv2" 
+                                               onchange="App.updateAnalysisEngines()"
+                                               class="w-4 h-4 text-green-600 rounded">
+                                        <label for="engine-wd-swinv2" class="text-sm text-gray-600">
+                                            <i class="fas fa-tags text-gray-500 mr-1"></i>
+                                            WD SwinV2 Tagger v3
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center gap-2 mt-1">
+                                        <input type="checkbox" id="engine-wd-vit" 
+                                               onchange="App.updateAnalysisEngines()"
+                                               class="w-4 h-4 text-green-600 rounded">
+                                        <label for="engine-wd-vit" class="text-sm text-gray-600">
+                                            <i class="fas fa-tags text-gray-500 mr-1"></i>
+                                            WD ViT Tagger v3
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <p class="text-xs text-gray-500 mt-2">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Select multiple engines for comprehensive analysis. Results will be displayed separately and then combined intelligently.
                             </p>
                         </div>
                         

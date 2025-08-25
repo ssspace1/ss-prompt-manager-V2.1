@@ -490,7 +490,129 @@ app.post('/api/test-replicate', async (c) => {
   }
 });
 
-// API: Replicate Tagger Analysis
+// API: Multi-Engine Image Analysis (WD-EVA02, Janus-Pro-7B, etc.)
+app.post('/api/multi-analysis', async (c) => {
+  try {
+    const { apiKey, engines, imageData, analysisPrompt, threshold } = await c.req.json();
+    
+    if (!apiKey || !engines || !Array.isArray(engines) || !imageData) {
+      return c.json({ error: 'API key, engines array, and image data are required' }, 400);
+    }
+    
+    console.log('🚀 Starting multi-engine analysis:', engines);
+    
+    const results = {};
+    const promises = engines.map(async (engine) => {
+      try {
+        console.log(`🔄 Processing engine: ${engine}`);
+        
+        let inputData;
+        if (engine.startsWith('wd-')) {
+          // WD Tagger models
+          inputData = {
+            image: imageData,
+            model: engine,
+            threshold: threshold || 0.35
+          };
+        } else if (engine === 'janus-pro-7b') {
+          // Janus Pro 7B Vision Model
+          inputData = {
+            image: imageData,
+            query: analysisPrompt || "Analyze this image and describe what you see in detail, including objects, people, settings, colors, and artistic style."
+          };
+        }
+        
+        const createResponse = await fetch('https://api.replicate.com/v1/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            version: getModelVersion(engine),
+            input: inputData
+          })
+        });
+        
+        if (!createResponse.ok) {
+          const errorText = await createResponse.text();
+          console.error(`❌ Create prediction failed for ${engine}:`, errorText);
+          return { engine, success: false, error: `Replicate API error: ${createResponse.status}` };
+        }
+        
+        const prediction = await createResponse.json();
+        console.log(`🔄 Prediction created for ${engine}:`, prediction.id);
+        
+        // Poll for completion
+        let result = prediction;
+        let attempts = 0;
+        const maxAttempts = 30; // 30 seconds timeout
+        
+        while ((result.status === 'starting' || result.status === 'processing') && attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          attempts++;
+          
+          const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+            headers: { 'Authorization': `Token ${apiKey}` }
+          });
+          
+          if (!pollResponse.ok) {
+            console.error(`❌ Polling failed for ${engine}:`, pollResponse.status);
+            break;
+          }
+          
+          result = await pollResponse.json();
+          console.log(`📊 ${engine} status (${attempts}/${maxAttempts}):`, result.status);
+        }
+        
+        if (result.status === 'succeeded') {
+          console.log(`✅ ${engine} analysis complete`);
+          return { 
+            engine, 
+            success: true, 
+            output: result.output, 
+            processingTime: attempts,
+            rawResult: result
+          };
+        } else {
+          console.error(`❌ ${engine} failed:`, result.error || result.status);
+          return { 
+            engine, 
+            success: false, 
+            error: result.error || `Failed with status: ${result.status}`,  
+            status: result.status
+          };
+        }
+        
+      } catch (error) {
+        console.error(`❌ ${engine} processing error:`, error);
+        return { engine, success: false, error: error.message };
+      }
+    });
+    
+    const analysisResults = await Promise.all(promises);
+    
+    // Organize results by engine
+    analysisResults.forEach(result => {
+      results[result.engine] = result;
+    });
+    
+    console.log('🎯 Multi-engine analysis complete:', Object.keys(results));
+    
+    return c.json({
+      success: true,
+      results: results,
+      totalEngines: engines.length,
+      successfulEngines: analysisResults.filter(r => r.success).length
+    });
+    
+  } catch (error) {
+    console.error('❌ Multi-analysis error:', error);
+    return c.json({ success: false, error: error.message || 'Multi-analysis failed' }, 500);
+  }
+});
+
+// API: Legacy Replicate Tagger Analysis (maintained for backward compatibility)
 app.post('/api/replicate-tagger', async (c) => {
   try {
     const { apiKey, model, imageData, threshold } = await c.req.json();
@@ -576,14 +698,31 @@ app.post('/api/replicate-tagger', async (c) => {
   }
 });
 
-// Helper function for model versions
+// Helper function for model versions and configurations
 function getModelVersion(modelName) {
   const modelVersions = {
-    'wd-eva02-large-tagger-v3': 'zsxkib/wd-image-tagger', // Using available model
+    'wd-eva02-large-tagger-v3': 'zsxkib/wd-image-tagger', // WD EVA02 Tagger
     'wd-swinv2-tagger-v3': 'zsxkib/wd-image-tagger',
-    'wd-vit-tagger-v3': 'zsxkib/wd-image-tagger'
+    'wd-vit-tagger-v3': 'zsxkib/wd-image-tagger',
+    'janus-pro-7b': 'deepseek-ai/janus-pro-7b' // Janus Pro 7B Vision Model
   };
   return modelVersions[modelName] || 'zsxkib/wd-image-tagger';
+}
+
+function getModelInputSchema(modelName) {
+  // Different models have different input requirements
+  const inputSchemas = {
+    'wd-eva02-large-tagger-v3': {
+      image: 'image_data',
+      model: 'model_name', 
+      threshold: 'confidence_threshold'
+    },
+    'janus-pro-7b': {
+      image: 'image_data',
+      query: 'analysis_prompt'
+    }
+  };
+  return inputSchemas[modelName] || inputSchemas['wd-eva02-large-tagger-v3'];
 }
 
 // API: AI色分け（改善版）
