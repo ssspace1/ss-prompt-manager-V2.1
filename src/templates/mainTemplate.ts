@@ -1032,11 +1032,23 @@ export function getMainHtml(): string {
                                 </select>
                             </div>
                             
+                            <!-- Engine Status Indicator -->
+                            <div class="flex items-center gap-2">
+                                <div id="engine-status-indicator" class="text-xs text-gray-500">
+                                    <span id="engine-status-text">No engines selected</span>
+                                </div>
+                                <button onclick="App.showSettings()" 
+                                        class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-xs transition-colors"
+                                        title="Configure analysis engines">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                            </div>
+                            
                             <!-- AI Generate Button -->
                             <button onclick="App.generateFromImage()" 
                                     class="px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-purple-600 shadow-sm"
                                     id="image-ai-generate-btn" disabled>
-                                <i class="fas fa-magic mr-1 text-xs"></i><span class="text-xs">AI Generate</span>
+                                <i class="fas fa-magic mr-1 text-xs"></i><span class="text-xs">AI Analysis & Tag Generation</span>
                             </button>
                         </div>
                         

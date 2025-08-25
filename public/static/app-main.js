@@ -6206,7 +6206,39 @@ Rules:
       counter.textContent = `(${engines.length} selected)`;
     }
     
+    // Update engine status indicator
+    App.updateEngineStatusIndicator();
+    
     console.log('🔄 Updated analysis engines:', engines);
+  },
+  
+  // Update engine status indicator in the main UI
+  updateEngineStatusIndicator: () => {
+    const statusElement = document.getElementById('engine-status-text');
+    if (!statusElement) return;
+    
+    const analysisEngines = appState.selectedAnalysisEngines || [];
+    const taggingEngine = appState.selectedTaggingEngine || 'none';
+    
+    if (analysisEngines.length === 0) {
+      statusElement.textContent = 'No analysis engines selected - Click ⚙️ to configure';
+      statusElement.className = 'text-red-500';
+      return;
+    }
+    
+    // Create engine display names
+    const engineNames = analysisEngines.map(engine => {
+      switch (engine) {
+        case 'wd-eva02-large-tagger-v3': return 'WD-EVA02';
+        case 'janus-pro-7b': return 'Janus Pro 7B';
+        default: return engine;
+      }
+    });
+    
+    const taggingName = taggingEngine === 'deepseek' ? 'DeepSeek' : taggingEngine === 'llm' ? 'LLM' : 'none';
+    
+    statusElement.textContent = `${engineNames.join(' + ')} → ${taggingName}`;
+    statusElement.className = 'text-green-600 font-medium';
   },
 
   // Update tagging engine selection
@@ -6222,6 +6254,9 @@ Rules:
     
     // Save to localStorage
     localStorage.setItem('selected-tagging-engine', appState.selectedTaggingEngine);
+    
+    // Update engine status indicator
+    App.updateEngineStatusIndicator();
     
     console.log('🔄 Updated tagging engine:', appState.selectedTaggingEngine);
   },
@@ -7339,6 +7374,11 @@ document.addEventListener('DOMContentLoaded', () => {
     taggingRadio.checked = true;
     console.log(`✅ Restored ${savedTaggingEngine} tagging engine`);
   }
+  
+  // Update engine status indicator after initialization
+  setTimeout(() => {
+    App.updateEngineStatusIndicator();
+  }, 100);
   
 
   
