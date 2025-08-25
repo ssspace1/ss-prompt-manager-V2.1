@@ -1033,21 +1033,6 @@ export function getMainHtml(): string {
                                 </div>
                                 
                                 <div class="grid grid-cols-1 gap-2 text-xs">
-                                    <!-- OpenRouter AI -->
-                                    <div class="flex items-center gap-2">
-                                        <input type="checkbox" id="engine-openrouter" 
-                                               onchange="App.updateImageAnalysisEngines()"
-                                               class="w-4 h-4 text-blue-600 rounded">
-                                        <label for="engine-openrouter" class="flex-1">
-                                            <i class="fas fa-robot text-blue-500 mr-1"></i>
-                                            <span class="font-medium">OpenRouter AI</span>
-                                            <span class="text-gray-500">(GPT-4o, Claude, Gemini)</span>
-                                        </label>
-                                        <span id="openrouter-status" class="text-xs px-2 py-1 bg-gray-200 rounded">
-                                            API Key Required
-                                        </span>
-                                    </div>
-                                    
                                     <!-- Janus Pro 7B -->
                                     <div class="flex items-center gap-2">
                                         <input type="checkbox" id="engine-janus" 
@@ -1076,6 +1061,21 @@ export function getMainHtml(): string {
                                         <span id="wd-eva02-status" class="text-xs px-2 py-1 bg-gray-200 rounded">
                                             Replicate Key Required
                                         </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-3 pt-2 border-t bg-blue-50 rounded p-2">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-medium text-blue-700">
+                                            <i class="fas fa-robot mr-1"></i>AI Tagging Engine:
+                                        </span>
+                                        <span id="selected-openrouter-model" class="text-xs text-blue-600">
+                                            Not configured
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-blue-600">
+                                        <i class="fas fa-cog mr-1"></i>
+                                        Configure OpenRouter AI model in <button onclick="App.showSettings()" class="underline hover:text-blue-800">Settings</button>
                                     </div>
                                 </div>
                                 

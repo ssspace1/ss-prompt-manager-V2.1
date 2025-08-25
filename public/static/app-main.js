@@ -3092,6 +3092,7 @@ Output ONLY the JSON, no explanations.`;
     // Update engine status indicators
     setTimeout(() => {
       App.updateEngineStatusIndicators();
+      App.updateSelectedOpenRouterModel();
     }, 100);
   },
   
@@ -3489,7 +3490,11 @@ Output ONLY the JSON, no explanations.`;
   updateImageModelFromSettings: (model) => {
     console.log('🔄 Updating image model from settings:', model);
     App.imageState.visionModel = model;
+    appState.imageVisionModel = model;
     localStorage.setItem('image-vision-model', model);
+    
+    // Update displays
+    App.updateSelectedOpenRouterModel();
     
     // Update tab selectors as well
     const imageModelTab = document.getElementById('image-model-selector');
@@ -4715,15 +4720,13 @@ Object.assign(App, {
       return;
     }
     
-    // Check API keys based on selected engines
-    const needsOpenRouter = selectedEngines.includes('openrouter');
-    const needsReplicate = selectedEngines.includes('janus') || selectedEngines.includes('wd-eva02');
-    
-    if (needsOpenRouter && !appState.apiKey) {
-      showNotification('OpenRouter API key required for AI analysis', 'error');
+    // Check API keys - OpenRouter always needed for final tagging
+    if (!appState.apiKey) {
+      showNotification('OpenRouter API key required for AI tagging', 'error');
       return;
     }
     
+    const needsReplicate = selectedEngines.includes('janus') || selectedEngines.includes('wd-eva02');
     if (needsReplicate && !appState.replicateApiKey) {
       showNotification('Replicate API key required for Janus Pro 7B or WD-EVA02', 'error');
       return;
@@ -4742,19 +4745,6 @@ Object.assign(App, {
       // Run selected analysis engines in parallel
       const analysisResults = {};
       const analysisPromises = [];
-      
-      // OpenRouter AI Analysis
-      if (selectedEngines.includes('openrouter')) {
-        analysisPromises.push(
-          App.runOpenRouterImageAnalysis().then(result => {
-            analysisResults.openrouter = result;
-            console.log('✅ OpenRouter analysis complete');
-          }).catch(error => {
-            analysisResults.openrouter = { error: error.message };
-            console.error('❌ OpenRouter analysis failed:', error);
-          })
-        );
-      }
       
       // Janus Pro 7B Analysis
       if (selectedEngines.includes('janus')) {
@@ -6500,10 +6490,7 @@ Rules:
   updateImageAnalysisEngines: () => {
     const engines = [];
     
-    // Check main UI checkboxes
-    if (document.getElementById('engine-openrouter')?.checked) {
-      engines.push('openrouter');
-    }
+    // Check only analysis engine checkboxes (not OpenRouter)
     if (document.getElementById('engine-janus')?.checked) {
       engines.push('janus');
     }
@@ -6518,6 +6505,7 @@ Rules:
     // Update UI feedback
     App.updateEngineStatusSummary();
     App.updateEngineStatusIndicators();
+    App.updateSelectedOpenRouterModel();
     
     console.log('🔄 Updated image analysis engines:', engines);
   },
@@ -6533,34 +6521,42 @@ Rules:
     } else {
       const engineNames = engines.map(engine => {
         switch (engine) {
-          case 'openrouter': return 'OpenRouter AI';
           case 'janus': return 'Janus Pro 7B';
           case 'wd-eva02': return 'WD-EVA02';
           default: return engine;
         }
       });
-      summaryElement.textContent = `Selected: ${engineNames.join(', ')} → OpenRouter AI tags`;
+      summaryElement.textContent = `Analysis: ${engineNames.join(' + ')} → OpenRouter AI tagging`;
       summaryElement.className = 'text-green-600 font-medium';
+    }
+  },
+  
+  // Update selected OpenRouter model display
+  updateSelectedOpenRouterModel: () => {
+    const modelElement = document.getElementById('selected-openrouter-model');
+    if (!modelElement) return;
+    
+    const selectedModel = appState.imageVisionModel || appState.model;
+    const hasApiKey = !!appState.apiKey;
+    
+    if (!hasApiKey) {
+      modelElement.textContent = 'API Key Required';
+      modelElement.className = 'text-xs text-red-600';
+    } else if (!selectedModel) {
+      modelElement.textContent = 'No model selected';
+      modelElement.className = 'text-xs text-orange-600';
+    } else {
+      // Simplify model name display
+      const modelName = selectedModel.replace(/^[^\/]+\//, '').replace(/-/g, ' ').substring(0, 20);
+      modelElement.textContent = modelName;
+      modelElement.className = 'text-xs text-green-600 font-medium';
     }
   },
   
   // Update individual engine status indicators
   updateEngineStatusIndicators: () => {
     // Check API key availability and update status
-    const hasOpenRouter = !!appState.apiKey;
     const hasReplicate = !!appState.replicateApiKey;
-    
-    // Update OpenRouter status
-    const openrouterStatus = document.getElementById('openrouter-status');
-    if (openrouterStatus) {
-      if (hasOpenRouter) {
-        openrouterStatus.textContent = 'Ready';
-        openrouterStatus.className = 'text-xs px-2 py-1 bg-green-200 text-green-800 rounded';
-      } else {
-        openrouterStatus.textContent = 'API Key Required';
-        openrouterStatus.className = 'text-xs px-2 py-1 bg-red-200 text-red-800 rounded';
-      }
-    }
     
     // Update Janus status
     const janusStatus = document.getElementById('janus-status');
@@ -7766,6 +7762,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update UI indicators
     App.updateEngineStatusSummary();
     App.updateEngineStatusIndicators();
+    App.updateSelectedOpenRouterModel();
     App.updateEngineStatusIndicator();
   }, 100);
   
