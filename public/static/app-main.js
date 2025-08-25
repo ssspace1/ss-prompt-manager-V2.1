@@ -3088,6 +3088,11 @@ Output ONLY the JSON, no explanations.`;
   updateOpenRouterKey: (key) => {
     appState.apiKey = key;
     localStorage.setItem('openrouter-api-key', key);
+    
+    // Update engine status indicators
+    setTimeout(() => {
+      App.updateEngineStatusIndicators();
+    }, 100);
   },
   
   testOpenRouterKey: async () => {
@@ -3181,6 +3186,11 @@ Output ONLY the JSON, no explanations.`;
     appState.replicateApiKey = trimmedKey;
     localStorage.setItem('replicate-api-key', trimmedKey);
     console.log('💾 Replicate API key updated:', trimmedKey ? 'Set' : 'Cleared');
+    
+    // Update engine status indicators
+    setTimeout(() => {
+      App.updateEngineStatusIndicators();
+    }, 100);
   },
   
   testReplicateKey: async () => {
@@ -4373,8 +4383,8 @@ Object.assign(App, {
   
   // Generate from image - main entry point for AI Generate button
   generateFromImage: async () => {
-    // Call the comprehensive tag generation function
-    await App.generateImageTagsFromAI();
+    // Use the new simplified image analysis system
+    await App.runImageAnalysisAndTagging();
   },
   
   // Toggle AI Analysis Result visibility
@@ -4687,6 +4697,278 @@ Object.assign(App, {
     hideLoading();
     TagEditor.renderTags('image');
     showNotification(`${App.imageState.imageTags.length}個のタグに分割しました（AI分類済み）`, 'success');
+  },
+  
+  // 🚀 NEW SIMPLIFIED IMAGE ANALYSIS FUNCTION
+  runImageAnalysisAndTagging: async () => {
+    // Validate image upload
+    if (!App.imageState.imageData) {
+      showNotification('Please upload an image first', 'error');
+      return;
+    }
+    
+    // Get selected engines from main UI
+    const selectedEngines = appState.imageAnalysisEngines || [];
+    
+    if (selectedEngines.length === 0) {
+      showNotification('Please select at least one analysis engine', 'error');
+      return;
+    }
+    
+    // Check API keys based on selected engines
+    const needsOpenRouter = selectedEngines.includes('openrouter');
+    const needsReplicate = selectedEngines.includes('janus') || selectedEngines.includes('wd-eva02');
+    
+    if (needsOpenRouter && !appState.apiKey) {
+      showNotification('OpenRouter API key required for AI analysis', 'error');
+      return;
+    }
+    
+    if (needsReplicate && !appState.replicateApiKey) {
+      showNotification('Replicate API key required for Janus Pro 7B or WD-EVA02', 'error');
+      return;
+    }
+    
+    const generateBtn = document.getElementById('image-ai-generate-btn');
+    
+    try {
+      if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Analyzing...';
+      }
+      
+      showLoading('🔬 Running image analysis...');
+      
+      // Run selected analysis engines in parallel
+      const analysisResults = {};
+      const analysisPromises = [];
+      
+      // OpenRouter AI Analysis
+      if (selectedEngines.includes('openrouter')) {
+        analysisPromises.push(
+          App.runOpenRouterImageAnalysis().then(result => {
+            analysisResults.openrouter = result;
+            console.log('✅ OpenRouter analysis complete');
+          }).catch(error => {
+            analysisResults.openrouter = { error: error.message };
+            console.error('❌ OpenRouter analysis failed:', error);
+          })
+        );
+      }
+      
+      // Janus Pro 7B Analysis
+      if (selectedEngines.includes('janus')) {
+        analysisPromises.push(
+          App.runJanusAnalysis(App.imageState.imageData).then(result => {
+            analysisResults.janus = result;
+            console.log('✅ Janus analysis complete');
+          }).catch(error => {
+            analysisResults.janus = { error: error.message };
+            console.error('❌ Janus analysis failed:', error);
+          })
+        );
+      }
+      
+      // WD-EVA02 Analysis
+      if (selectedEngines.includes('wd-eva02')) {
+        analysisPromises.push(
+          App.runWDEVA02Analysis(App.imageState.imageData).then(result => {
+            analysisResults['wd-eva02'] = result;
+            console.log('✅ WD-EVA02 analysis complete');
+          }).catch(error => {
+            analysisResults['wd-eva02'] = { error: error.message };
+            console.error('❌ WD-EVA02 analysis failed:', error);
+          })
+        );
+      }
+      
+      // Wait for all analysis to complete
+      await Promise.all(analysisPromises);
+      
+      showLoading('🤖 Processing results with AI...');
+      
+      // Process all results with OpenRouter AI to generate tags
+      const finalTags = await App.processAnalysisResultsToTags(analysisResults, selectedEngines);
+      
+      // Update Tag Editor with results
+      App.imageState.imageTags = finalTags;
+      TagEditor.renderTags('image');
+      
+      hideLoading();
+      showNotification(`✅ Generated ${finalTags.length} tags from ${selectedEngines.length} engines`, 'success');
+      
+      // Show analysis results if available
+      App.displayAnalysisResults(analysisResults);
+      
+    } catch (error) {
+      console.error('❌ Image analysis failed:', error);
+      hideLoading();
+      showNotification(`❌ Analysis failed: ${error.message}`, 'error');
+    } finally {
+      if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-magic mr-1 text-xs"></i><span class="text-xs">AI Analysis & Tag Generation</span>';
+      }
+    }
+  },
+  
+  // Process analysis results into structured tags using OpenRouter AI
+  processAnalysisResultsToTags: async (analysisResults, selectedEngines) => {
+    if (!appState.apiKey) {
+      throw new Error('OpenRouter API key required for tag generation');
+    }
+    
+    // Prepare analysis summary for AI processing
+    let analysisText = 'Image Analysis Results:\n\n';
+    
+    if (analysisResults.openrouter && !analysisResults.openrouter.error) {
+      analysisText += `OpenRouter AI Analysis:\n${analysisResults.openrouter}\n\n`;
+    }
+    
+    if (analysisResults.janus && !analysisResults.janus.error) {
+      analysisText += `Janus Pro 7B Vision Analysis:\n${analysisResults.janus}\n\n`;
+    }
+    
+    if (analysisResults['wd-eva02'] && !analysisResults['wd-eva02'].error) {
+      analysisText += `WD-EVA02 Anime Tagger Results:\n${JSON.stringify(analysisResults['wd-eva02'], null, 2)}\n\n`;
+    }
+    
+    // Use existing system prompt for tag generation
+    const systemPrompt = appState.systemPrompts['image-analysis'] || 'Analyze the image analysis results and generate structured tags.';
+    
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${appState.apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+        'X-Title': 'SS Prompt Manager'
+      },
+      body: JSON.stringify({
+        model: appState.imageVisionModel || 'openai/gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `${systemPrompt}\n\nConvert the analysis results into structured tags. Output format: tag1, tag2, tag3 (comma-separated, clean tags only)`
+          },
+          {
+            role: 'user',
+            content: analysisText
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 1000
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`OpenRouter API error: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    const aiResponse = result.choices[0].message.content;
+    
+    // Parse AI response into structured tags
+    return App.parseAIResponseToTags(aiResponse);
+  },
+  
+  // Parse AI response into structured tag format
+  parseAIResponseToTags: (aiResponse) => {
+    const tags = [];
+    
+    // Split by commas and clean up
+    const rawTags = aiResponse.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+    
+    rawTags.forEach((tag, index) => {
+      // Clean and categorize each tag
+      const cleanTag = tag.replace(/[^\w\s-]/g, '').trim();
+      if (cleanTag.length > 0) {
+        tags.push({
+          id: `ai-tag-${Date.now()}-${index}`,
+          en: cleanTag,
+          ja: translationDict[cleanTag.toLowerCase()] || App.simpleTranslate(cleanTag),
+          weight: 1.0,
+          category: categorizeTag(cleanTag),
+          source: 'ai-multi',
+          confidence: 0.8
+        });
+      }
+    });
+    
+    return tags;
+  },
+  
+  // Run OpenRouter image analysis
+  runOpenRouterImageAnalysis: async () => {
+    if (!appState.apiKey) {
+      throw new Error('OpenRouter API key required');
+    }
+    
+    const systemPrompt = appState.systemPrompts['image-analysis'] || 'Analyze this image and describe what you see in detail.';
+    
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${appState.apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://ss-prompt-manager.pages.dev',
+        'X-Title': 'SS Prompt Manager'
+      },
+      body: JSON.stringify({
+        model: appState.imageVisionModel || 'openai/gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Analyze this image in detail.'
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: App.imageState.imageData
+                }
+              }
+            ]
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`OpenRouter API error: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    return result.choices[0].message.content;
+  },
+  
+  // Display analysis results in UI
+  displayAnalysisResults: (analysisResults) => {
+    // Show the analysis results container
+    const multiContainer = document.getElementById('multi-analysis-container');
+    if (multiContainer) {
+      multiContainer.classList.remove('hidden');
+    }
+    
+    // Update individual engine result sections
+    Object.keys(analysisResults).forEach(engine => {
+      const result = analysisResults[engine];
+      const engineKey = engine === 'wd-eva02' ? 'wd-eva02' : engine;
+      
+      if (!result.error) {
+        App.displayEngineResult(engineKey, result, true);
+      } else {
+        App.displayEngineResult(engineKey, result.error, false);
+      }
+    });
   },
   
   // 🚀 Multi-Engine Helper Functions
@@ -6212,6 +6494,99 @@ Rules:
     console.log('🔄 Updated analysis engines:', engines);
   },
   
+  // 🚀 NEW SIMPLIFIED IMAGE ANALYSIS SYSTEM
+  
+  // Update image analysis engines from main UI checkboxes
+  updateImageAnalysisEngines: () => {
+    const engines = [];
+    
+    // Check main UI checkboxes
+    if (document.getElementById('engine-openrouter')?.checked) {
+      engines.push('openrouter');
+    }
+    if (document.getElementById('engine-janus')?.checked) {
+      engines.push('janus');
+    }
+    if (document.getElementById('engine-wd-eva02')?.checked) {
+      engines.push('wd-eva02');
+    }
+    
+    // Store selected engines
+    appState.imageAnalysisEngines = engines;
+    localStorage.setItem('image-analysis-engines', JSON.stringify(engines));
+    
+    // Update UI feedback
+    App.updateEngineStatusSummary();
+    App.updateEngineStatusIndicators();
+    
+    console.log('🔄 Updated image analysis engines:', engines);
+  },
+  
+  // Update engine status indicators and summary
+  updateEngineStatusSummary: () => {
+    const engines = appState.imageAnalysisEngines || [];
+    const summaryElement = document.getElementById('selected-engines-summary');
+    
+    if (engines.length === 0) {
+      summaryElement.textContent = 'Select at least one engine above, then click AI Analysis';
+      summaryElement.className = 'text-red-500';
+    } else {
+      const engineNames = engines.map(engine => {
+        switch (engine) {
+          case 'openrouter': return 'OpenRouter AI';
+          case 'janus': return 'Janus Pro 7B';
+          case 'wd-eva02': return 'WD-EVA02';
+          default: return engine;
+        }
+      });
+      summaryElement.textContent = `Selected: ${engineNames.join(', ')} → OpenRouter AI tags`;
+      summaryElement.className = 'text-green-600 font-medium';
+    }
+  },
+  
+  // Update individual engine status indicators
+  updateEngineStatusIndicators: () => {
+    // Check API key availability and update status
+    const hasOpenRouter = !!appState.apiKey;
+    const hasReplicate = !!appState.replicateApiKey;
+    
+    // Update OpenRouter status
+    const openrouterStatus = document.getElementById('openrouter-status');
+    if (openrouterStatus) {
+      if (hasOpenRouter) {
+        openrouterStatus.textContent = 'Ready';
+        openrouterStatus.className = 'text-xs px-2 py-1 bg-green-200 text-green-800 rounded';
+      } else {
+        openrouterStatus.textContent = 'API Key Required';
+        openrouterStatus.className = 'text-xs px-2 py-1 bg-red-200 text-red-800 rounded';
+      }
+    }
+    
+    // Update Janus status
+    const janusStatus = document.getElementById('janus-status');
+    if (janusStatus) {
+      if (hasReplicate) {
+        janusStatus.textContent = 'Ready';
+        janusStatus.className = 'text-xs px-2 py-1 bg-green-200 text-green-800 rounded';
+      } else {
+        janusStatus.textContent = 'Replicate Key Required';
+        janusStatus.className = 'text-xs px-2 py-1 bg-red-200 text-red-800 rounded';
+      }
+    }
+    
+    // Update WD-EVA02 status
+    const wdStatus = document.getElementById('wd-eva02-status');
+    if (wdStatus) {
+      if (hasReplicate) {
+        wdStatus.textContent = 'Ready';
+        wdStatus.className = 'text-xs px-2 py-1 bg-green-200 text-green-800 rounded';
+      } else {
+        wdStatus.textContent = 'Replicate Key Required';
+        wdStatus.className = 'text-xs px-2 py-1 bg-red-200 text-red-800 rounded';
+      }
+    }
+  },
+  
   // Update engine status indicator in the main UI
   updateEngineStatusIndicator: () => {
     const statusElement = document.getElementById('engine-status-text');
@@ -7375,8 +7750,22 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`✅ Restored ${savedTaggingEngine} tagging engine`);
   }
   
-  // Update engine status indicator after initialization
+  // Initialize new simplified image analysis system
+  const savedImageEngines = JSON.parse(localStorage.getItem('image-analysis-engines') || '[]');
+  appState.imageAnalysisEngines = savedImageEngines;
+  
+  // Restore checkbox states
   setTimeout(() => {
+    savedImageEngines.forEach(engine => {
+      const checkbox = document.getElementById(`engine-${engine}`);
+      if (checkbox) {
+        checkbox.checked = true;
+      }
+    });
+    
+    // Update UI indicators
+    App.updateEngineStatusSummary();
+    App.updateEngineStatusIndicators();
     App.updateEngineStatusIndicator();
   }, 100);
   

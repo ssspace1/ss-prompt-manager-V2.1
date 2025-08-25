@@ -1023,25 +1023,66 @@ export function getMainHtml(): string {
                                 </button>
                             </div>
                             
-                            <!-- Model Selection -->
-                            <div class="flex items-center gap-1">
-                                <label class="text-xs text-gray-600">Model:</label>
-                                <select id="image-model-selector" onchange="App.updateImageModelFromTab()" 
-                                        class="px-2 py-1 border rounded text-xs min-w-[180px]">
-                                    <option value="">Select a model...</option>
-                                </select>
-                            </div>
-                            
-                            <!-- Engine Status Indicator -->
-                            <div class="flex items-center gap-2">
-                                <div id="engine-status-indicator" class="text-xs text-gray-500">
-                                    <span id="engine-status-text">No engines selected</span>
+                            <!-- Analysis Engine Selection (New Simplified System) -->
+                            <div class="bg-gray-50 rounded-lg p-3 border">
+                                <div class="flex items-center mb-2">
+                                    <h4 class="text-xs font-medium text-gray-700">
+                                        <i class="fas fa-microscope mr-1 text-blue-500"></i>
+                                        Analysis Engines (Select Multiple):
+                                    </h4>
                                 </div>
-                                <button onclick="App.showSettings()" 
-                                        class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-xs transition-colors"
-                                        title="Configure analysis engines">
-                                    <i class="fas fa-cog"></i>
-                                </button>
+                                
+                                <div class="grid grid-cols-1 gap-2 text-xs">
+                                    <!-- OpenRouter AI -->
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="engine-openrouter" 
+                                               onchange="App.updateImageAnalysisEngines()"
+                                               class="w-4 h-4 text-blue-600 rounded">
+                                        <label for="engine-openrouter" class="flex-1">
+                                            <i class="fas fa-robot text-blue-500 mr-1"></i>
+                                            <span class="font-medium">OpenRouter AI</span>
+                                            <span class="text-gray-500">(GPT-4o, Claude, Gemini)</span>
+                                        </label>
+                                        <span id="openrouter-status" class="text-xs px-2 py-1 bg-gray-200 rounded">
+                                            API Key Required
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Janus Pro 7B -->
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="engine-janus" 
+                                               onchange="App.updateImageAnalysisEngines()"
+                                               class="w-4 h-4 text-purple-600 rounded">
+                                        <label for="engine-janus" class="flex-1">
+                                            <i class="fas fa-eye text-purple-500 mr-1"></i>
+                                            <span class="font-medium">Janus Pro 7B</span>
+                                            <span class="text-gray-500">(Vision Specialist)</span>
+                                        </label>
+                                        <span id="janus-status" class="text-xs px-2 py-1 bg-gray-200 rounded">
+                                            Replicate Key Required
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- WD-EVA02 -->
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="engine-wd-eva02" 
+                                               onchange="App.updateImageAnalysisEngines()"
+                                               class="w-4 h-4 text-green-600 rounded">
+                                        <label for="engine-wd-eva02" class="flex-1">
+                                            <i class="fas fa-tags text-green-500 mr-1"></i>
+                                            <span class="font-medium">WD-EVA02</span>
+                                            <span class="text-gray-500">(Anime Tagger)</span>
+                                        </label>
+                                        <span id="wd-eva02-status" class="text-xs px-2 py-1 bg-gray-200 rounded">
+                                            Replicate Key Required
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-2 pt-2 border-t text-xs text-gray-600">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    <span id="selected-engines-summary">Select engines above, then click AI Analysis</span>
+                                </div>
                             </div>
                             
                             <!-- AI Generate Button -->
