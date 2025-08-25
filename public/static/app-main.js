@@ -4375,26 +4375,33 @@ Object.assign(App, {
   
   // Toggle AI Analysis Result visibility
   toggleAnalysisResult: () => {
-    const container = document.getElementById('analysis-result-container');
+    // Toggle both legacy and multi-engine analysis containers
+    const legacyContainer = document.getElementById('analysis-result-container');
+    const multiContainer = document.getElementById('multi-analysis-container');
+    const toggleBtn = document.getElementById('toggle-analysis-btn');
     const toggleText = document.getElementById('toggle-analysis-text');
     const toggleIcon = document.getElementById('toggle-analysis-icon');
     
-    if (!container) return;
+    App.imageState.analysisVisible = !App.imageState.analysisVisible;
     
-    if (container.classList.contains('hidden')) {
-      container.classList.remove('hidden');
-      if (toggleText) toggleText.textContent = 'Hide AI Analysis';
-      if (toggleIcon) {
-        toggleIcon.classList.remove('fa-chevron-down');
-        toggleIcon.classList.add('fa-chevron-up');
-      }
+    if (App.imageState.analysisVisible) {
+      // Show all available analysis containers
+      if (legacyContainer) legacyContainer.classList.remove('hidden');
+      if (multiContainer) multiContainer.classList.remove('hidden');
+      
+      if (toggleText) toggleText.textContent = 'Hide Analysis';
+      if (toggleIcon) toggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+      if (toggleBtn) toggleBtn.classList.replace('bg-green-500', 'bg-gray-500');
+      if (toggleBtn) toggleBtn.classList.replace('hover:bg-green-600', 'hover:bg-gray-600');
     } else {
-      container.classList.add('hidden');
-      if (toggleText) toggleText.textContent = 'Show AI Analysis';
-      if (toggleIcon) {
-        toggleIcon.classList.remove('fa-chevron-up');
-        toggleIcon.classList.add('fa-chevron-down');
-      }
+      // Hide all analysis containers
+      if (legacyContainer) legacyContainer.classList.add('hidden');
+      if (multiContainer) multiContainer.classList.add('hidden');
+      
+      if (toggleText) toggleText.textContent = 'Show Analysis';
+      if (toggleIcon) toggleIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+      if (toggleBtn) toggleBtn.classList.replace('bg-gray-500', 'bg-green-500');
+      if (toggleBtn) toggleBtn.classList.replace('hover:bg-gray-600', 'hover:bg-green-600');
     }
   },
   
@@ -4903,6 +4910,222 @@ Object.assign(App, {
     }
   },
   
+  // 🎯 Tag from specific engine result
+  tagFromEngineResult: async (engineKey) => {
+    console.log(`🎯 Tagging from ${engineKey} result only`);
+    
+    if (!App.imageState.multiAnalysisResults || !App.imageState.multiAnalysisResults[engineKey]) {
+      showNotification(`❌ ${engineKey} result not available`, 'error');
+      return;
+    }
+    
+    const engineResult = App.imageState.multiAnalysisResults[engineKey];
+    
+    if (!engineResult.success) {
+      showNotification(`❌ ${engineKey} analysis failed: ${engineResult.error}`, 'error');
+      return;
+    }
+    
+    showLoading(`🏷️ ${engineKey} 結果をタグ化中...`);
+    
+    try {
+      let tags = [];
+      
+      if (engineKey === 'llm') {
+        // LLM result: Convert analysis text to tags using AI
+        if (!appState.apiKey) {
+          showNotification('OpenRouter APIキーが必要です', 'error');
+          return;
+        }
+        
+        const tagGenerationPrompt = App.getTagGenerationSystemPrompt();
+        const response = await fetch('/api/openrouter/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: tagGenerationPrompt },
+              { role: 'user', content: `Convert this image analysis to structured tags: ${engineResult.output}` }
+            ],
+            model: appState.selectedModel || 'openai/gpt-4o-mini',
+            apiKey: appState.apiKey,
+            temperature: 0.7,
+            maxTokens: 500
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const parsedResult = JsonProcessor.cleanAndParse(data.content);
+          if (parsedResult && parsedResult.pairs) {
+            tags = parsedResult.pairs.map((pair, index) => ({
+              id: `${engineKey}-tag-${Date.now()}-${index}`,
+              en: pair.en,
+              ja: pair.ja,
+              weight: pair.weight || 1.0,
+              category: pair.category || categorizeTag(pair.en),
+              source: engineKey,
+              confidence: 0.8
+            }));
+          }
+        }
+        
+      } else if (engineKey.startsWith('wd-') || engineKey === 'wd-eva02') {
+        // WD Tagger result: Process tags with confidence
+        tags = App.processTaggerOutput(engineResult.output);
+        
+      } else if (engineKey === 'janus') {
+        // Janus Pro 7B result: Process vision analysis
+        tags = App.processJanusOutput(engineResult.output);
+      }
+      
+      if (tags.length === 0) {
+        showNotification(`⚠️ ${engineKey} からタグを生成できませんでした`, 'warning');
+        return;
+      }
+      
+      // Replace current tags with engine-specific tags
+      App.imageState.imageTags = tags;
+      
+      // Update UI
+      TagEditor.renderTags('image');
+      App.updateImagePromptOutput();
+      
+      hideLoading();
+      showNotification(`✅ ${engineKey} から ${tags.length}個のタグを生成しました`, 'success');
+      
+    } catch (error) {
+      console.error(`❌ Error tagging from ${engineKey}:`, error);
+      hideLoading();
+      showNotification(`❌ ${engineKey} タグ化に失敗: ${error.message}`, 'error');
+    }
+  },
+  
+  // Engine Selector Modal Functions
+  showEngineSelector: () => {
+    const modal = document.getElementById('engine-selector-modal');
+    if (modal) {
+      // Pre-select engines that have successful results
+      const availableEngines = Object.keys(App.imageState.multiAnalysisResults || {});
+      availableEngines.forEach(engine => {
+        const checkbox = document.getElementById(`tag-engine-${engine}`);
+        if (checkbox && App.imageState.multiAnalysisResults[engine]?.success) {
+          checkbox.checked = true;
+          checkbox.disabled = false;
+        } else if (checkbox) {
+          checkbox.checked = false;
+          checkbox.disabled = true;
+        }
+      });
+      
+      modal.classList.remove('hidden');
+    }
+  },
+  
+  hideEngineSelector: () => {
+    const modal = document.getElementById('engine-selector-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  },
+  
+  tagFromSelectedEngines: async () => {
+    const selectedEngines = [];
+    
+    // Get selected engines
+    ['llm', 'wd-eva02', 'janus', 'wd-swinv2', 'wd-vit'].forEach(engine => {
+      const checkbox = document.getElementById(`tag-engine-${engine}`);
+      if (checkbox && checkbox.checked && !checkbox.disabled) {
+        selectedEngines.push(engine);
+      }
+    });
+    
+    if (selectedEngines.length === 0) {
+      showNotification('❌ 少なくとも1つのエンジンを選択してください', 'error');
+      return;
+    }
+    
+    App.hideEngineSelector();
+    showLoading(`🏷️ ${selectedEngines.length}個のエンジンからタグを統合中...`);
+    
+    try {
+      let allTags = [];
+      
+      // Process each selected engine
+      for (const engineKey of selectedEngines) {
+        const engineResult = App.imageState.multiAnalysisResults[engineKey];
+        if (engineResult && engineResult.success) {
+          let engineTags = [];
+          
+          if (engineKey === 'llm') {
+            // Process LLM result
+            if (appState.apiKey) {
+              const tagGenerationPrompt = App.getTagGenerationSystemPrompt();
+              const response = await fetch('/api/openrouter/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  messages: [
+                    { role: 'system', content: tagGenerationPrompt },
+                    { role: 'user', content: `Convert this image analysis to structured tags: ${engineResult.output}` }
+                  ],
+                  model: appState.selectedModel || 'openai/gpt-4o-mini',
+                  apiKey: appState.apiKey,
+                  temperature: 0.7,
+                  maxTokens: 500
+                })
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                const parsedResult = JsonProcessor.cleanAndParse(data.content);
+                if (parsedResult && parsedResult.pairs) {
+                  engineTags = parsedResult.pairs.map((pair, index) => ({
+                    id: `${engineKey}-tag-${Date.now()}-${index}`,
+                    en: pair.en,
+                    ja: pair.ja,
+                    weight: pair.weight || 1.0,
+                    category: pair.category || categorizeTag(pair.en),
+                    source: engineKey,
+                    confidence: 0.8
+                  }));
+                }
+              }
+            }
+          } else if (engineKey.startsWith('wd-') || engineKey === 'wd-eva02') {
+            engineTags = App.processTaggerOutput(engineResult.output);
+          } else if (engineKey === 'janus') {
+            engineTags = App.processJanusOutput(engineResult.output);
+          }
+          
+          allTags = allTags.concat(engineTags);
+        }
+      }
+      
+      if (allTags.length === 0) {
+        hideLoading();
+        showNotification('⚠️ 選択されたエンジンからタグを生成できませんでした', 'warning');
+        return;
+      }
+      
+      // Apply fusion to combine tags from multiple engines
+      const fusedTags = App.fuseMultiEngineResults(allTags, appState.fusionMode);
+      
+      // Update tags
+      App.imageState.imageTags = fusedTags;
+      TagEditor.renderTags('image');
+      App.updateImagePromptOutput();
+      
+      hideLoading();
+      showNotification(`✅ ${selectedEngines.length}個のエンジンから ${fusedTags.length}個のタグを統合しました`, 'success');
+      
+    } catch (error) {
+      console.error('❌ Error in multi-engine tagging:', error);
+      hideLoading();
+      showNotification(`❌ タグ統合に失敗: ${error.message}`, 'error');
+    }
+  },
+  
   copyTaggerResult: () => {
     if (App.imageState.taggerResult) {
       // Format tagger result for copying
@@ -5333,31 +5556,7 @@ Rules:
     }
   },
   
-  // Toggle analysis result visibility
-  toggleAnalysisResult: () => {
-    const container = document.getElementById('analysis-result-container');
-    const toggleBtn = document.getElementById('toggle-analysis-btn');
-    const toggleText = document.getElementById('toggle-analysis-text');
-    const toggleIcon = document.getElementById('toggle-analysis-icon');
-    
-    if (container) {
-      App.imageState.analysisVisible = !App.imageState.analysisVisible;
-      
-      if (App.imageState.analysisVisible) {
-        container.classList.remove('hidden');
-        if (toggleText) toggleText.textContent = 'Hide AI Analysis';
-        if (toggleIcon) toggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
-        if (toggleBtn) toggleBtn.classList.replace('bg-green-500', 'bg-gray-500');
-        if (toggleBtn) toggleBtn.classList.replace('hover:bg-green-600', 'hover:bg-gray-600');
-      } else {
-        container.classList.add('hidden');
-        if (toggleText) toggleText.textContent = 'Show AI Analysis';
-        if (toggleIcon) toggleIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
-        if (toggleBtn) toggleBtn.classList.replace('bg-gray-500', 'bg-green-500');
-        if (toggleBtn) toggleBtn.classList.replace('hover:bg-gray-600', 'hover:bg-green-600');
-      }
-    }
-  },
+
   
   // Parse prompt to image tags
   parsePromptToImageTags: (prompt) => {
@@ -7276,10 +7475,6 @@ App.addNewImageTag = async (lang) => {
 };
 
 // Final Output Update Functions (using existing TagEditor.formatOutput)
-function updateOutput() {
-  TagEditor.updateOutput('main');
-  TagEditor.updateOutput('image');
-}
 
 // App is already defined as window.App object literal above
 

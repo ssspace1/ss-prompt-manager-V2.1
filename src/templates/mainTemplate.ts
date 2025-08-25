@@ -1049,6 +1049,10 @@ export function getMainHtml(): string {
                                         Multi-Engine Analysis Results
                                     </h3>
                                     <div class="flex gap-1">
+                                        <button onclick="App.showEngineSelector()" 
+                                                class="px-1 py-0.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
+                                            <i class="fas fa-tags mr-1"></i>Select & Tag
+                                        </button>
                                         <button onclick="App.copyAllAnalysisResults()" 
                                                 class="px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
                                             <i class="fas fa-copy mr-1"></i>Copy All
@@ -1074,6 +1078,11 @@ export function getMainHtml(): string {
                                                     <span id="llm-status-badge" class="text-xs px-1 py-0.5 bg-gray-200 rounded">●</span>
                                                 </div>
                                                 <div class="flex items-center gap-1">
+                                                    <button onclick="App.tagFromEngineResult('llm')" 
+                                                            class="px-1 py-0.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                                                            title="Tag this result only">
+                                                        <i class="fas fa-tags"></i>
+                                                    </button>
                                                     <button onclick="App.copyAnalysisResult('llm')" 
                                                             class="px-1 py-0.5 text-xs bg-blue-200 hover:bg-blue-300 rounded transition-colors">
                                                         <i class="fas fa-copy"></i>
@@ -1100,6 +1109,11 @@ export function getMainHtml(): string {
                                                     <span id="wd-eva02-status-badge" class="text-xs px-1 py-0.5 bg-gray-200 rounded">●</span>
                                                 </div>
                                                 <div class="flex items-center gap-1">
+                                                    <button onclick="App.tagFromEngineResult('wd-eva02')" 
+                                                            class="px-1 py-0.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                                            title="Tag this result only">
+                                                        <i class="fas fa-tags"></i>
+                                                    </button>
                                                     <button onclick="App.copyAnalysisResult('wd-eva02')" 
                                                             class="px-1 py-0.5 text-xs bg-green-200 hover:bg-green-300 rounded transition-colors">
                                                         <i class="fas fa-copy"></i>
@@ -1126,6 +1140,11 @@ export function getMainHtml(): string {
                                                     <span id="janus-status-badge" class="text-xs px-1 py-0.5 bg-gray-200 rounded">●</span>
                                                 </div>
                                                 <div class="flex items-center gap-1">
+                                                    <button onclick="App.tagFromEngineResult('janus')" 
+                                                            class="px-1 py-0.5 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded transition-colors"
+                                                            title="Tag this result only">
+                                                        <i class="fas fa-tags"></i>
+                                                    </button>
                                                     <button onclick="App.copyAnalysisResult('janus')" 
                                                             class="px-1 py-0.5 text-xs bg-purple-200 hover:bg-purple-300 rounded transition-colors">
                                                         <i class="fas fa-copy"></i>
@@ -1153,6 +1172,11 @@ export function getMainHtml(): string {
                                                         <span id="wd-swinv2-status-badge" class="text-xs px-1 bg-gray-200 rounded">●</span>
                                                     </div>
                                                     <div class="flex items-center gap-1">
+                                                        <button onclick="App.tagFromEngineResult('wd-swinv2')" 
+                                                                class="px-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded"
+                                                                title="Tag this result only">
+                                                            <i class="fas fa-tags text-xs"></i>
+                                                        </button>
                                                         <button onclick="App.copyAnalysisResult('wd-swinv2')" 
                                                                 class="px-1 text-xs bg-gray-200 hover:bg-gray-300 rounded">
                                                             <i class="fas fa-copy text-xs"></i>
@@ -1178,6 +1202,11 @@ export function getMainHtml(): string {
                                                         <span id="wd-vit-status-badge" class="text-xs px-1 bg-gray-200 rounded">●</span>
                                                     </div>
                                                     <div class="flex items-center gap-1">
+                                                        <button onclick="App.tagFromEngineResult('wd-vit')" 
+                                                                class="px-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded"
+                                                                title="Tag this result only">
+                                                            <i class="fas fa-tags text-xs"></i>
+                                                        </button>
                                                         <button onclick="App.copyAnalysisResult('wd-vit')" 
                                                                 class="px-1 text-xs bg-gray-200 hover:bg-gray-300 rounded">
                                                             <i class="fas fa-copy text-xs"></i>
@@ -1193,6 +1222,70 @@ export function getMainHtml(): string {
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Engine Selection Modal for Tagging -->
+                        <div id="engine-selector-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+                            <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-4">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="text-lg font-semibold text-gray-800">
+                                        <i class="fas fa-tags mr-2 text-blue-500"></i>
+                                        Select Engines to Tag
+                                    </h3>
+                                    <button onclick="App.hideEngineSelector()" class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-2 mb-4">
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="tag-engine-llm" class="w-4 h-4 text-blue-600 rounded">
+                                        <label for="tag-engine-llm" class="text-sm text-gray-700">
+                                            <i class="fas fa-robot text-blue-500 mr-1"></i>
+                                            LLM Analysis (Detailed Description)
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="tag-engine-wd-eva02" class="w-4 h-4 text-green-600 rounded">
+                                        <label for="tag-engine-wd-eva02" class="text-sm text-gray-700">
+                                            <i class="fas fa-tags text-green-500 mr-1"></i>
+                                            WD-EVA02 Tagger (Anime Specialist)
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="tag-engine-janus" class="w-4 h-4 text-purple-600 rounded">
+                                        <label for="tag-engine-janus" class="text-sm text-gray-700">
+                                            <i class="fas fa-eye text-purple-500 mr-1"></i>
+                                            Janus Pro 7B (Vision Specialist)
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="tag-engine-wd-swinv2" class="w-4 h-4 text-gray-600 rounded">
+                                        <label for="tag-engine-wd-swinv2" class="text-sm text-gray-600">
+                                            <i class="fas fa-tags text-gray-500 mr-1"></i>
+                                            WD SwinV2 Tagger
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="tag-engine-wd-vit" class="w-4 h-4 text-gray-600 rounded">
+                                        <label for="tag-engine-wd-vit" class="text-sm text-gray-600">
+                                            <i class="fas fa-tags text-gray-500 mr-1"></i>
+                                            WD ViT Tagger
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex justify-end gap-2">
+                                    <button onclick="App.hideEngineSelector()" 
+                                            class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-colors">
+                                        Cancel
+                                    </button>
+                                    <button onclick="App.tagFromSelectedEngines()" 
+                                            class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
+                                        <i class="fas fa-tags mr-1"></i>Generate Tags
+                                    </button>
                                 </div>
                             </div>
                         </div>
