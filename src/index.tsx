@@ -432,6 +432,160 @@ app.get('/', (c) => {
   return c.html(appHtml)
 })
 
+// API: Replicate API Key Test
+app.post('/api/test-replicate', async (c) => {
+  try {
+    const { apiKey } = await c.req.json();
+    
+    if (!apiKey) {
+      return c.json({ error: 'API key is required' }, 400);
+    }
+    
+    console.log('🔑 Testing Replicate API key:', apiKey.substring(0, 10) + '...');
+    
+    // Test Replicate API with a simple request
+    const response = await fetch('https://api.replicate.com/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'SS-Prompt-Manager/1.0'
+      }
+    });
+    
+    console.log('📊 Replicate API response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      return c.json({
+        success: true,
+        message: 'API key is valid',
+        modelCount: data.results?.length || 0
+      });
+    } else {
+      const errorText = await response.text();
+      console.error('❌ Replicate API error:', errorText);
+      
+      let errorMessage = 'Invalid API key';
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.detail || errorData.error || errorText;
+      } catch (e) {
+        // Keep default message if parsing fails
+      }
+      
+      return c.json({
+        success: false,
+        error: errorMessage,
+        status: response.status
+      }, response.status);
+    }
+    
+  } catch (error) {
+    console.error('❌ Replicate API test error:', error);
+    return c.json({
+      success: false,
+      error: error.message || 'Connection failed'
+    }, 500);
+  }
+});
+
+// API: Replicate Tagger Analysis
+app.post('/api/replicate-tagger', async (c) => {
+  try {
+    const { apiKey, model, imageData, threshold } = await c.req.json();
+    
+    if (!apiKey || !model || !imageData) {
+      return c.json({ error: 'API key, model, and image data are required' }, 400);
+    }
+    
+    console.log('🤖 Starting Replicate tagger analysis:', model);
+    
+    // Create prediction request
+    const createResponse = await fetch('https://api.replicate.com/v1/predictions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        version: getModelVersion(model),
+        input: {
+          image: imageData,
+          model: model,
+          threshold: threshold || 0.35
+        }
+      })
+    });
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      console.error('❌ Create prediction failed:', errorText);
+      return c.json({ error: `Replicate API error: ${createResponse.status}` }, createResponse.status);
+    }
+
+    const prediction = await createResponse.json();
+    console.log('🔄 Prediction created:', prediction.id);
+
+    // Poll for completion with timeout
+    let result = prediction;
+    let attempts = 0;
+    const maxAttempts = 30; // 30 seconds max
+    
+    while ((result.status === 'starting' || result.status === 'processing') && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      attempts++;
+      
+      const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+        headers: {
+          'Authorization': `Token ${apiKey}`,
+        }
+      });
+
+      if (!pollResponse.ok) {
+        console.error('❌ Polling failed:', pollResponse.status);
+        break;
+      }
+
+      result = await pollResponse.json();
+      console.log(`📊 Tagger status (${attempts}/${maxAttempts}):`, result.status);
+    }
+
+    if (result.status === 'succeeded') {
+      console.log('✅ Tagger analysis complete');
+      return c.json({
+        success: true,
+        output: result.output,
+        processingTime: attempts
+      });
+    } else {
+      console.error('❌ Tagger failed:', result.error || result.status);
+      return c.json({
+        success: false,
+        error: result.error || `Tagger failed with status: ${result.status}`,
+        status: result.status
+      }, 500);
+    }
+
+  } catch (error) {
+    console.error('❌ Replicate tagger error:', error);
+    return c.json({
+      success: false,
+      error: error.message || 'Tagger analysis failed'
+    }, 500);
+  }
+});
+
+// Helper function for model versions
+function getModelVersion(modelName) {
+  const modelVersions = {
+    'wd-eva02-large-tagger-v3': 'zsxkib/wd-image-tagger', // Using available model
+    'wd-swinv2-tagger-v3': 'zsxkib/wd-image-tagger',
+    'wd-vit-tagger-v3': 'zsxkib/wd-image-tagger'
+  };
+  return modelVersions[modelName] || 'zsxkib/wd-image-tagger';
+}
+
 // API: AI色分け（改善版）
 app.post('/api/categorize', async (c) => {
   const { blocks } = await c.req.json()

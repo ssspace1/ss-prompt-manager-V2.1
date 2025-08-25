@@ -47,26 +47,37 @@
 - 🎯 **機能**: 色分けされたタグ表示 → コピー
 - 🔧 **編集対象**: なし（結果表示）
 
-### **2. Image to Prompt Flow (画像解析フロー)**
+### **2. Image to Prompt Flow (ハイブリッド画像解析フロー) 🔄**
 
 #### **ステップ1: Image Upload (画像アップロード)**
 - 📍 **場所**: Image to Prompt タブ
 - 🎯 **機能**: 画像のアップロードまたはドラッグ&ドロップ
 - 🔧 **編集対象**: なし（UI部分）
 
-#### **ステップ2: Vision AI Analysis (Vision AI解析)**
-- 📍 **場所**: Analyze Image ボタンクリック時
-- 🎯 **機能**: GPT-4o、Gemini、Claude等で画像解析
-- 🔧 **編集対象**: `image-analysis` - 画像解析プロンプト
+#### **ステップ2: Hybrid AI Analysis (ハイブリッドAI解析) 🚀**
+- 📍 **場所**: AI Generate ボタンクリック時
+- 🎯 **機能**: **並列実行** - LLM解析 + WD-EVA02 Tagger解析
+- 🔧 **編集対象**: 
+  - `image-analysis` - LLM画像解析プロンプト
+  - `tagger-model` - WD-EVA02-Large v3専用タガー設定
+  - `fusion-mode` - 統合モード（Balanced/Tagger-focused/LLM-focused）
 
-#### **ステップ3: Structured Tag Generation (構造化タグ生成)**
-- 📍 **場所**: 解析結果からJSON形式タグ生成
-- 🎯 **機能**: 解析 → JSONタグ（カテゴリ付き）
-- 🔧 **編集対象**: `structured-tags` - JSON構造定義
+#### **ステップ3: Intelligent Fusion (インテリジェント融合) 🧠**
+- 📍 **場所**: LLM + Tagger結果の自動統合
+- 🎯 **機能**: 
+  - **AI Analysis Result**: GPT-4o/Gemini等の詳細分析
+  - **WD-EVA02 Tagger Result**: 専用タガーの高精度タグ（信頼度付き）
+  - **Smart Fusion**: カテゴリ別優先度 + 重複除去 + 重み調整
+- 🔧 **編集対象**: 
+  - `fusion-rules` - カテゴリ別融合ルール
+  - `confidence-threshold` - Tagger信頼度しきい値
 
-#### **ステップ4: Ready Tags (完成タグ)**
+#### **ステップ4: Hybrid Ready Tags (ハイブリッド完成タグ) ✨**
 - 📍 **場所**: Tag Editor（Image to Prompt）
-- 🎯 **機能**: AIが事前分類したバイリンガルタグ
+- 🎯 **機能**: 
+  - **Source Badge**: 各タグにLLM/Tagger/Hybridの出典表示
+  - **Confidence Display**: 信頼度パーセンテージ表示
+  - **Quality Optimization**: 両方のAIの長所を活かした高品質タグ
 - 🔧 **編集対象**: なし（結果表示）
 
 ### **3. System Architecture (システム構成)**
@@ -75,6 +86,8 @@
 ```
 🎨 Tag Categorizer (categorizer)
 👁️ Image Analysis (image-analysis)  
+🤖 WD-EVA02 Tagger (wd-eva02-large-tagger-v3) - NEW!
+🔄 Hybrid Fusion Engine (fusion-engine) - NEW!
 🔧 Tag Normalizer (tag-normalizer)
 📋 Structured Tags (structured-tags)
 ```

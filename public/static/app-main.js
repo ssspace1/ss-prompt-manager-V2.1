@@ -428,7 +428,13 @@ let appState = {
     favorites: JSON.parse(localStorage.getItem('favorite-sessions') || '[]'),
     maxSessions: 100, // Maximum number of sessions to keep
     visible: false // History panel visibility
-  }
+  },
+  // Replicate API for specialized taggers
+  replicateApiKey: localStorage.getItem('replicate-api-key') || '',
+  taggerModel: localStorage.getItem('tagger-model') || '',
+  fusionMode: localStorage.getItem('fusion-mode') || 'balanced',
+  taggerThreshold: parseFloat(localStorage.getItem('tagger-threshold') || '0.35'),
+  sourceAttribution: localStorage.getItem('source-attribution') === 'true' || true
 };
 
 
@@ -557,6 +563,10 @@ const TagEditor = {
     // Escape text for HTML attributes
     const escapedText = text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     
+    // Source attribution badge (only for image context with hybrid tags)
+    const sourceAttribution = appState.sourceAttribution && context === 'image' && tag.source;
+    const sourceBadge = sourceAttribution ? TagEditor.createSourceBadge(tag) : '';
+    
     // Create compact content layout without drag handle
     card.innerHTML = `
       <div class="flex items-center gap-2">
@@ -566,6 +576,7 @@ const TagEditor = {
                style="cursor: text; line-height: 1.3;">
             ${text}
           </div>
+          ${sourceBadge}
         </div>
         <div class="flex items-center gap-1 flex-shrink-0">
           <span class="text-xs font-mono text-gray-600 w-8 text-center">${tag.weight.toFixed(1)}</span>
@@ -3149,6 +3160,104 @@ Output ONLY the JSON, no explanations.`;
     }
   },
   
+  // Replicate API Key Management
+  updateReplicateKey: (key) => {
+    const trimmedKey = key.trim();
+    
+    // Validate API key format
+    if (trimmedKey && !trimmedKey.startsWith('r8_')) {
+      showNotification('⚠️ Replicate API keys should start with "r8_"', 'warning');
+    }
+    
+    appState.replicateApiKey = trimmedKey;
+    localStorage.setItem('replicate-api-key', trimmedKey);
+    console.log('💾 Replicate API key updated:', trimmedKey ? 'Set' : 'Cleared');
+  },
+  
+  testReplicateKey: async () => {
+    const keyInput = document.getElementById('replicate-api-key');
+    if (!keyInput || !keyInput.value) {
+      showNotification('Please enter a Replicate API key first', 'error');
+      return;
+    }
+    
+    const apiKey = keyInput.value.trim();
+    console.log('🔑 Testing Replicate API key:', apiKey.substring(0, 10) + '...');
+    
+    showLoading('Testing Replicate API key...');
+    
+    try {
+      // Test API key through backend to avoid CORS issues
+      console.log('📡 Testing Replicate API key through backend...');
+      const response = await fetch('/api/test-replicate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ apiKey: apiKey })
+      });
+      
+      console.log('📊 Response status:', response.status);
+      
+      const data = await response.json();
+      console.log('📊 Response data:', data);
+      
+      if (data.success) {
+        console.log('✅ API test successful');
+        
+        // Save the key
+        localStorage.setItem('replicate-api-key', apiKey);
+        appState.replicateApiKey = apiKey;
+        
+        hideLoading();
+        showNotification(`✅ Replicate API Key Valid! Found ${data.modelCount || 0} models available.`, 'success');
+      } else {
+        console.error('❌ API test failed:', data.error);
+        
+        hideLoading();
+        showNotification(`❌ ${data.error || 'Invalid Replicate API Key'}`, 'error');
+      }
+    } catch (error) {
+      console.error('❌ Network/Connection error:', error);
+      hideLoading();
+      
+      let errorMessage = '❌ Failed to connect to backend';
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        errorMessage += ' - Network connection failed';
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      showNotification(errorMessage, 'error');
+    }
+  },
+  
+  // Hybrid Analysis Settings Management
+  updateTaggerModel: (model) => {
+    appState.taggerModel = model;
+    localStorage.setItem('tagger-model', model);
+    console.log('🤖 Tagger model updated:', model);
+  },
+  
+  updateFusionMode: (mode) => {
+    appState.fusionMode = mode;
+    localStorage.setItem('fusion-mode', mode);
+    console.log('🔀 Fusion mode updated:', mode);
+  },
+  
+  updateTaggerThreshold: (threshold) => {
+    appState.taggerThreshold = parseFloat(threshold);
+    localStorage.setItem('tagger-threshold', threshold);
+    document.getElementById('tagger-threshold-value').textContent = threshold;
+    console.log('📊 Tagger threshold updated:', threshold);
+  },
+  
+  updateSourceAttribution: (enabled) => {
+    appState.sourceAttribution = enabled;
+    localStorage.setItem('source-attribution', enabled ? 'true' : 'false');
+    console.log('🏷️ Source attribution:', enabled ? 'enabled' : 'disabled');
+  },
+  
   updateModelList: (models) => {
     // Update both Text and Image model selects in Settings
     const textModelSelect = document.getElementById('settings-text-model');
@@ -3792,6 +3901,68 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
   
+  // Initialize Replicate API settings for specialized taggers
+  console.log('🤖 Initializing specialized tagger settings...');
+  
+  // Load saved Replicate API key
+  const savedReplicateKey = localStorage.getItem('replicate-api-key');
+  if (savedReplicateKey) {
+    appState.replicateApiKey = savedReplicateKey;
+    const replicateKeyInput = document.getElementById('replicate-api-key');
+    if (replicateKeyInput) {
+      replicateKeyInput.value = savedReplicateKey;
+    }
+    console.log('✅ Replicate API key loaded');
+  }
+  
+  // Load saved tagger model selection
+  const savedTaggerModel = localStorage.getItem('tagger-model');
+  if (savedTaggerModel) {
+    appState.taggerModel = savedTaggerModel;
+    const taggerModelSelect = document.getElementById('tagger-model-selector');
+    if (taggerModelSelect) {
+      taggerModelSelect.value = savedTaggerModel;
+    }
+    console.log('🤖 Tagger model loaded:', savedTaggerModel);
+  }
+  
+  // Load saved fusion mode
+  const savedFusionMode = localStorage.getItem('fusion-mode');
+  if (savedFusionMode) {
+    appState.fusionMode = savedFusionMode;
+    const fusionModeSelect = document.getElementById('fusion-mode-selector');
+    if (fusionModeSelect) {
+      fusionModeSelect.value = savedFusionMode;
+    }
+    console.log('🔀 Fusion mode loaded:', savedFusionMode);
+  }
+  
+  // Load saved tagger threshold
+  const savedThreshold = localStorage.getItem('tagger-threshold');
+  if (savedThreshold) {
+    appState.taggerThreshold = parseFloat(savedThreshold);
+    const thresholdSlider = document.getElementById('tagger-threshold');
+    const thresholdValue = document.getElementById('tagger-threshold-value');
+    if (thresholdSlider) {
+      thresholdSlider.value = savedThreshold;
+    }
+    if (thresholdValue) {
+      thresholdValue.textContent = savedThreshold;
+    }
+    console.log('📊 Tagger threshold loaded:', savedThreshold);
+  }
+  
+  // Load saved source attribution setting
+  const savedSourceAttribution = localStorage.getItem('source-attribution');
+  if (savedSourceAttribution !== null) {
+    appState.sourceAttribution = savedSourceAttribution === 'true';
+    const sourceAttributionCheckbox = document.getElementById('enable-source-attribution');
+    if (sourceAttributionCheckbox) {
+      sourceAttributionCheckbox.checked = appState.sourceAttribution;
+    }
+    console.log('🏷️ Source attribution loaded:', appState.sourceAttribution);
+  }
+  
   // Load saved output format
   const savedFormat = localStorage.getItem('output-format');
   if (savedFormat) {
@@ -3809,6 +3980,7 @@ Object.assign(App, {
   imageState: {
     imageData: null,
     analysisResult: null,
+    taggerResult: null,  // WD-EVA02 tagger result
     visionModel: localStorage.getItem('image-vision-model') || 'gemini-2.0-flash-exp',
     imageOutputFormat: 'sdxl',
     imageFinalFormat: 'sdxl',  // Separate format for final output
@@ -3899,6 +4071,7 @@ Object.assign(App, {
   clearImage: () => {
     App.imageState.imageData = null;
     App.imageState.analysisResult = null;
+    App.imageState.taggerResult = null;
     App.imageState.imageTags = [];
     App.imageState.analysisVisible = false;
     
@@ -3906,17 +4079,21 @@ Object.assign(App, {
     const uploadPrompt = document.getElementById('image-upload-prompt');
     const fileInput = document.getElementById('image-file-input');
     const analysisResult = document.getElementById('image-analysis-result');
+    const taggerResult = document.getElementById('image-tagger-result');
     const generatedPrompt = document.getElementById('image-generated-prompt');
     const generateBtn = document.getElementById('image-ai-generate-btn');
     const analysisContainer = document.getElementById('analysis-result-container');
+    const taggerContainer = document.getElementById('tagger-result-container');
     
     if (previewContainer) previewContainer.classList.add('hidden');
     if (uploadPrompt) uploadPrompt.classList.remove('hidden');
     if (fileInput) fileInput.value = '';
     if (analysisResult) analysisResult.innerHTML = '<p class="text-gray-500 text-sm italic">No analysis yet...</p>';
+    if (taggerResult) taggerResult.innerHTML = '<p class="text-gray-500 text-xs italic">Tagger disabled or no result yet...</p>';
     if (generatedPrompt) generatedPrompt.value = '';
     if (generateBtn) generateBtn.disabled = true;
     if (analysisContainer) analysisContainer.classList.add('hidden');
+    if (taggerContainer) taggerContainer.classList.add('hidden');
     
     // Clear image tag editor
     const enTagsContainer = document.getElementById('image-tags-en');
@@ -4452,6 +4629,20 @@ Object.assign(App, {
     }
   },
   
+  copyTaggerResult: () => {
+    if (App.imageState.taggerResult) {
+      // Format tagger result for copying
+      let formattedResult = '';
+      if (typeof App.imageState.taggerResult === 'object') {
+        formattedResult = JSON.stringify(App.imageState.taggerResult, null, 2);
+      } else {
+        formattedResult = App.imageState.taggerResult;
+      }
+      navigator.clipboard.writeText(formattedResult);
+      showNotification('Tagger result copied to clipboard', 'success');
+    }
+  },
+  
   copyImagePrompt: () => {
     const promptTextarea = document.getElementById('image-generated-prompt');
     if (promptTextarea && promptTextarea.value) {
@@ -4937,111 +5128,105 @@ Rules:
     TagEditor.renderTags('image');
   },
 
-  // AI Generate tags with JSON schema - Complete flow for Image to Prompt
-  generateImageTagsFromAI: async () => {
-    // 画像がアップロードされているか確認
-    if (!App.imageState.imageData) {
-      showNotification('画像をアップロードしてください', 'error');
-      return;
-    }
-    
-    console.log('🔑 Checking API key for image generation:', appState.apiKey ? 'API key exists' : 'No API key found');
-    console.log('🤖 Vision model for analysis:', App.imageState.visionModel || 'Using default');
-    console.log('🤖 Text model for tag generation:', appState.selectedModel || 'Using default');
-    
-    if (!appState.apiKey) {
-      showNotification('❌ OpenRouter APIキーが設定されていません。設定 → API Keys → OpenRouter API Keyを入力してください。', 'error');
-      return;
+  // Specialized Tagger API Call (via Backend)
+  callSpecializedTagger: async (imageData) => {
+    if (!appState.replicateApiKey || !appState.taggerModel) {
+      console.log('🚫 Specialized tagger disabled: Missing API key or model selection');
+      return null;
     }
 
-    const generateBtn = document.getElementById('image-ai-generate-btn');
+    console.log('🤖 Calling specialized tagger via backend:', appState.taggerModel);
     
-    if (generateBtn) {
-      generateBtn.disabled = true;
-      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>画像解析中...';
-    }
-
     try {
-      // Step 1: 画像解析（画像がまだ解析されていない場合）
-      if (!App.imageState.analysisResult) {
-        showLoading('画像を解析しています...');
-        
-        // 画像解析用のシステムプロンプト
-        const imageAnalysisPrompt = App.getImageAnalysisSystemPrompt();
-        
-        const analysisMessages = [
-          {
-            role: 'system',
-            content: imageAnalysisPrompt
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'この画像を詳細に分析して、画像生成プロンプトのための要素を抽出してください。'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: App.imageState.imageData
-                }
-              }
-            ]
-          }
-        ];
-        
-        // Vision APIで画像解析
-        const analysisResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${appState.apiKey}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': window.location.href,
-            'X-Title': 'SS Prompt Manager'
-          },
-          body: JSON.stringify({
-            model: App.imageState.visionModel || 'gemini-2.0-flash-exp',
-            messages: analysisMessages,
-            temperature: 0.7,
-            max_tokens: 800
-          })
-        });
-        
-        if (!analysisResponse.ok) {
-          const error = await analysisResponse.json();
-          throw new Error(error.error?.message || '画像解析に失敗しました');
-        }
-        
-        const analysisData = await analysisResponse.json();
-        App.imageState.analysisResult = analysisData.choices[0].message.content;
-        
-        // 解析結果を表示
-        const resultDiv = document.getElementById('image-analysis-result');
-        if (resultDiv) {
-          resultDiv.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${App.imageState.analysisResult}</pre>`;
-        }
-        
-        // 解析結果コンテナを表示
-        const analysisContainer = document.getElementById('analysis-result-container');
-        if (analysisContainer) {
-          analysisContainer.classList.remove('hidden');
-        }
-        
-        hideLoading();
-      }
-      
-      // Step 2: タグ生成
-      if (generateBtn) {
-        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>タグ生成中...';
-      }
-      
-      showLoading('AIタグを生成しています...');
-      
-      // タグ生成用のシステムプロンプト（AI Format Promptを使用）
-      const tagGenerationPrompt = App.getTagGenerationSystemPrompt();
+      const response = await fetch('/api/replicate-tagger', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          apiKey: appState.replicateApiKey,
+          model: appState.taggerModel,
+          imageData: imageData,
+          threshold: appState.taggerThreshold
+        })
+      });
 
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Backend error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`✅ Tagger analysis complete (${data.processingTime}s):`, data.output);
+        return data.output;
+      } else {
+        throw new Error(data.error || 'Tagger analysis failed');
+      }
+
+    } catch (error) {
+      console.error('❌ Specialized tagger error:', error);
+      return null;
+    }
+  },
+
+  // LLM Analysis (separated for parallel execution)
+  performLLMAnalysis: async (imageData) => {
+    console.log('🧠 Starting LLM analysis...');
+    
+    try {
+      // Step 1: Image Analysis
+      const imageAnalysisPrompt = App.getImageAnalysisSystemPrompt();
+      
+      const analysisMessages = [
+        {
+          role: 'system',
+          content: imageAnalysisPrompt
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'この画像を詳細に分析して、画像生成プロンプトのための要素を抽出してください。'
+            },
+            {
+              type: 'image_url',
+              image_url: { url: imageData }
+            }
+          ]
+        }
+      ];
+      
+      const analysisResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${appState.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.href,
+          'X-Title': 'SS Prompt Manager'
+        },
+        body: JSON.stringify({
+          model: App.imageState.visionModel || 'gemini-2.0-flash-exp',
+          messages: analysisMessages,
+          temperature: 0.7,
+          max_tokens: 800
+        })
+      });
+      
+      if (!analysisResponse.ok) {
+        const error = await analysisResponse.json();
+        throw new Error(error.error?.message || '画像解析に失敗しました');
+      }
+      
+      const analysisData = await analysisResponse.json();
+      const analysisResult = analysisData.choices[0].message.content;
+      
+      // Step 2: Tag Generation from Analysis
+      const tagGenerationPrompt = App.getTagGenerationSystemPrompt();
+      
+      const tagResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${appState.apiKey}`,
@@ -5058,95 +5243,433 @@ Rules:
             },
             {
               role: 'user',
-              content: `以下の画像解析結果から、画像生成用の英語タグとわかりやすい日本語タグを生成してください：\n\n${App.imageState.analysisResult}`
+              content: `以下の画像解析結果から、画像生成用の英語タグとわかりやすい日本語タグを生成してください：\n\n${analysisResult}`
             }
           ],
           temperature: 0.3,
           max_tokens: 1000
         })
       });
-
-      if (!response.ok) {
-        const error = await response.json();
+      
+      if (!tagResponse.ok) {
+        const error = await tagResponse.json();
         throw new Error(error.error?.message || 'タグ生成に失敗しました');
       }
-
-      const data = await response.json();
-      let responseText = data.choices[0].message.content.trim();
       
-      // Enhanced JSON cleanup - remove all markdown artifacts and contamination
+      const tagData = await tagResponse.json();
+      let responseText = tagData.choices[0].message.content.trim();
       responseText = App.cleanAIResponse(responseText);
       
-      // JSON解析
-      let tagsData;
-      try {
-        console.log('AI Response (before parsing):', responseText);
-        tagsData = JSON.parse(responseText);
-        console.log('Parsed tags data:', tagsData);
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError, 'Response:', responseText);
-        throw new Error('AIからの応答が正しいJSON形式ではありません。再度お試しください。');
-      }
-
-      // スキーマ検証
+      const tagsData = JSON.parse(responseText);
       if (!tagsData.pairs || !Array.isArray(tagsData.pairs)) {
-        throw new Error('応答フォーマットが正しくありません - pairs配列が見つかりません');
+        throw new Error('Invalid LLM response format');
       }
-
-      // 既存のタグをクリアして、AI生成タグを設定
-      App.imageState.imageTags = [];
       
-      // タグ処理とフォールバック翻訳
-      const tagPromises = tagsData.pairs.map(async (pair, index) => {
-        console.log(`Processing pair ${index}:`, pair);
-        if (pair.en) {
-          let jaText = pair.ja;
+      // Process tags with source attribution
+      const processedTags = await Promise.all(
+        tagsData.pairs.map(async (pair, index) => {
+          if (!pair.en) return null;
           
-          // 日本語がない場合はフォールバック翻訳
-          if (!jaText || jaText.trim() === '') {
-            console.log(`Missing Japanese for "${pair.en}", using fallback translation`);
-            jaText = await translateWithAI(pair.en, 'ja');
-          }
+          let jaText = pair.ja || await translateWithAI(pair.en, 'ja');
           
-          const newTag = {
-            id: `ai-tag-${Date.now()}-${index}`,
+          return {
+            id: `llm-tag-${Date.now()}-${index}`,
             en: pair.en,
             ja: jaText,
             weight: pair.weight || 1.0,
-            category: pair.category || categorizeTag(pair.en)
+            category: pair.category || categorizeTag(pair.en),
+            source: 'llm',
+            confidence: 0.8, // Default LLM confidence
+            llm_confidence: 0.8
           };
-          console.log('Adding tag:', newTag);
-          return newTag;
-        } else {
-          console.warn('Skipping invalid pair (no English):', pair);
-          return null;
+        })
+      );
+      
+      const validTags = processedTags.filter(tag => tag !== null);
+      console.log(`✅ LLM generated ${validTags.length} tags`);
+      
+      return {
+        analysis: analysisResult,
+        tags: validTags
+      };
+      
+    } catch (error) {
+      console.error('❌ LLM analysis failed:', error);
+      throw error;
+    }
+  },
+
+  // Process Tagger Output into standardized format
+  processTaggerOutput: (taggerOutput) => {
+    if (!taggerOutput || typeof taggerOutput !== 'object') {
+      console.warn('⚠️ Invalid tagger output');
+      return [];
+    }
+    
+    console.log('🏷️ Processing tagger output:', taggerOutput);
+    
+    const processedTags = [];
+    let tagIndex = 0;
+    
+    // Handle different tagger output formats
+    if (taggerOutput.tags && Array.isArray(taggerOutput.tags)) {
+      // Format: { tags: [{ tag: "1girl", confidence: 0.95 }] }
+      taggerOutput.tags.forEach(item => {
+        if (item.confidence >= appState.taggerThreshold) {
+          processedTags.push({
+            id: `tagger-tag-${Date.now()}-${tagIndex++}`,
+            en: item.tag,
+            ja: translationDict[item.tag.toLowerCase()] || App.simpleTranslate(item.tag),
+            weight: Math.min(item.confidence * 1.5, 2.0), // Scale confidence to weight
+            category: categorizeTag(item.tag),
+            source: 'tagger',
+            confidence: item.confidence,
+            tagger_confidence: item.confidence,
+            original_tagger_tag: item.tag
+          });
         }
       });
-      
-      const processedTags = await Promise.all(tagPromises);
-      App.imageState.imageTags = processedTags.filter(tag => tag !== null);
+    } else if (typeof taggerOutput === 'object') {
+      // Format: { "1girl": 0.95, "long_hair": 0.87, ... }
+      Object.entries(taggerOutput).forEach(([tag, confidence]) => {
+        if (confidence >= appState.taggerThreshold) {
+          processedTags.push({
+            id: `tagger-tag-${Date.now()}-${tagIndex++}`,
+            en: tag,
+            ja: translationDict[tag.toLowerCase()] || App.simpleTranslate(tag),
+            weight: Math.min(confidence * 1.5, 2.0),
+            category: categorizeTag(tag),
+            source: 'tagger',
+            confidence: confidence,
+            tagger_confidence: confidence,
+            original_tagger_tag: tag
+          });
+        }
+      });
+    }
+    
+    console.log(`✅ Processed ${processedTags.length} tagger tags`);
+    return processedTags;
+  },
 
-      // UIを更新
-      TagEditor.renderTags('image');
+  // Intelligent Tag Fusion Engine
+  fuseTagResults: (llmTags, taggerTags, fusionMode = 'balanced') => {
+    console.log(`🔀 Fusing results: ${llmTags.length} LLM + ${taggerTags.length} Tagger (mode: ${fusionMode})`);
+    
+    if (llmTags.length === 0 && taggerTags.length === 0) {
+      return [];
+    }
+    
+    if (llmTags.length === 0) {
+      return taggerTags.map(tag => ({ ...tag, fusion_method: 'tagger_only' }));
+    }
+    
+    if (taggerTags.length === 0) {
+      return llmTags.map(tag => ({ ...tag, fusion_method: 'llm_only' }));
+    }
+    
+    // Category-specific fusion rules
+    const categoryRules = {
+      person: { priority: 'tagger', merge_strategy: 'max_confidence' },
+      appearance: { priority: 'hybrid', merge_strategy: 'averaged' },
+      clothing: { priority: 'tagger', merge_strategy: 'max_confidence' },
+      action: { priority: 'llm', merge_strategy: 'llm_refined' },
+      background: { priority: 'llm', merge_strategy: 'direct' },
+      quality: { priority: 'llm', merge_strategy: 'direct' },
+      style: { priority: 'llm', merge_strategy: 'direct' },
+      composition: { priority: 'llm', merge_strategy: 'direct' },
+      object: { priority: 'hybrid', merge_strategy: 'averaged' },
+      other: { priority: 'hybrid', merge_strategy: 'averaged' }
+    };
+    
+    const fusedTags = [];
+    const processedTags = new Set();
+    
+    // Step 1: Find semantic duplicates and merge
+    llmTags.forEach(llmTag => {
+      const semanticDuplicates = taggerTags.filter(taggerTag => 
+        App.areTagsSemanticallyEqual(llmTag.en, taggerTag.en)
+      );
       
-      // 生成されたプロンプトを更新
+      if (semanticDuplicates.length > 0) {
+        // Merge duplicates
+        const taggerTag = semanticDuplicates[0];
+        const rule = categoryRules[llmTag.category] || categoryRules.other;
+        
+        let mergedTag;
+        switch (rule.merge_strategy) {
+          case 'max_confidence':
+            mergedTag = llmTag.confidence > taggerTag.confidence ? llmTag : taggerTag;
+            mergedTag.source = 'hybrid';
+            mergedTag.fusion_method = 'max_confidence';
+            break;
+            
+          case 'averaged':
+            mergedTag = {
+              ...llmTag,
+              weight: (llmTag.weight + taggerTag.weight) / 2,
+              confidence: (llmTag.confidence + taggerTag.confidence) / 2,
+              source: 'hybrid',
+              fusion_method: 'averaged',
+              llm_confidence: llmTag.confidence,
+              tagger_confidence: taggerTag.confidence
+            };
+            break;
+            
+          case 'llm_refined':
+            mergedTag = {
+              ...llmTag,
+              confidence: Math.max(llmTag.confidence, taggerTag.confidence),
+              source: 'hybrid',
+              fusion_method: 'llm_refined',
+              tagger_confidence: taggerTag.confidence
+            };
+            break;
+            
+          default: // 'direct'
+            mergedTag = llmTag;
+            mergedTag.fusion_method = 'direct';
+        }
+        
+        fusedTags.push(mergedTag);
+        processedTags.add(llmTag.en.toLowerCase());
+        processedTags.add(taggerTag.en.toLowerCase());
+      } else {
+        // No duplicate, add LLM tag directly
+        fusedTags.push({ ...llmTag, fusion_method: 'llm_only' });
+        processedTags.add(llmTag.en.toLowerCase());
+      }
+    });
+    
+    // Step 2: Add remaining tagger tags
+    taggerTags.forEach(taggerTag => {
+      if (!processedTags.has(taggerTag.en.toLowerCase())) {
+        fusedTags.push({ ...taggerTag, fusion_method: 'tagger_only' });
+      }
+    });
+    
+    // Step 3: Apply fusion mode preferences
+    const finalTags = App.applyFusionModeFiltering(fusedTags, fusionMode);
+    
+    console.log(`✅ Fusion complete: ${finalTags.length} final tags`);
+    return finalTags;
+  },
+
+  // Helper: Check if two tags are semantically equal
+  areTagsSemanticallyEqual: (tag1, tag2) => {
+    const normalize = (tag) => tag.toLowerCase().replace(/[-_\s]/g, '');
+    const norm1 = normalize(tag1);
+    const norm2 = normalize(tag2);
+    
+    // Direct match
+    if (norm1 === norm2) return true;
+    
+    // Common variations
+    const variations = {
+      '1girl': ['one_girl', 'single_girl', 'girl'],
+      'longhair': ['long_hair'],
+      'blueeyes': ['blue_eyes'],
+      'whitehair': ['white_hair', 'silver_hair'],
+      // Add more semantic mappings as needed
+    };
+    
+    for (const [canonical, variants] of Object.entries(variations)) {
+      if ((norm1 === canonical && variants.includes(norm2)) ||
+          (norm2 === canonical && variants.includes(norm1))) {
+        return true;
+      }
+    }
+    
+    return false;
+  },
+
+  // Apply fusion mode specific filtering and weighting
+  applyFusionModeFiltering: (tags, fusionMode) => {
+    switch (fusionMode) {
+      case 'tagger_focused':
+        return tags
+          .map(tag => {
+            if (tag.source === 'tagger' || tag.tagger_confidence) {
+              tag.weight = tag.weight * 1.3; // Boost tagger tags
+            }
+            return tag;
+          })
+          .sort((a, b) => (b.tagger_confidence || 0) - (a.tagger_confidence || 0));
+          
+      case 'llm_focused':
+        return tags
+          .map(tag => {
+            if (tag.source === 'llm' || tag.llm_confidence) {
+              tag.weight = tag.weight * 1.3; // Boost LLM tags
+            }
+            return tag;
+          })
+          .sort((a, b) => (b.llm_confidence || 0) - (a.llm_confidence || 0));
+          
+      case 'maximum_coverage':
+        return tags; // Keep all tags
+        
+      default: // 'balanced'
+        return tags
+          .sort((a, b) => b.confidence - a.confidence)
+          .slice(0, 50); // Limit to top 50 tags for balanced mode
+    }
+  },
+
+  // Enhanced AI Generate tags with Hybrid Analysis (LLM + Specialized Tagger)
+  generateImageTagsFromAI: async () => {
+    // 画像がアップロードされているか確認
+    if (!App.imageState.imageData) {
+      showNotification('画像をアップロードしてください', 'error');
+      return;
+    }
+    
+    console.log('🔑 Checking API keys...');
+    console.log('  - OpenRouter:', appState.apiKey ? '✅' : '❌');
+    console.log('  - Replicate:', appState.replicateApiKey ? '✅' : '❌');
+    console.log('🤖 Models:', {
+      vision: App.imageState.visionModel || 'default',
+      text: appState.selectedModel || 'default',
+      tagger: appState.taggerModel || 'disabled'
+    });
+    
+    if (!appState.apiKey) {
+      showNotification('❌ OpenRouter APIキーが必要です。設定から入力してください。', 'error');
+      return;
+    }
+
+    const generateBtn = document.getElementById('image-ai-generate-btn');
+    
+    if (generateBtn) {
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>ハイブリッド解析中...';
+    }
+
+    try {
+      const startTime = performance.now();
+      
+      // 🚀 HYBRID ANALYSIS: Parallel execution of LLM and Tagger
+      showLoading('🔬 ハイブリッド解析を開始しています...');
+      
+      console.log('🔄 Starting parallel analysis...');
+      const [llmResult, taggerResult] = await Promise.allSettled([
+        App.performLLMAnalysis(App.imageState.imageData),
+        App.callSpecializedTagger(App.imageState.imageData)
+      ]);
+      
+      // Process results and handle failures gracefully
+      let llmTags = [];
+      let taggerTags = [];
+      let processingStats = {
+        llm_success: false,
+        tagger_success: false,
+        llm_processing_time: 0,
+        tagger_processing_time: 0,
+        total_processing_time: 0
+      };
+      
+      // Process LLM results
+      if (llmResult.status === 'fulfilled' && llmResult.value) {
+        console.log('✅ LLM analysis succeeded');
+        llmTags = llmResult.value.tags || [];
+        processingStats.llm_success = true;
+        App.imageState.analysisResult = llmResult.value.analysis;
+        
+        // Display analysis result
+        const resultDiv = document.getElementById('image-analysis-result');
+        if (resultDiv) {
+          resultDiv.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${App.imageState.analysisResult}</pre>`;
+        }
+        
+        const analysisContainer = document.getElementById('analysis-result-container');
+        if (analysisContainer) {
+          analysisContainer.classList.remove('hidden');
+        }
+      } else {
+        console.warn('❌ LLM analysis failed:', llmResult.reason);
+      }
+      
+      // Process Tagger results
+      if (taggerResult.status === 'fulfilled' && taggerResult.value) {
+        console.log('✅ Tagger analysis succeeded');
+        taggerTags = App.processTaggerOutput(taggerResult.value);
+        processingStats.tagger_success = true;
+        App.imageState.taggerResult = taggerResult.value;
+        
+        // Display tagger result
+        const taggerResultDiv = document.getElementById('image-tagger-result');
+        if (taggerResultDiv) {
+          let formattedTaggerResult = '';
+          if (typeof taggerResult.value === 'object') {
+            if (taggerResult.value.tags && Array.isArray(taggerResult.value.tags)) {
+              // Format as tag list with confidence
+              formattedTaggerResult = taggerResult.value.tags
+                .filter(tag => tag.confidence >= appState.taggerThreshold)
+                .map(tag => `${tag.tag}: ${(tag.confidence * 100).toFixed(1)}%`)
+                .join(', ');
+            } else {
+              // Format as object entries
+              formattedTaggerResult = Object.entries(taggerResult.value)
+                .filter(([tag, confidence]) => confidence >= appState.taggerThreshold)
+                .map(([tag, confidence]) => `${tag}: ${(confidence * 100).toFixed(1)}%`)
+                .join(', ');
+            }
+          } else {
+            formattedTaggerResult = taggerResult.value;
+          }
+          taggerResultDiv.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${formattedTaggerResult}</pre>`;
+        }
+        
+        const taggerContainer = document.getElementById('tagger-result-container');
+        if (taggerContainer) {
+          taggerContainer.classList.remove('hidden');
+        }
+      } else {
+        console.warn('⚠️ Tagger analysis failed or disabled:', taggerResult.reason);
+      }
+      
+      // 🔀 INTELLIGENT FUSION
+      if (generateBtn) {
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>結果を統合中...';
+      }
+      showLoading('🔀 結果を統合しています...');
+      
+      console.log(`📊 Fusion input: ${llmTags.length} LLM tags + ${taggerTags.length} tagger tags`);
+      const fusedTags = App.fuseTagResults(llmTags, taggerTags, appState.fusionMode);
+      
+      // Update final tags
+      App.imageState.imageTags = fusedTags;
+      processingStats.total_processing_time = performance.now() - startTime;
+      processingStats.final_tag_count = fusedTags.length;
+      
+      // Update UI
+      TagEditor.renderTags('image');
       App.updateImagePromptOutput();
       
-      // 履歴に保存
-      const imageUrl = App.imageState.imageData;
+      // Save to history with hybrid metadata
       HistoryManager.addSession('image', {
-        imageUrl: imageUrl,
+        imageUrl: App.imageState.imageData,
         analysisResult: App.imageState.analysisResult,
         tags: App.imageState.imageTags,
         format: App.imageState.imageOutputFormat,
-        model: App.imageState.visionModel || appState.selectedModel
+        model: `${App.imageState.visionModel || 'default'} + ${appState.taggerModel || 'LLM-only'}`,
+        hybrid: true,
+        processingStats: processingStats
       });
       
       hideLoading();
-      showNotification(`${App.imageState.imageTags.length}個のタグを生成しました`, 'success');
+      
+      // Success notification with details
+      const successMsg = processingStats.llm_success && processingStats.tagger_success 
+        ? `🎯 ハイブリッド解析完了！LLM + Tagger → ${fusedTags.length}個のタグ`
+        : processingStats.llm_success 
+          ? `✅ LLM解析完了 → ${fusedTags.length}個のタグ (Tagger無効)`
+          : `⚠️ 部分的な解析 → ${fusedTags.length}個のタグ`;
+      
+      showNotification(successMsg, 'success');
       
     } catch (error) {
-      console.error('Tag generation error:', error);
+      console.error('❌ Hybrid analysis error:', error);
       hideLoading();
       showNotification(`処理に失敗しました: ${error.message}`, 'error');
     } finally {
@@ -6256,6 +6779,38 @@ TagEditor.mainTag = {
   remove: (index) => {
     appState.tags.splice(index, 1);
     TagEditor.renderTags('main');
+  },
+  
+  // Create source attribution badge for hybrid analysis
+  createSourceBadge: (tag) => {
+    if (!tag.source) return '';
+    
+    const sourceLabels = {
+      'llm': { letter: 'L', title: 'Generated by LLM', color: 'bg-blue-500' },
+      'tagger': { letter: 'T', title: 'Generated by Specialized Tagger', color: 'bg-green-500' },
+      'hybrid': { letter: 'H', title: 'Hybrid (LLM + Tagger)', color: 'bg-purple-500' }
+    };
+    
+    const source = sourceLabels[tag.source] || sourceLabels.hybrid;
+    const confidenceInfo = tag.confidence ? ` (${(tag.confidence * 100).toFixed(0)}%)` : '';
+    
+    let detailsText = `${source.title}${confidenceInfo}`;
+    if (tag.fusion_method) {
+      detailsText += `\nFusion: ${tag.fusion_method}`;
+    }
+    if (tag.llm_confidence && tag.tagger_confidence) {
+      detailsText += `\nLLM: ${(tag.llm_confidence * 100).toFixed(0)}% | Tagger: ${(tag.tagger_confidence * 100).toFixed(0)}%`;
+    }
+    
+    return `
+      <div class="flex items-center gap-1 mt-1">
+        <span class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white rounded-full ${source.color} cursor-help" 
+              title="${detailsText}">
+          ${source.letter}
+        </span>
+        ${tag.confidence ? `<span class="text-xs text-gray-500">${(tag.confidence * 100).toFixed(0)}%</span>` : ''}
+      </div>
+    `;
   }
 };
 

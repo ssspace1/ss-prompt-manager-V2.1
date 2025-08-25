@@ -1058,6 +1058,25 @@ export function getMainHtml(): string {
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Collapsible Tagger Analysis Result -->
+                        <div id="tagger-result-container" class="mt-2 hidden">
+                            <div class="border-t pt-2">
+                                <div class="flex items-center justify-between mb-1">
+                                    <h3 class="text-xs font-semibold text-gray-700">
+                                        <i class="fas fa-tags mr-1 text-green-500"></i>
+                                        WD-EVA02 Tagger Result
+                                    </h3>
+                                    <button onclick="App.copyTaggerResult()" 
+                                            class="px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
+                                        <i class="fas fa-copy mr-1"></i>Copy
+                                    </button>
+                                </div>
+                                <div id="image-tagger-result" class="p-2 bg-green-50 rounded max-h-20 overflow-y-auto custom-scrollbar text-xs">
+                                    <p class="text-gray-500 text-xs italic">Tagger disabled or no result yet...</p>
+                                </div>
+                            </div>
+                        </div>
 
                     </div>
                     
@@ -1660,6 +1679,91 @@ export function getMainHtml(): string {
                         <p class="text-xs text-gray-500 mt-1">
                             Get your API key from <a href="https://openrouter.ai/keys" target="_blank" class="text-blue-500 hover:underline">OpenRouter</a>
                         </p>
+                    </div>
+                    
+                    <!-- Replicate API Key for Specialized Taggers -->
+                    <div class="pt-4 border-t">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-tags mr-1 text-green-500"></i>
+                            Replicate API Key (for Anime Tagger)
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="password" id="replicate-api-key" 
+                                   placeholder="r8_..." 
+                                   class="flex-1 px-3 py-2 border rounded-lg"
+                                   onchange="App.updateReplicateKey(this.value)">
+                            <button onclick="App.testReplicateKey()" 
+                                    class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
+                                <i class="fas fa-check-circle mr-1"></i>Test
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Get your API key from <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-blue-500 hover:underline">Replicate</a>. 
+                            Required for wd-eva02-large-tagger-v3 specialized anime tagging.
+                        </p>
+                        
+                        <!-- Tagger Model Selection -->
+                        <div class="mt-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                <i class="fas fa-brain mr-1 text-green-500"></i>
+                                Specialized Tagger Model
+                            </label>
+                            <select id="tagger-model-selector" 
+                                    onchange="App.updateTaggerModel(this.value)"
+                                    class="w-full px-3 py-2 border rounded-lg">
+                                <option value="">Disabled (LLM Only)</option>
+                                <option value="wd-eva02-large-tagger-v3">WD EVA02-Large v3 (Recommended)</option>
+                                <option value="wd-swinv2-tagger-v3">WD SwinV2 Tagger v3</option>
+                                <option value="wd-vit-tagger-v3">WD ViT Tagger v3</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">
+                                Specialized tagger for anime/art images. Combines with LLM analysis for better accuracy.
+                            </p>
+                        </div>
+                        
+                        <!-- Hybrid Analysis Settings -->
+                        <div class="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <h4 class="text-sm font-medium text-green-800 mb-2">
+                                <i class="fas fa-sliders-h mr-1"></i>
+                                Hybrid Analysis Settings
+                            </h4>
+                            
+                            <div class="space-y-3">
+                                <!-- Fusion Mode -->
+                                <div>
+                                    <label class="block text-xs font-medium text-green-700 mb-1">Fusion Mode</label>
+                                    <select id="fusion-mode-selector" 
+                                            onchange="App.updateFusionMode(this.value)"
+                                            class="w-full px-2 py-1 border rounded text-xs">
+                                        <option value="balanced">Balanced Hybrid (Equal Weight)</option>
+                                        <option value="tagger_focused">Tagger-Focused (70% Tagger)</option>
+                                        <option value="llm_focused">LLM-Focused (70% LLM)</option>
+                                        <option value="maximum_coverage">Maximum Coverage (More Tags)</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Tagger Confidence Threshold -->
+                                <div>
+                                    <label class="block text-xs font-medium text-green-700 mb-1">
+                                        Tagger Confidence Threshold: <span id="tagger-threshold-value">0.35</span>
+                                    </label>
+                                    <input type="range" id="tagger-threshold" 
+                                           min="0.1" max="0.9" step="0.05" value="0.35"
+                                           onchange="App.updateTaggerThreshold(this.value)"
+                                           class="w-full">
+                                </div>
+                                
+                                <!-- Source Attribution -->
+                                <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="enable-source-attribution" 
+                                           onchange="App.updateSourceAttribution(this.checked)"
+                                           checked class="rounded">
+                                    <label class="text-xs font-medium text-green-700">
+                                        Show Tag Sources (T=Tagger, L=LLM, H=Hybrid)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Text to Prompt Model Selection -->
