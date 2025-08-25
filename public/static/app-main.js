@@ -3252,47 +3252,9 @@ Output ONLY the JSON, no explanations.`;
     }
   },
   
-  // Multi-Engine Analysis Management 🚀
-  updateAnalysisEngines: () => {
-    const engines = [];
-    
-    // Check each engine checkbox
-    if (document.getElementById('engine-llm')?.checked) engines.push('llm');
-    if (document.getElementById('engine-wd-eva02')?.checked) engines.push('wd-eva02-large-tagger-v3');
-    if (document.getElementById('engine-janus')?.checked) engines.push('janus-pro-7b');
-    if (document.getElementById('engine-wd-swinv2')?.checked) engines.push('wd-swinv2-tagger-v3');
-    if (document.getElementById('engine-wd-vit')?.checked) engines.push('wd-vit-tagger-v3');
-    
-    appState.selectedEngines = engines;
-    localStorage.setItem('selected-engines', JSON.stringify(engines));
-    
-    console.log('🔧 Analysis engines updated:', engines);
-    showNotification(`${engines.length} analysis engines selected`, 'info');
-  },
+  // ❌ REMOVED: updateAnalysisEngines - replaced by updateImageAnalysisEngines
   
-  initializeEngineSelections: () => {
-    // Load saved engine selections
-    const savedEngines = appState.selectedEngines || ['llm'];
-    
-    // Set checkboxes based on saved selections
-    const engineMap = {
-      'llm': 'engine-llm',
-      'wd-eva02-large-tagger-v3': 'engine-wd-eva02',
-      'janus-pro-7b': 'engine-janus',
-      'wd-swinv2-tagger-v3': 'engine-wd-swinv2',
-      'wd-vit-tagger-v3': 'engine-wd-vit'
-    };
-    
-    savedEngines.forEach(engine => {
-      const checkboxId = engineMap[engine];
-      const checkbox = document.getElementById(checkboxId);
-      if (checkbox) {
-        checkbox.checked = true;
-      }
-    });
-    
-    console.log('✅ Engine selections initialized:', savedEngines);
-  },
+  // ❌ REMOVED: initializeEngineSelections - replaced by simplified engine selection initialization
 
   // Legacy compatibility  
   updateTaggerModel: (model) => {
@@ -3982,7 +3944,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   // Initialize engine selections
-  App.initializeEngineSelections();
+  // Initialize simplified image analysis engines
+  const savedImageEngines = JSON.parse(localStorage.getItem('image-analysis-engines') || '[]');
+  appState.imageAnalysisEngines = savedImageEngines;
+  
+  // Set checkboxes for saved engines (only for implemented engines)
+  savedImageEngines.forEach(engine => {
+    if (engine === 'janus-pro-7b') {
+      const checkbox = document.getElementById('engine-janus');
+      if (checkbox) checkbox.checked = true;
+    } else if (engine === 'wd-eva02-large-tagger-v3') {
+      const checkbox = document.getElementById('engine-wd-eva02');
+      if (checkbox) checkbox.checked = true;
+    }
+  });
+  
+  // Update engine status displays
+  App.updateEngineStatusSummary();
+  App.updateEngineStatusIndicators();
   
   // Load saved tagger model selection
   const savedTaggerModel = localStorage.getItem('tagger-model');
@@ -4726,7 +4705,7 @@ Object.assign(App, {
       return;
     }
     
-    const needsReplicate = selectedEngines.includes('janus') || selectedEngines.includes('wd-eva02');
+    const needsReplicate = selectedEngines.includes('janus-pro-7b') || selectedEngines.includes('wd-eva02-large-tagger-v3');
     if (needsReplicate && !appState.replicateApiKey) {
       showNotification('Replicate API key required for Janus Pro 7B or WD-EVA02', 'error');
       return;
@@ -4747,7 +4726,7 @@ Object.assign(App, {
       const analysisPromises = [];
       
       // Janus Pro 7B Analysis
-      if (selectedEngines.includes('janus')) {
+      if (selectedEngines.includes('janus-pro-7b')) {
         analysisPromises.push(
           App.runJanusAnalysis(App.imageState.imageData).then(result => {
             analysisResults.janus = result;
@@ -4760,7 +4739,7 @@ Object.assign(App, {
       }
       
       // WD-EVA02 Analysis
-      if (selectedEngines.includes('wd-eva02')) {
+      if (selectedEngines.includes('wd-eva02-large-tagger-v3')) {
         analysisPromises.push(
           App.runWDEVA02Analysis(App.imageState.imageData).then(result => {
             analysisResults['wd-eva02'] = result;
@@ -4775,17 +4754,25 @@ Object.assign(App, {
       // Wait for all analysis to complete
       await Promise.all(analysisPromises);
       
-      showLoading('🤖 Processing results with AI...');
+      // Store results in multiAnalysisResults format for tag generation
+      App.imageState.multiAnalysisResults = {};
       
-      // Process all results with OpenRouter AI to generate tags
-      const finalTags = await App.processAnalysisResultsToTags(analysisResults, selectedEngines);
+      if (analysisResults.janus && !analysisResults.janus.error) {
+        App.imageState.multiAnalysisResults['janus-pro-7b'] = {
+          success: true,
+          output: analysisResults.janus
+        };
+      }
       
-      // Update Tag Editor with results
-      App.imageState.imageTags = finalTags;
-      TagEditor.renderTags('image');
+      if (analysisResults['wd-eva02'] && !analysisResults['wd-eva02'].error) {
+        App.imageState.multiAnalysisResults['wd-eva02-large-tagger-v3'] = {
+          success: true,
+          output: analysisResults['wd-eva02']
+        };
+      }
       
       hideLoading();
-      showNotification(`✅ Generated ${finalTags.length} tags from ${selectedEngines.length} engines`, 'success');
+      showNotification(`✅ Analysis complete for ${Object.keys(analysisResults).length} engines. Use "Generate Tags" to create tags.`, 'success');
       
       // Show analysis results if available
       App.displayAnalysisResults(analysisResults);
@@ -4802,7 +4789,7 @@ Object.assign(App, {
     }
   },
   
-  // Process analysis results into structured tags using OpenRouter AI
+  // ❌ DEPRECATED: processAnalysisResultsToTags - replaced by tagFromSelectedEngines workflow
   processAnalysisResultsToTags: async (analysisResults, selectedEngines) => {
     if (!appState.apiKey) {
       throw new Error('OpenRouter API key required for tag generation');
@@ -5290,59 +5277,50 @@ Object.assign(App, {
     }
   },
   
-  // Engine Selector Modal Functions
-  showEngineSelector: () => {
-    const modal = document.getElementById('engine-selector-modal');
-    if (modal) {
-      // Pre-select engines that have successful results
-      const availableEngines = Object.keys(App.imageState.multiAnalysisResults || {});
-      availableEngines.forEach(engine => {
-        const checkbox = document.getElementById(`tag-engine-${engine}`);
-        if (checkbox && App.imageState.multiAnalysisResults[engine]?.success) {
-          checkbox.checked = true;
-          checkbox.disabled = false;
-        } else if (checkbox) {
-          checkbox.checked = false;
-          checkbox.disabled = true;
-        }
-      });
-      
-      modal.classList.remove('hidden');
-    }
-  },
-  
-  hideEngineSelector: () => {
-    const modal = document.getElementById('engine-selector-modal');
-    if (modal) {
-      modal.classList.add('hidden');
-    }
-  },
+  // Removed: Engine Selector Modal Functions (consolidated into main UI)
   
   tagFromSelectedEngines: async () => {
     const selectedEngines = [];
+    const engineMapping = {
+      'janus': 'janus-pro-7b',
+      'wd-eva02': 'wd-eva02-large-tagger-v3'
+    };
     
-    // Get selected engines
-    ['llm', 'wd-eva02', 'janus', 'wd-swinv2', 'wd-vit'].forEach(engine => {
-      const checkbox = document.getElementById(`tag-engine-${engine}`);
-      if (checkbox && checkbox.checked && !checkbox.disabled) {
+    // Get selected engines from main UI checkboxes
+    ['janus', 'wd-eva02'].forEach(engine => {
+      const checkbox = document.getElementById(`engine-${engine}`);
+      if (checkbox && checkbox.checked) {
         selectedEngines.push(engine);
       }
     });
     
     if (selectedEngines.length === 0) {
-      showNotification('❌ 少なくとも1つのエンジンを選択してください', 'error');
+      showNotification('❌ まず画像解析エンジンを選択し、AI Analysisを実行してください', 'error');
       return;
     }
     
-    App.hideEngineSelector();
-    showLoading(`🏷️ ${selectedEngines.length}個のエンジンからタグを統合中...`);
+    // Check if analysis results exist for selected engines
+    const availableResults = selectedEngines.filter(engine => {
+      const fullApiName = engineMapping[engine];
+      return App.imageState.multiAnalysisResults && 
+             App.imageState.multiAnalysisResults[fullApiName] && 
+             App.imageState.multiAnalysisResults[fullApiName].success;
+    });
+    
+    if (availableResults.length === 0) {
+      showNotification('❌ 選択されたエンジンの解析結果がありません。まずAI Analysisを実行してください', 'error');
+      return;
+    }
+    
+    showLoading(`🏷️ ${availableResults.length}個のエンジンからタグを統合中...`);
     
     try {
       let allTags = [];
       
-      // Process each selected engine
-      for (const engineKey of selectedEngines) {
-        const engineResult = App.imageState.multiAnalysisResults[engineKey];
+      // Process each available engine result
+      for (const engineKey of availableResults) {
+        const fullApiName = engineMapping[engineKey];
+        const engineResult = App.imageState.multiAnalysisResults[fullApiName];
         if (engineResult && engineResult.success) {
           let engineTags = [];
           
@@ -5381,7 +5359,7 @@ Object.assign(App, {
                 }
               }
             }
-          } else if (engineKey.startsWith('wd-') || engineKey === 'wd-eva02') {
+          } else if (engineKey === 'wd-eva02') {
             engineTags = App.processTaggerOutput(engineResult.output);
           } else if (engineKey === 'janus') {
             engineTags = App.processJanusOutput(engineResult.output);
@@ -6453,36 +6431,7 @@ Rules:
     });
   },
 
-  // Update analysis engines selection
-  updateAnalysisEngines: () => {
-    const engines = [];
-    
-    // Check WD-EVA02
-    if (document.getElementById('analysis-engine-wd-eva02')?.checked) {
-      engines.push('wd-eva02-large-tagger-v3');
-    }
-    
-    // Check Janus Pro 7B
-    if (document.getElementById('analysis-engine-janus')?.checked) {
-      engines.push('janus-pro-7b');
-    }
-    
-    appState.selectedAnalysisEngines = engines;
-    
-    // Save to localStorage
-    localStorage.setItem('selected-analysis-engines', JSON.stringify(engines));
-    
-    // Update UI counter
-    const counter = document.getElementById('analysis-engine-count');
-    if (counter) {
-      counter.textContent = `(${engines.length} selected)`;
-    }
-    
-    // Update engine status indicator
-    App.updateEngineStatusIndicator();
-    
-    console.log('🔄 Updated analysis engines:', engines);
-  },
+
   
   // 🚀 NEW SIMPLIFIED IMAGE ANALYSIS SYSTEM
   
@@ -6490,15 +6439,15 @@ Rules:
   updateImageAnalysisEngines: () => {
     const engines = [];
     
-    // Check only analysis engine checkboxes (not OpenRouter)
+    // Check analysis engine checkboxes and map to proper API names
     if (document.getElementById('engine-janus')?.checked) {
-      engines.push('janus');
+      engines.push('janus-pro-7b');  // Use full API name
     }
     if (document.getElementById('engine-wd-eva02')?.checked) {
-      engines.push('wd-eva02');
+      engines.push('wd-eva02-large-tagger-v3');  // Use full API name
     }
     
-    // Store selected engines
+    // Store selected engines with full API names
     appState.imageAnalysisEngines = engines;
     localStorage.setItem('image-analysis-engines', JSON.stringify(engines));
     
@@ -6521,8 +6470,8 @@ Rules:
     } else {
       const engineNames = engines.map(engine => {
         switch (engine) {
-          case 'janus': return 'Janus Pro 7B';
-          case 'wd-eva02': return 'WD-EVA02';
+          case 'janus-pro-7b': return 'Janus Pro 7B';
+          case 'wd-eva02-large-tagger-v3': return 'WD-EVA02';
           default: return engine;
         }
       });
@@ -7753,9 +7702,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Restore checkbox states
   setTimeout(() => {
     savedImageEngines.forEach(engine => {
-      const checkbox = document.getElementById(`engine-${engine}`);
-      if (checkbox) {
-        checkbox.checked = true;
+      let checkboxId;
+      // Map full API names to UI checkbox IDs
+      if (engine === 'janus-pro-7b') {
+        checkboxId = 'engine-janus';
+      } else if (engine === 'wd-eva02-large-tagger-v3') {
+        checkboxId = 'engine-wd-eva02';
+      }
+      
+      if (checkboxId) {
+        const checkbox = document.getElementById(checkboxId);
+        if (checkbox) {
+          checkbox.checked = true;
+        }
       }
     });
     
@@ -7767,10 +7726,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 100);
   
 
-  
-  // Update UI counters
-  App.updateAnalysisEngines();
-  console.log('✅ Engine selections initialized:', savedAnalysisEngines);
+
   
   // Load saved vision model
   const savedVisionModel = localStorage.getItem('vision-model');

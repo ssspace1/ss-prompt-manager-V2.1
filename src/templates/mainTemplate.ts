@@ -1102,9 +1102,9 @@ export function getMainHtml(): string {
                                         Multi-Engine Analysis Results
                                     </h3>
                                     <div class="flex gap-1">
-                                        <button onclick="App.showEngineSelector()" 
+                                        <button onclick="App.tagFromSelectedEngines()" 
                                                 class="px-1 py-0.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
-                                            <i class="fas fa-tags mr-1"></i>Select & Tag
+                                            <i class="fas fa-tags mr-1"></i>Generate Tags
                                         </button>
                                         <button onclick="App.copyAllAnalysisResults()" 
                                                 class="px-1 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors">
@@ -1279,69 +1279,7 @@ export function getMainHtml(): string {
                             </div>
                         </div>
                         
-                        <!-- Engine Selection Modal for Tagging -->
-                        <div id="engine-selector-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-                            <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-4">
-                                <div class="flex justify-between items-center mb-3">
-                                    <h3 class="text-lg font-semibold text-gray-800">
-                                        <i class="fas fa-tags mr-2 text-blue-500"></i>
-                                        Select Engines to Tag
-                                    </h3>
-                                    <button onclick="App.hideEngineSelector()" class="text-gray-500 hover:text-gray-700">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                                
-                                <div class="space-y-2 mb-4">
-                                    <div class="flex items-center gap-2">
-                                        <input type="checkbox" id="tag-engine-llm" class="w-4 h-4 text-blue-600 rounded">
-                                        <label for="tag-engine-llm" class="text-sm text-gray-700">
-                                            <i class="fas fa-robot text-blue-500 mr-1"></i>
-                                            LLM Analysis (Detailed Description)
-                                        </label>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <input type="checkbox" id="tag-engine-wd-eva02" class="w-4 h-4 text-green-600 rounded">
-                                        <label for="tag-engine-wd-eva02" class="text-sm text-gray-700">
-                                            <i class="fas fa-tags text-green-500 mr-1"></i>
-                                            WD-EVA02 Tagger (Anime Specialist)
-                                        </label>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <input type="checkbox" id="tag-engine-janus" class="w-4 h-4 text-purple-600 rounded">
-                                        <label for="tag-engine-janus" class="text-sm text-gray-700">
-                                            <i class="fas fa-eye text-purple-500 mr-1"></i>
-                                            Janus Pro 7B (Vision Specialist)
-                                        </label>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <input type="checkbox" id="tag-engine-wd-swinv2" class="w-4 h-4 text-gray-600 rounded">
-                                        <label for="tag-engine-wd-swinv2" class="text-sm text-gray-600">
-                                            <i class="fas fa-tags text-gray-500 mr-1"></i>
-                                            WD SwinV2 Tagger
-                                        </label>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <input type="checkbox" id="tag-engine-wd-vit" class="w-4 h-4 text-gray-600 rounded">
-                                        <label for="tag-engine-wd-vit" class="text-sm text-gray-600">
-                                            <i class="fas fa-tags text-gray-500 mr-1"></i>
-                                            WD ViT Tagger
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex justify-end gap-2">
-                                    <button onclick="App.hideEngineSelector()" 
-                                            class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-colors">
-                                        Cancel
-                                    </button>
-                                    <button onclick="App.tagFromSelectedEngines()" 
-                                            class="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
-                                        <i class="fas fa-tags mr-1"></i>Generate Tags
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+
 
                     </div>
                     
@@ -1967,80 +1905,15 @@ export function getMainHtml(): string {
                             Required for wd-eva02-large-tagger-v3 specialized anime tagging.
                         </p>
                         
-                        <!-- Analysis & Tagging Engine Configuration -->
-                        <div class="mt-3 space-y-3">
-                            <!-- 画像解析エンジン選択 -->
-                            <div class="border rounded-lg p-3 bg-blue-50">
-                                <label class="block text-sm font-medium text-blue-700 mb-2">
-                                    <i class="fas fa-microscope mr-1"></i>
-                                    画像解析エンジン（複数選択可）
-                                </label>
-                                <p class="text-xs text-blue-600 mb-2">画像を解析して詳細な説明を生成します</p>
-                                
-                                <div class="space-y-2">
-                                    <!-- WD EVA02 Tagger -->
-                                    <div class="flex items-center gap-2">
-                                        <input type="checkbox" id="analysis-engine-wd-eva02" 
-                                               onchange="App.updateAnalysisEngines()"
-                                               class="w-4 h-4 text-green-600 rounded">
-                                        <label for="analysis-engine-wd-eva02" class="text-sm text-gray-700">
-                                            <i class="fas fa-tags text-green-500 mr-1"></i>
-                                            WD EVA02-Large v3 (アニメ・アート特化)
-                                        </label>
-                                    </div>
-                                    
-                                    <!-- Janus Pro 7B -->
-                                    <div class="flex items-center gap-2">
-                                        <input type="checkbox" id="analysis-engine-janus" 
-                                               onchange="App.updateAnalysisEngines()"
-                                               class="w-4 h-4 text-purple-600 rounded">
-                                        <label for="analysis-engine-janus" class="text-sm text-gray-700">
-                                            <i class="fas fa-eye text-purple-500 mr-1"></i>
-                                            Janus Pro 7B (汎用ビジョン解析) 
-                                            <span class="text-xs text-purple-600 font-medium">推奨</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- タグ生成エンジン選択 -->
-                            <div class="border rounded-lg p-3 bg-orange-50">
-                                <label class="block text-sm font-medium text-orange-700 mb-2">
-                                    <i class="fas fa-tags mr-1"></i>
-                                    タグ生成エンジン（１つ選択）
-                                </label>
-                                <p class="text-xs text-orange-600 mb-2">解析結果をタグに変換します</p>
-                                
-                                <div class="space-y-2">
-                                    <!-- DeepSeek for Tagging -->
-                                    <div class="flex items-center gap-2">
-                                        <input type="radio" id="tagging-engine-deepseek" 
-                                               name="tagging-engine"
-                                               onchange="App.updateTaggingEngine()"
-                                               class="w-4 h-4 text-orange-600 rounded" checked>
-                                        <label for="tagging-engine-deepseek" class="text-sm text-gray-700">
-                                            <i class="fas fa-brain text-orange-500 mr-1"></i>
-                                            DeepSeek (解析結果→タグ変換)
-                                        </label>
-                                    </div>
-                                    
-                                    <!-- Direct LLM for Tagging -->
-                                    <div class="flex items-center gap-2">
-                                        <input type="radio" id="tagging-engine-llm" 
-                                               name="tagging-engine"
-                                               onchange="App.updateTaggingEngine()"
-                                               class="w-4 h-4 text-blue-600 rounded">
-                                        <label for="tagging-engine-llm" class="text-sm text-gray-700">
-                                            <i class="fas fa-robot text-blue-500 mr-1"></i>
-                                            LLM直接タグ化 (GPT-4o/Gemini/Claude)
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <p class="text-xs text-gray-500 mt-2">
+                        
+                        <!-- Image Analysis Note -->
+                        <div class="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <p class="text-sm text-blue-800">
                                 <i class="fas fa-info-circle mr-1"></i>
-                                解析エンジンで画像を分析し、その結果をタグ生成エンジンでタグに変換します。
+                                <strong>Image Analysis Engines:</strong> Configure analysis engines directly in the Image to Prompt tab.
+                            </p>
+                            <p class="text-xs text-blue-600 mt-1">
+                                Select Janus Pro 7B and WD-EVA02 engines in the main interface for image analysis.
                             </p>
                         </div>
                         
