@@ -421,6 +421,13 @@ let appState = {
       object: true, other: true
     },
     visible: false
+  },
+  // History system
+  history: {
+    sessions: JSON.parse(localStorage.getItem('prompt-history') || '[]'),
+    favorites: JSON.parse(localStorage.getItem('favorite-sessions') || '[]'),
+    maxSessions: 100, // Maximum number of sessions to keep
+    visible: false // History panel visibility
   }
 };
 
@@ -1860,7 +1867,15 @@ window.App = {
       // STEP 3: Render tags to UI
       TagEditor.renderTags('main');
       
-      // STEP 4: Success notification
+      // STEP 4: Save to history
+      HistoryManager.addSession('text', {
+        input: originalInput,
+        tags: appState.tags,
+        format: currentFormat,
+        model: appState.selectedModel
+      });
+      
+      // STEP 5: Success notification
       showNotification(`Generated ${appState.tags.length} tags from: "${originalInput.substring(0, 30)}..." via AI`, 'success');
       console.log('🎉 AI Generate completed successfully with direct JSON processing');
       
@@ -5025,6 +5040,16 @@ Rules:
       // 生成されたプロンプトを更新
       App.updateImagePromptOutput();
       
+      // 履歴に保存
+      const imageUrl = App.imageState.imageData;
+      HistoryManager.addSession('image', {
+        imageUrl: imageUrl,
+        analysisResult: App.imageState.analysisResult,
+        tags: App.imageState.imageTags,
+        format: App.imageState.imageOutputFormat,
+        model: App.imageState.visionModel || appState.selectedModel
+      });
+      
       hideLoading();
       showNotification(`${App.imageState.imageTags.length}個のタグを生成しました`, 'success');
       
@@ -6926,4 +6951,538 @@ App.showSettings = () => {
   setTimeout(() => {
     App.setAIInstructionsTab('text-generation');
   }, 100);
+};
+
+// 🕒 HISTORY MANAGEMENT SYSTEM
+// Advanced history system with visual UI and smart features
+
+const HistoryManager = {
+  
+  // Generate auto title from tags or input
+  generateAutoTitle: (session) => {
+    if (session.type === 'text') {
+      const input = session.input.substring(0, 50);
+      return input.length > 50 ? input + '...' : input;
+    } else if (session.type === 'image') {
+      const tagCount = session.tags ? session.tags.length : 0;
+      return `Image Analysis (${tagCount} tags)`;
+    }
+    return 'Untitled Session';
+  },
+
+  // Create session data structure
+  createSession: (type, data) => {
+    const session = {
+      id: Date.now() + Math.random().toString(36).substr(2, 9),
+      type: type, // 'text' or 'image'
+      timestamp: Date.now(),
+      title: data.title || HistoryManager.generateAutoTitle({ type, ...data }),
+      input: data.input || '',
+      tags: data.tags || [],
+      format: data.format || 'sdxl',
+      isFavorite: false,
+      metadata: {
+        model: data.model || appState.selectedModel,
+        version: '2.0'
+      }
+    };
+
+    // Add type-specific data
+    if (type === 'image') {
+      session.imageUrl = data.imageUrl || null;
+      session.analysisResult = data.analysisResult || '';
+    }
+
+    return session;
+  },
+
+  // Add session to history
+  addSession: (type, data) => {
+    const session = HistoryManager.createSession(type, data);
+    
+    // Add to beginning of array (most recent first)
+    appState.history.sessions.unshift(session);
+    
+    // Maintain max session limit
+    if (appState.history.sessions.length > appState.history.maxSessions) {
+      appState.history.sessions = appState.history.sessions.slice(0, appState.history.maxSessions);
+    }
+    
+    // Save to localStorage
+    HistoryManager.saveHistory();
+    
+    // Update UI if history panel is visible
+    if (appState.history.visible) {
+      HistoryManager.renderHistoryUI();
+    }
+    
+    return session;
+  },
+
+  // Save history to localStorage
+  saveHistory: () => {
+    localStorage.setItem('prompt-history', JSON.stringify(appState.history.sessions));
+    localStorage.setItem('favorite-sessions', JSON.stringify(appState.history.favorites));
+  },
+
+  // Toggle favorite status
+  toggleFavorite: (sessionId) => {
+    const session = appState.history.sessions.find(s => s.id === sessionId);
+    if (session) {
+      session.isFavorite = !session.isFavorite;
+      
+      if (session.isFavorite) {
+        // Add to favorites if not already there
+        if (!appState.history.favorites.find(f => f.id === sessionId)) {
+          appState.history.favorites.push({ ...session });
+        }
+      } else {
+        // Remove from favorites
+        appState.history.favorites = appState.history.favorites.filter(f => f.id !== sessionId);
+      }
+      
+      HistoryManager.saveHistory();
+      if (appState.history.visible) {
+        HistoryManager.renderHistoryUI();
+      }
+    }
+  },
+
+  // Delete session
+  deleteSession: (sessionId) => {
+    if (confirm('この履歴を削除しますか？')) {
+      appState.history.sessions = appState.history.sessions.filter(s => s.id !== sessionId);
+      appState.history.favorites = appState.history.favorites.filter(f => f.id !== sessionId);
+      
+      HistoryManager.saveHistory();
+      if (appState.history.visible) {
+        HistoryManager.renderHistoryUI();
+      }
+      
+      showNotification('履歴を削除しました', 'success');
+    }
+  },
+
+  // Restore session to current editor
+  restoreSession: (sessionId) => {
+    const session = appState.history.sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    if (session.type === 'text') {
+      // Switch to text tab
+      App.setTab('text');
+      
+      // Set input text
+      const inputElement = document.getElementById('input-text');
+      if (inputElement) {
+        inputElement.value = session.input;
+      }
+      
+      // Set format
+      const formatSelect = document.getElementById('output-format');
+      if (formatSelect) {
+        formatSelect.value = session.format;
+        appState.outputFormat = session.format;
+      }
+      
+      // Restore tags
+      appState.tags = [...session.tags];
+      TagEditor.renderTags('main');
+      
+    } else if (session.type === 'image') {
+      // Switch to image tab
+      App.setTab('image');
+      
+      // Restore image if available
+      if (session.imageUrl) {
+        const imagePreview = document.getElementById('image-preview');
+        const previewContainer = document.getElementById('image-preview-container');
+        const uploadPrompt = document.getElementById('image-upload-prompt');
+        
+        if (imagePreview && previewContainer && uploadPrompt) {
+          imagePreview.src = session.imageUrl;
+          previewContainer.classList.remove('hidden');
+          uploadPrompt.style.display = 'none';
+        }
+      }
+      
+      // Set analysis result
+      if (session.analysisResult) {
+        const analysisElement = document.getElementById('image-analysis-result');
+        if (analysisElement) {
+          analysisElement.innerHTML = session.analysisResult;
+        }
+      }
+      
+      // Restore image tags
+      App.imageState.imageTags = [...session.tags];
+      TagEditor.renderTags('image');
+    }
+    
+    // Update output
+    App.updateOutput();
+    
+    showNotification('履歴を復元しました', 'success');
+    
+    // Close history panel
+    HistoryManager.toggleHistoryPanel();
+  },
+
+  // Copy session tags to clipboard
+  copySessionTags: (sessionId) => {
+    const session = appState.history.sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    const tags = session.tags.map(tag => tag.en).join(', ');
+    
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(tags).then(() => {
+        showNotification('タグをクリップボードにコピーしました', 'success');
+      });
+    } else {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = tags;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      showNotification('タグをクリップボードにコピーしました', 'success');
+    }
+  },
+
+  // Format timestamp for display
+  formatTimestamp: (timestamp) => {
+    const now = Date.now();
+    const diff = now - timestamp;
+    
+    if (diff < 60000) { // Less than 1 minute
+      return 'たった今';
+    } else if (diff < 3600000) { // Less than 1 hour
+      const minutes = Math.floor(diff / 60000);
+      return `${minutes}分前`;
+    } else if (diff < 86400000) { // Less than 1 day
+      const hours = Math.floor(diff / 3600000);
+      return `${hours}時間前`;
+    } else {
+      const date = new Date(timestamp);
+      return date.toLocaleDateString('ja-JP', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  },
+
+  // Get category color for tag
+  getCategoryColor: (category) => {
+    const colorMap = {
+      person: 'orange', appearance: 'blue', clothing: 'pink', action: 'purple',
+      background: 'green', quality: 'yellow', style: 'indigo', composition: 'gray',
+      object: 'cyan', other: 'gray'
+    };
+    return colorMap[category] || 'gray';
+  },
+
+  // Search sessions
+  searchSessions: (query) => {
+    if (!query.trim()) return appState.history.sessions;
+    
+    const searchTerm = query.toLowerCase();
+    
+    return appState.history.sessions.filter(session => {
+      // Search in title
+      if (session.title.toLowerCase().includes(searchTerm)) return true;
+      
+      // Search in input
+      if (session.input.toLowerCase().includes(searchTerm)) return true;
+      
+      // Search in tags
+      if (session.tags.some(tag => 
+        tag.en.toLowerCase().includes(searchTerm) || 
+        tag.ja.toLowerCase().includes(searchTerm)
+      )) return true;
+      
+      return false;
+    });
+  },
+
+  // Filter sessions by type
+  filterSessions: (type) => {
+    if (type === 'all') return appState.history.sessions;
+    if (type === 'favorites') return appState.history.favorites;
+    return appState.history.sessions.filter(session => session.type === type);
+  },
+
+  // Clear all history
+  clearAllHistory: () => {
+    if (confirm('すべての履歴を削除しますか？この操作は取り消せません。')) {
+      appState.history.sessions = [];
+      appState.history.favorites = [];
+      HistoryManager.saveHistory();
+      
+      if (appState.history.visible) {
+        HistoryManager.renderHistoryUI();
+      }
+      
+      showNotification('すべての履歴を削除しました', 'success');
+    }
+  },
+
+  // Toggle history panel visibility
+  toggleHistoryPanel: () => {
+    appState.history.visible = !appState.history.visible;
+    
+    if (appState.history.visible) {
+      HistoryManager.showHistoryPanel();
+    } else {
+      HistoryManager.hideHistoryPanel();
+    }
+  },
+
+  // Show history panel
+  showHistoryPanel: () => {
+    let historyPanel = document.getElementById('history-panel');
+    
+    if (!historyPanel) {
+      HistoryManager.createHistoryPanel();
+      historyPanel = document.getElementById('history-panel');
+    }
+    
+    historyPanel.classList.remove('hidden');
+    HistoryManager.renderHistoryUI();
+    appState.history.visible = true;
+  },
+
+  // Hide history panel
+  hideHistoryPanel: () => {
+    const historyPanel = document.getElementById('history-panel');
+    if (historyPanel) {
+      historyPanel.classList.add('hidden');
+    }
+    appState.history.visible = false;
+  },
+
+  // Create history panel HTML structure
+  createHistoryPanel: () => {
+    const historyHTML = `
+      <div id="history-panel" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-full max-h-[90vh] flex flex-col m-4">
+          <!-- Header -->
+          <div class="flex items-center justify-between p-6 border-b bg-gradient-to-r from-purple-50 to-blue-50">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-purple-100 rounded-lg">
+                <i class="fas fa-history text-purple-600 text-xl"></i>
+              </div>
+              <div>
+                <h2 class="text-2xl font-bold text-gray-800">履歴</h2>
+                <p class="text-sm text-gray-600">プロンプト生成履歴</p>
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <!-- Search -->
+              <div class="relative">
+                <input type="text" id="history-search" placeholder="履歴を検索..." 
+                       class="pl-8 pr-3 py-2 border rounded-lg text-sm w-64">
+                <i class="fas fa-search absolute left-2.5 top-2.5 text-gray-400 text-sm"></i>
+              </div>
+              
+              <!-- Filter -->
+              <select id="history-filter" class="px-3 py-2 border rounded-lg text-sm">
+                <option value="all">すべて</option>
+                <option value="text">テキスト</option>
+                <option value="image">画像</option>
+                <option value="favorites">お気に入り</option>
+              </select>
+              
+              <!-- Close button -->
+              <button onclick="HistoryManager.toggleHistoryPanel()" 
+                      class="p-2 hover:bg-gray-100 rounded-lg">
+                <i class="fas fa-times text-gray-500"></i>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Content -->
+          <div class="flex-1 overflow-hidden">
+            <div id="history-content" class="h-full overflow-y-auto p-4">
+              <!-- History items will be rendered here -->
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div class="flex items-center justify-between p-4 border-t bg-gray-50">
+            <div class="text-sm text-gray-600">
+              <span id="history-count">0</span> 件の履歴
+            </div>
+            <div class="flex gap-2">
+              <button onclick="HistoryManager.clearAllHistory()" 
+                      class="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                <i class="fas fa-trash mr-1"></i>すべて削除
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', historyHTML);
+    
+    // Add event listeners
+    const searchInput = document.getElementById('history-search');
+    const filterSelect = document.getElementById('history-filter');
+    
+    if (searchInput) {
+      searchInput.addEventListener('input', HistoryManager.handleSearch);
+    }
+    
+    if (filterSelect) {
+      filterSelect.addEventListener('change', HistoryManager.handleFilter);
+    }
+  },
+
+  // Handle search input
+  handleSearch: (event) => {
+    const query = event.target.value;
+    HistoryManager.renderHistoryUI(null, query);
+  },
+
+  // Handle filter change
+  handleFilter: (event) => {
+    const filter = event.target.value;
+    HistoryManager.renderHistoryUI(filter);
+  },
+
+  // Render history UI
+  renderHistoryUI: (filter = 'all', searchQuery = '') => {
+    const content = document.getElementById('history-content');
+    const countElement = document.getElementById('history-count');
+    
+    if (!content) return;
+    
+    // Get sessions based on filter and search
+    let sessions = HistoryManager.filterSessions(filter);
+    if (searchQuery) {
+      sessions = HistoryManager.searchSessions(searchQuery);
+      if (filter !== 'all') {
+        sessions = sessions.filter(session => {
+          if (filter === 'favorites') return session.isFavorite;
+          return session.type === filter;
+        });
+      }
+    }
+    
+    // Update count
+    if (countElement) {
+      countElement.textContent = sessions.length;
+    }
+    
+    if (sessions.length === 0) {
+      content.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full text-gray-500">
+          <i class="fas fa-history text-6xl mb-4 opacity-50"></i>
+          <h3 class="text-xl font-semibold mb-2">履歴がありません</h3>
+          <p class="text-sm text-center">プロンプトを生成すると、ここに履歴が表示されます</p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Render sessions
+    content.innerHTML = sessions.map(session => HistoryManager.renderSessionCard(session)).join('');
+  },
+
+  // Render individual session card
+  renderSessionCard: (session) => {
+    const typeIcon = session.type === 'text' ? 'fa-file-text' : 'fa-image';
+    const typeColor = session.type === 'text' ? 'blue' : 'purple';
+    const favoriteClass = session.isFavorite ? 'text-yellow-500' : 'text-gray-400';
+    
+    // Render tags with colors
+    const tagElements = session.tags.slice(0, 6).map(tag => {
+      const color = HistoryManager.getCategoryColor(tag.category);
+      return `<span class="inline-block px-2 py-1 text-xs bg-${color}-100 text-${color}-800 rounded border border-${color}-200 mr-1 mb-1">${tag.en}</span>`;
+    }).join('');
+    
+    const moreTagsText = session.tags.length > 6 ? `<span class="text-xs text-gray-500">+${session.tags.length - 6} more</span>` : '';
+    
+    return `
+      <div class="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow mb-3 p-4">
+        <div class="flex items-start gap-3">
+          <!-- Type Icon -->
+          <div class="flex-shrink-0">
+            <div class="w-10 h-10 bg-${typeColor}-100 rounded-lg flex items-center justify-center">
+              <i class="fas ${typeIcon} text-${typeColor}-600"></i>
+            </div>
+          </div>
+          
+          <!-- Content -->
+          <div class="flex-1 min-w-0">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-semibold text-gray-800 truncate pr-2">${session.title}</h3>
+              <div class="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
+                <i class="fas fa-clock"></i>
+                <span>${HistoryManager.formatTimestamp(session.timestamp)}</span>
+              </div>
+            </div>
+            
+            <!-- Input/Image preview -->
+            ${session.type === 'text' ? `
+              <p class="text-sm text-gray-600 mb-3 line-clamp-2">${session.input.substring(0, 120)}${session.input.length > 120 ? '...' : ''}</p>
+            ` : `
+              <div class="flex items-center gap-3 mb-3">
+                ${session.imageUrl ? `
+                  <img src="${session.imageUrl}" alt="Preview" class="w-16 h-16 object-cover rounded border">
+                ` : `
+                  <div class="w-16 h-16 bg-gray-100 rounded border flex items-center justify-center">
+                    <i class="fas fa-image text-gray-400"></i>
+                  </div>
+                `}
+                <div class="flex-1">
+                  <p class="text-sm text-gray-600">${session.tags.length} タグを生成</p>
+                  <p class="text-xs text-gray-500">Format: ${session.format}</p>
+                </div>
+              </div>
+            `}
+            
+            <!-- Tags -->
+            <div class="mb-3">
+              <div class="flex flex-wrap">
+                ${tagElements}
+                ${moreTagsText}
+              </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1">
+                <button onclick="HistoryManager.restoreSession('${session.id}')" 
+                        class="px-3 py-1 text-xs bg-${typeColor}-100 hover:bg-${typeColor}-200 text-${typeColor}-700 rounded transition-colors">
+                  <i class="fas fa-undo mr-1"></i>復元
+                </button>
+                <button onclick="HistoryManager.copySessionTags('${session.id}')" 
+                        class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors">
+                  <i class="fas fa-copy mr-1"></i>コピー
+                </button>
+              </div>
+              
+              <div class="flex items-center gap-1">
+                <button onclick="HistoryManager.toggleFavorite('${session.id}')" 
+                        class="p-1 hover:bg-gray-100 rounded transition-colors">
+                  <i class="fas fa-star ${favoriteClass}"></i>
+                </button>
+                <button onclick="HistoryManager.deleteSession('${session.id}')" 
+                        class="p-1 hover:bg-red-100 text-red-600 rounded transition-colors">
+                  <i class="fas fa-trash text-xs"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 };

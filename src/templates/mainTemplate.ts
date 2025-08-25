@@ -561,6 +561,11 @@ export function getMainHtml(): string {
                         <span id="status-text" class="text-sm text-gray-600">Ready</span>
                     </div>
                     
+                    <!-- History Button -->
+                    <button onclick="HistoryManager.toggleHistoryPanel()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors tooltip" data-tooltip="履歴">
+                        <i class="fas fa-history text-xl text-gray-600"></i>
+                    </button>
+                    
                     <!-- Help Button -->
                     <button onclick="App.showSystemHelp()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors tooltip" data-tooltip="ヘルプ">
                         <i class="fas fa-question-circle text-xl text-gray-600"></i>
