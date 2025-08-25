@@ -47,38 +47,48 @@
 - 🎯 **機能**: 色分けされたタグ表示 → コピー
 - 🔧 **編集対象**: なし（結果表示）
 
-### **2. Image to Prompt Flow (ハイブリッド画像解析フロー) 🔄**
+### **2. Image to Prompt Flow (マルチエンジン画像解析フロー) 🔄**
 
 #### **ステップ1: Image Upload (画像アップロード)**
 - 📍 **場所**: Image to Prompt タブ
 - 🎯 **機能**: 画像のアップロードまたはドラッグ&ドロップ
 - 🔧 **編集対象**: なし（UI部分）
 
-#### **ステップ2: Hybrid AI Analysis (ハイブリッドAI解析) 🚀**
-- 📍 **場所**: AI Generate ボタンクリック時
-- 🎯 **機能**: **並列実行** - LLM解析 + WD-EVA02 Tagger解析
+#### **ステップ2: Multi-Engine Analysis (マルチエンジン解析) 🚀**
+- 📍 **場所**: Analysis Engine 選択 + AI Analysis & Tag Generation ボタン
+- 🎯 **機能**: **複数解析エンジンの並列実行**
+  - **WD-EVA02-Large v3**: アニメ・アート特化タガー（信頼度付きタグ）
+  - **Janus Pro 7B**: 汎用ビジョン解析（詳細な画像説明）
+  - **Engine Selection**: 解析エンジンの複数選択（チェックボックス）
+  - **Tagging Engine**: タグ生成エンジンの選択（DeepSeek/LLM）
 - 🔧 **編集対象**: 
   - `image-analysis` - LLM画像解析プロンプト
-  - `tagger-model` - WD-EVA02-Large v3専用タガー設定
-  - `fusion-mode` - 統合モード（Balanced/Tagger-focused/LLM-focused）
+  - `wd-eva02-tagger-threshold` - WD-EVA02信頼度しきい値
+  - `janus-analysis-prompt` - Janus Pro 7B解析プロンプト
+  - `fusion-mode` - 統合モード（Balanced/Engine-focused）
 
-#### **ステップ3: Intelligent Fusion (インテリジェント融合) 🧠**
-- 📍 **場所**: LLM + Tagger結果の自動統合
+#### **ステップ3: Engine Results & Processing (エンジン結果・処理) 🧠**
+- 📍 **場所**: 各解析エンジンの結果表示セクション
 - 🎯 **機能**: 
-  - **AI Analysis Result**: GPT-4o/Gemini等の詳細分析
-  - **WD-EVA02 Tagger Result**: 専用タガーの高精度タグ（信頼度付き）
-  - **Smart Fusion**: カテゴリ別優先度 + 重複除去 + 重み調整
+  - **Individual Engine Results**: エンジン別の結果表示
+    - 🟢 **WD-EVA02 Result**: 高精度アニメタグ（信頼度付き）
+    - 🟣 **Janus Pro 7B Result**: 詳細なビジョン解析説明
+  - **Individual Tagging**: 個別エンジン結果からタグ生成
+  - **Multi-Engine Fusion**: 複数エンジン結果の統合タグ生成
 - 🔧 **編集対象**: 
-  - `fusion-rules` - カテゴリ別融合ルール
-  - `confidence-threshold` - Tagger信頼度しきい値
+  - `tag-processing-rules` - タグ処理ルール
+  - `engine-fusion-logic` - エンジン統合ロジック
+  - `confidence-weighting` - 信頼度重み付け
 
-#### **ステップ4: Hybrid Ready Tags (ハイブリッド完成タグ) ✨**
+#### **ステップ4: Unified Tag Output (統合タグ出力) ✨**
 - 📍 **場所**: Tag Editor（Image to Prompt）
 - 🎯 **機能**: 
-  - **Source Badge**: 各タグにLLM/Tagger/Hybridの出典表示
-  - **Confidence Display**: 信頼度パーセンテージ表示
-  - **Quality Optimization**: 両方のAIの長所を活かした高品質タグ
-- 🔧 **編集対象**: なし（結果表示）
+  - **Multi-Source Tags**: 複数エンジン由来のタグ統合表示
+  - **Source Tracking**: 各タグの出典エンジン表示
+  - **Confidence Display**: 信頼度・重要度表示
+  - **Quality Optimization**: 各エンジンの特長を活かした最適化
+  - **Format Export**: SDXL/Flux等への形式変換
+- 🔧 **編集対象**: なし（結果表示・編集）
 
 ### **3. System Architecture (システム構成)**
 
@@ -86,8 +96,9 @@
 ```
 🎨 Tag Categorizer (categorizer)
 👁️ Image Analysis (image-analysis)  
-🤖 WD-EVA02 Tagger (wd-eva02-large-tagger-v3) - NEW!
-🔄 Hybrid Fusion Engine (fusion-engine) - NEW!
+🤖 WD-EVA02 Tagger (wd-eva02-large-tagger-v3) - 🆕 Multi-Engine!
+🔮 Janus Pro 7B (janus-pro-7b) - 🆕 Vision Specialist!
+🔄 Multi-Engine Fusion (fusion-engine) - 🆕 Advanced!
 🔧 Tag Normalizer (tag-normalizer)
 📋 Structured Tags (structured-tags)
 ```
