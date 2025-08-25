@@ -1829,8 +1829,11 @@ window.App = {
     console.log('🚀 AI Generate Started - Direct JSON to Tags Processing');
     
     // STEP 0: Validation
+    console.log('🔑 Checking API key:', appState.apiKey ? 'API key exists' : 'No API key found');
+    console.log('🔑 API key from localStorage:', localStorage.getItem('openrouter-api-key') ? 'Key found in localStorage' : 'No key in localStorage');
+    
     if (!appState.apiKey) {
-      alert('Please set your OpenRouter API key in Settings first');
+      alert('❌ OpenRouter APIキーが設定されていません。\n\n設定方法:\n1. 右上の⚙️設定ボタンをクリック\n2. "API Keys"タブを選択\n3. OpenRouter APIキーを入力\n4. "Test"ボタンで確認\n\nAPIキーの取得: https://openrouter.ai/keys');
       return;
     }
     
@@ -4857,8 +4860,10 @@ Rules:
       return;
     }
     
+    console.log('🔑 Checking API key for image generation:', appState.apiKey ? 'API key exists' : 'No API key found');
+    
     if (!appState.apiKey) {
-      showNotification('OpenRouter APIキーを設定してください', 'error');
+      showNotification('❌ OpenRouter APIキーが設定されていません。設定 → API Keys → OpenRouter API Keyを入力してください。', 'error');
       return;
     }
 
