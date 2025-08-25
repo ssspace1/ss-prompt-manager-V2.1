@@ -452,6 +452,92 @@ export function getMainHtml(): string {
         .tooltip:hover::before {
             opacity: 1;
         }
+        
+        /* Tag Filtering Styles */
+        .tag-card.filtered-hidden {
+            display: none !important;
+        }
+        
+        .category-filter-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 2px solid;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        
+        .category-filter-btn.active {
+            opacity: 1;
+            transform: none;
+        }
+        
+        .category-filter-btn.inactive {
+            opacity: 0.4;
+            filter: grayscale(70%);
+        }
+        
+        .category-filter-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Category-specific filter button colors */
+        .category-filter-btn[data-category="person"] { 
+            background: rgba(251, 146, 60, 0.2); 
+            border-color: #fb923c;
+            color: #ea580c;
+        }
+        .category-filter-btn[data-category="appearance"] { 
+            background: rgba(59, 130, 246, 0.2); 
+            border-color: #3b82f6;
+            color: #1d4ed8;
+        }
+        .category-filter-btn[data-category="clothing"] { 
+            background: rgba(236, 72, 153, 0.2); 
+            border-color: #ec4899;
+            color: #be185d;
+        }
+        .category-filter-btn[data-category="action"] { 
+            background: rgba(139, 92, 246, 0.2); 
+            border-color: #8b5cf6;
+            color: #7c3aed;
+        }
+        .category-filter-btn[data-category="background"] { 
+            background: rgba(34, 197, 94, 0.2); 
+            border-color: #22c55e;
+            color: #15803d;
+        }
+        .category-filter-btn[data-category="quality"] { 
+            background: rgba(245, 158, 11, 0.2); 
+            border-color: #f59e0b;
+            color: #d97706;
+        }
+        .category-filter-btn[data-category="style"] { 
+            background: rgba(168, 85, 247, 0.2); 
+            border-color: #a855f7;
+            color: #9333ea;
+        }
+        .category-filter-btn[data-category="composition"] {
+            background: rgba(75, 85, 99, 0.3);
+            border-color: #4b5563;
+            color: #374151;
+        }
+        .category-filter-btn[data-category="object"] {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: #06b6d4;
+            color: #0891b2;
+        }
+        .category-filter-btn[data-category="other"] { 
+            background: rgba(156, 163, 175, 0.2); 
+            border-color: #9ca3af;
+            color: #6b7280;
+        }
     </style>
 </head>
 <body class="bg-gray-50 overflow-hidden h-screen">
@@ -617,6 +703,12 @@ export function getMainHtml(): string {
                                     Tag Editor
                                 </h2>
                                 <div class="flex gap-2">
+                                    <button onclick="App.toggleTagFilters('main')" 
+                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
+                                            data-tooltip="Show/Hide Category Filters"
+                                            id="filter-toggle-main">
+                                        <i class="fas fa-filter"></i>
+                                    </button>
                                     <button onclick="App.sortTags('category')" 
                                             class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
                                             data-tooltip="Sort by Category">
@@ -627,6 +719,26 @@ export function getMainHtml(): string {
                                             data-tooltip="Sort by Weight">
                                         <i class="fas fa-sort-numeric-down"></i>
                                     </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Tag Category Filters -->
+                            <div id="tag-filters-main" class="mb-4 p-3 bg-gray-50 rounded-lg border hidden">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm font-medium text-gray-700">Category Filters:</span>
+                                    <div class="flex gap-2">
+                                        <button onclick="App.selectAllCategories('main')" 
+                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors">
+                                            Show All
+                                        </button>
+                                        <button onclick="App.deselectAllCategories('main')" 
+                                                class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded transition-colors">
+                                            Hide All
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-4 gap-2" id="category-filters-main">
+                                    <!-- Category filter buttons will be dynamically generated here -->
                                 </div>
                             </div>
                             
@@ -954,6 +1066,12 @@ export function getMainHtml(): string {
                                     Tag Editor
                                 </h2>
                                 <div class="flex gap-1">
+                                    <button onclick="App.toggleTagFilters('image')" 
+                                            class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors tooltip" 
+                                            data-tooltip="Show/Hide Category Filters"
+                                            id="filter-toggle-image">
+                                        <i class="fas fa-filter"></i>
+                                    </button>
                                     <button onclick="App.sortImageTags('category')" 
                                             class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors tooltip" 
                                             data-tooltip="Sort by Category">
@@ -969,6 +1087,26 @@ export function getMainHtml(): string {
                                             data-tooltip="AI Categorize Tags">
                                         <i class="fas fa-brain text-xs"></i>
                                     </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Tag Category Filters for Image Tab -->
+                            <div id="tag-filters-image" class="mb-3 p-2 bg-gray-50 rounded-lg border hidden flex-shrink-0">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-medium text-gray-700">Category Filters:</span>
+                                    <div class="flex gap-1">
+                                        <button onclick="App.selectAllCategories('image')" 
+                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors">
+                                            Show All
+                                        </button>
+                                        <button onclick="App.deselectAllCategories('image')" 
+                                                class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded transition-colors">
+                                            Hide All
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-5 gap-1" id="category-filters-image">
+                                    <!-- Category filter buttons will be dynamically generated here -->
                                 </div>
                             </div>
                             

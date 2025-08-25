@@ -412,7 +412,16 @@ let appState = {
     delete merged.test;
     return merged;
   })(),
-  editingPrompt: null // Currently editing prompt format
+  editingPrompt: null, // Currently editing prompt format
+  // Tag filtering state
+  categoryFilters: {
+    active: JSON.parse(localStorage.getItem('main-category-filters') || 'null') || {
+      person: true, appearance: true, clothing: true, action: true,
+      background: true, quality: true, style: true, composition: true,
+      object: true, other: true
+    },
+    visible: false
+  }
 };
 
 
@@ -474,22 +483,36 @@ const TagEditor = {
     enContainer.appendChild(enDropZoneFirst);
     jaContainer.appendChild(jaDropZoneFirst);
     
+    // Get filtering state
+    const filterState = context === 'image' ? App.imageState.categoryFilters : appState.categoryFilters;
+    
     ctx.tags.forEach((tag, index) => {
       const colorClass = TagEditor.categoryColors[tag.category] || TagEditor.categoryColors.other;
       
+      // Check if tag should be visible based on category filters
+      const isVisible = filterState.active[tag.category] !== false;
+      
       // English tag card
       const enCard = TagEditor.createTagCard(tag, index, 'en', colorClass, context);
+      if (!isVisible) {
+        enCard.classList.add('filtered-hidden');
+      }
       enContainer.appendChild(enCard);
       
       // Japanese tag card
       const jaCard = TagEditor.createTagCard(tag, index, 'ja', colorClass, context);
+      if (!isVisible) {
+        jaCard.classList.add('filtered-hidden');
+      }
       jaContainer.appendChild(jaCard);
       
-      // Add drop zone after each card
-      const enDropZone = TagEditor.createDropZone(index, 'en', context);
-      const jaDropZone = TagEditor.createDropZone(index, 'ja', context);
-      enContainer.appendChild(enDropZone);
-      jaContainer.appendChild(jaDropZone);
+      // Add drop zone after each card (only if tag is visible)
+      if (isVisible) {
+        const enDropZone = TagEditor.createDropZone(index, 'en', context);
+        const jaDropZone = TagEditor.createDropZone(index, 'ja', context);
+        enContainer.appendChild(enDropZone);
+        jaContainer.appendChild(jaDropZone);
+      }
     });
     
     // Update outputs
@@ -3688,7 +3711,16 @@ Object.assign(App, {
     imageFinalFormat: 'sdxl',  // Separate format for final output
     imageTags: [],  // Separate tags for image tab
     analysisVisible: false,
-    customFormats: JSON.parse(localStorage.getItem('image-custom-formats') || '{}')  // Image-specific custom formats
+    customFormats: JSON.parse(localStorage.getItem('image-custom-formats') || '{}'),  // Image-specific custom formats
+    // Tag filtering state for image tab
+    categoryFilters: {
+      active: JSON.parse(localStorage.getItem('image-category-filters') || 'null') || {
+        person: true, appearance: true, clothing: true, action: true,
+        background: true, quality: true, style: true, composition: true,
+        object: true, other: true
+      },
+      visible: false
+    }
   },
   
   // Handle image upload
@@ -5931,6 +5963,121 @@ document.addEventListener('DOMContentLoaded', () => {
       const prompts = App.getFormatSystemPrompts();
       generationTextarea.value = prompts[App.imageState.imageOutputFormat];
     }
+  }
+});
+
+// Tag Filtering Functionality
+Object.assign(App, {
+  // Toggle tag filter visibility
+  toggleTagFilters: (context) => {
+    const filterContainer = document.getElementById(`tag-filters-${context}`);
+    const toggleButton = document.getElementById(`filter-toggle-${context}`);
+    
+    if (!filterContainer) return;
+    
+    const filterState = context === 'image' ? App.imageState.categoryFilters : appState.categoryFilters;
+    filterState.visible = !filterState.visible;
+    
+    if (filterState.visible) {
+      filterContainer.classList.remove('hidden');
+      if (toggleButton) toggleButton.classList.add('bg-blue-200');
+      App.renderCategoryFilters(context);
+    } else {
+      filterContainer.classList.add('hidden');
+      if (toggleButton) toggleButton.classList.remove('bg-blue-200');
+    }
+  },
+  
+  // Render category filter buttons
+  renderCategoryFilters: (context) => {
+    const container = document.getElementById(`category-filters-${context}`);
+    if (!container) return;
+    
+    const filterState = context === 'image' ? App.imageState.categoryFilters : appState.categoryFilters;
+    const categories = ['person', 'appearance', 'clothing', 'action', 'background', 'quality', 'style', 'composition', 'object', 'other'];
+    
+    container.innerHTML = '';
+    
+    categories.forEach(category => {
+      const isActive = filterState.active[category] !== false;
+      const button = document.createElement('button');
+      button.className = `category-filter-btn ${isActive ? 'active' : 'inactive'}`;
+      button.dataset.category = category;
+      button.innerHTML = `
+        <i class="fas fa-${App.getCategoryIcon(category)}"></i>
+        <span>${category}</span>
+      `;
+      
+      button.onclick = () => App.toggleCategoryFilter(context, category);
+      container.appendChild(button);
+    });
+  },
+  
+  // Get icon for category
+  getCategoryIcon: (category) => {
+    const icons = {
+      person: 'user',
+      appearance: 'eye', 
+      clothing: 'tshirt',
+      action: 'running',
+      background: 'mountain',
+      quality: 'star',
+      style: 'palette',
+      composition: 'camera',
+      object: 'cube',
+      other: 'question-circle'
+    };
+    return icons[category] || 'tag';
+  },
+  
+  // Toggle individual category filter
+  toggleCategoryFilter: (context, category) => {
+    const filterState = context === 'image' ? App.imageState.categoryFilters : appState.categoryFilters;
+    filterState.active[category] = !filterState.active[category];
+    
+    // Save to localStorage
+    const storageKey = context === 'image' ? 'image-category-filters' : 'main-category-filters';
+    localStorage.setItem(storageKey, JSON.stringify(filterState.active));
+    
+    // Re-render filters and tags
+    App.renderCategoryFilters(context);
+    TagEditor.renderTags(context);
+  },
+  
+  // Select all categories
+  selectAllCategories: (context) => {
+    const filterState = context === 'image' ? App.imageState.categoryFilters : appState.categoryFilters;
+    const categories = ['person', 'appearance', 'clothing', 'action', 'background', 'quality', 'style', 'composition', 'object', 'other'];
+    
+    categories.forEach(category => {
+      filterState.active[category] = true;
+    });
+    
+    // Save to localStorage
+    const storageKey = context === 'image' ? 'image-category-filters' : 'main-category-filters';
+    localStorage.setItem(storageKey, JSON.stringify(filterState.active));
+    
+    // Re-render filters and tags
+    App.renderCategoryFilters(context);
+    TagEditor.renderTags(context);
+  },
+  
+  // Deselect all categories
+  deselectAllCategories: (context) => {
+    const filterState = context === 'image' ? App.imageState.categoryFilters : appState.categoryFilters;
+    const categories = ['person', 'appearance', 'clothing', 'action', 'background', 'quality', 'style', 'composition', 'object', 'other'];
+    
+    categories.forEach(category => {
+      filterState.active[category] = false;
+    });
+    
+    // Save to localStorage
+    const storageKey = context === 'image' ? 'image-category-filters' : 'main-category-filters';
+    localStorage.setItem(storageKey, JSON.stringify(filterState.active));
+    
+    // Re-render filters and tags
+    App.renderCategoryFilters(context);
+    TagEditor.renderTags(context);
   }
 });
 

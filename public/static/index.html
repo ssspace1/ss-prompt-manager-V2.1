@@ -333,6 +333,12 @@
                                     Tag Editor
                                 </h2>
                                 <div class="flex gap-2">
+                                    <button onclick="App.toggleTagFilters('main')" 
+                                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
+                                            data-tooltip="Show/Hide Category Filters"
+                                            id="filter-toggle-main">
+                                        <i class="fas fa-filter"></i>
+                                    </button>
                                     <button onclick="App.sortTags('category')" 
                                             class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors tooltip" 
                                             data-tooltip="Sort by Category">
@@ -343,6 +349,26 @@
                                             data-tooltip="Sort by Weight">
                                         <i class="fas fa-sort-numeric-down"></i>
                                     </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Tag Category Filters -->
+                            <div id="tag-filters-main" class="mb-4 p-3 bg-gray-50 rounded-lg border hidden">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm font-medium text-gray-700">Category Filters:</span>
+                                    <div class="flex gap-2">
+                                        <button onclick="App.selectAllCategories('main')" 
+                                                class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors">
+                                            Show All
+                                        </button>
+                                        <button onclick="App.deselectAllCategories('main')" 
+                                                class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded transition-colors">
+                                            Hide All
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-4 gap-2" id="category-filters-main">
+                                    <!-- Category filter buttons will be dynamically generated here -->
                                 </div>
                             </div>
                             
